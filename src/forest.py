@@ -15,8 +15,12 @@ import pandas as pd
 
 # Peripheral python external libraries
 
+# Lab modules
+import garnet
+import pcst_fast
+
 # list of public methods:
-__all__ = []
+__all__ = ["Graph"]
 
 
 logger = logging.getLogger(__name__)
@@ -53,9 +57,12 @@ parser.add_argument("-c", "--conf", dest='config_file', type=argparse.FileType('
 	help='Path to the text file containing the parameters. Should be several lines that looks like: "ParameterName = ParameterValue". Must contain values for w, b, D.  May contain values for optional parameters mu, garnetBeta, noise, r, g. [default: %default]')
 parser.add_argument("-d","--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all") default='terminals',
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. If you wish you supply your own list of proteins, dummyMode could also be the path to a text file containing a list of proteins (one per line). [default: %default]')
+
+# do we really want this?
 parser.add_argument("--garnet", dest='garnet_directory_path_or_None', action=FullPaths, type=directory, default=None,
 	help='Path to the text file containing the output of the GARNET module regression. Should be a tab delimited file with 2 columns: "TranscriptionFactorName\tScore". [default: %default]')
-parser.add_argument("--musquared", action='store_true', dest='mu_squared', default=False,
+
+parser.add_argument("--muSquared", action='store_true', dest='mu_squared', default=False,
 	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: %default]')
 parser.add_argument("--excludeTerms", action='store_true', dest='exclude_terms', default=False,
 	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: %default]')
@@ -73,6 +80,57 @@ parser.add_argument("-s", "--seed", dest='seed', type=int, default=None,
 
 if __name__ == '__main__':
 
-	args =parser.parse_args()
+	args = parser.parse_args()
 	options = {}
+
+
+
+class Graph():
+	"""docstring for Graph"""
+	def __init__(self, edge_file):
+		self.edges, self.costs = self.construct_edges_from_file(edge_file)
+		self.root  = root
+		self.pruning = pruning
+		self.verbosity_level = verbosity_level
+
+
+	def construct_edges_from_file(edge_filepath_or_file_object):
+		"""
+		Arguments:
+			edge_filepath_or_file_object (str or FILE): input
+
+		Returns:
+			edges (list): a list of pairs of integers. Each pair specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
+			costs (list): the list of node prizes.
+		"""
+
+
+		pass
+
+
+
+	def pcsf(prizes):
+		"""
+		"""
+
+		# `edges`: a list of pairs of integers. Each pair specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
+		# `prizes`: the list of node prizes.
+		# `costs`: the list of edge costs.
+		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
+		# `num_clusters`: the number of connected components in the output.
+		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
+		# `verbosity_level`: an integer indicating how much debug output the function should produce.
+		vertices, edges = pcst_fast(self.edges, prizes, self.costs, self.root, num_clusters, self.pruning, self.verbosity_level)
+		# `vertices`: a list of vertices in the output.
+		# `edges`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
+
+		return vertices
+
+
+
+
+
+
+
+
 
