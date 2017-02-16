@@ -45,12 +45,12 @@ def directory(dirname):
 	else: return dirname
 
 # Required arguments
-parser.add_argument("-p", "--prize", dest='prizeFile', type=argparse.FileType('r'),
+parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
 	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "ProteinName\tPrizeValue"')
-parser.add_argument("-e", "--edge", dest='edgeFile', type=argparse.FileType('r'),
+parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
 	help ='(Required) Path to the text file containing the interactome edges. Should be a tab delimited file with 3 or 4 columns: "ProteinA\tProteinB\tWeight(between 0 and 1)\tDirectionality(U or D, optional)"')
 parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
-	help='output directory path')
+	help='(Required) Output directory path')
 
 # Optional arguments
 parser.add_argument("-c", "--conf", dest='config_file', type=argparse.FileType('r'), default='conf.txt',
@@ -83,29 +83,29 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	options = {}
 
+	graph = Graph(edge_file)
+
+	main(graph, prize_file, output_dir, options)
 
 
 class Graph():
 	"""docstring for Graph"""
-	def __init__(self, edge_file):
-		self.edges, self.costs = self.construct_edges_from_file(edge_file)
-		self.root  = root
-		self.pruning = pruning
-		self.verbosity_level = verbosity_level
+	def __init__(self, interactome_file):
 
+		interactome_fieldnames = ["source","target","weight"]
+		interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
 
-	def construct_edges_from_file(edge_filepath_or_file_object):
-		"""
-		Arguments:
-			edge_filepath_or_file_object (str or FILE): input
+		self.nodes = pd.Index(list(set(interactome_dataframe['source'].unique()).union(
+								   set(interactome_dataframe['target'].unique()) ) ))
+		# node_at_index = lambda k: self.nodes.get_value(k,0)
 
-		Returns:
-			edges (list): a list of pairs of integers. Each pair specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
-			costs (list): the list of node prizes.
-		"""
+		self.edges =
 
+		self.costs = interactome_dataframe['weight']
 
-		pass
+		# self.root  = root
+		# self.pruning = pruning
+		# self.verbosity_level = verbosity_level
 
 
 
@@ -129,7 +129,8 @@ class Graph():
 
 
 
-
+def main(graph, prize_file, output_dir, options):
+	pass
 
 
 
