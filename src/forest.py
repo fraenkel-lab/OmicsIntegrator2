@@ -91,22 +91,16 @@ if __name__ == '__main__':
 class Graph():
 	"""docstring for Graph"""
 	def __init__(self, interactome_file):
-
+		"""
+		"""
 		interactome_fieldnames = ["source","target","weight"]
 		interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
 
-		self.nodes = pd.Index(list(set(interactome_dataframe['source'].unique()).union(
-								   set(interactome_dataframe['target'].unique()) ) ))
-		# node_at_index = lambda k: self.nodes.get_value(k,0)
+		(self.edges, self.nodes) = pd.factorize(interactome_dataframe[["source","target"]].unstack())
 
-		self.edges =
+		self.edges = self.edges.reshape(interactome_dataframe[["source","target"]].shape, order='F').tolist()  # maybe needs to be list of tuples. in that case map(tuple, this)
 
-		self.costs = interactome_dataframe['weight']
-
-		# self.root  = root
-		# self.pruning = pruning
-		# self.verbosity_level = verbosity_level
-
+		self.costs = interactome_dataframe['weight'].tolist()
 
 
 	def pcsf(prizes):
@@ -120,7 +114,7 @@ class Graph():
 		# `num_clusters`: the number of connected components in the output.
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
-		vertices, edges = pcst_fast(self.edges, prizes, self.costs, self.root, num_clusters, self.pruning, self.verbosity_level)
+		vertices, edges = pcst_fast(self.edges, prizes, self.costs, self.root, num_clusters, pruning, verbosity_level)
 		# `vertices`: a list of vertices in the output.
 		# `edges`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
 
