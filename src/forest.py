@@ -85,14 +85,20 @@ parser.add_argument("-s", "--seed", dest='seed', type=int, default=None,
 if __name__ == '__main__':
 
 	args = parser.parse_args()
-	options = {}
 
-	graph = Graph(edge_file)
+	options = Options({"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04})
+
+	graph = Graph(edge_file, options)
 
 	main(graph, prize_file, output_dir, options)
 
 
-class Graph():
+class Options:
+    def __init__(self, **kwds):
+        self.__dict__.update(kwds)
+
+
+class Graph:
 	"""docstring for Graph"""
 	def __init__(self, interactome_file, options):
 		"""
@@ -136,9 +142,13 @@ class Graph():
 		self.prizes = [ for node in self.nodes if ]  # I still don't know how to merge pandas indices
 
 
-		self._add_dummy_node(connected_to=options.get('dummy_mode'))
+		self._add_dummy_node(connected_to=options.dummy_mode)
 
 		self._check_validity_of_instance()
+
+		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04}
+		self.params = Options(defaults.update(options))
+
 
 
 
