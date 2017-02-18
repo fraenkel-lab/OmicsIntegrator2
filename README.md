@@ -6,4 +6,8 @@ Let us know if you'd like to be part of this project. We anticipate most of the 
 
 -- Mandy, Divya, and Alex.
 
+## Getting Started
 
+```
+brew install swig
+```

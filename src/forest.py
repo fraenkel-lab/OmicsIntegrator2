@@ -19,7 +19,7 @@ import networkx as nx
 
 # Lab modules
 import garnet
-import pcst_fast
+import pcst_fast.pcst_fast as pcst_fast
 
 # list of public methods:
 __all__ = ["Graph"]

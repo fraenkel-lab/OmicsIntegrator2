@@ -49,8 +49,7 @@ nodesSorted = self.augForest.nodes(data=True)
 nodesSorted.sort(key = itemgetter(0, 1))
 #iterate through nodes to record node attributes
 for (node,data) in nodesSorted:
-	noa.write(node+'\t'+str(data['prize'])+'\t'+str(data['betweenness'])+'\t'+
-			  str(data['fracOptContaining'])+'\t'+data['TerminalType']+'\n')
+	noa.write(node+'\t'+str(data['prize'])+'\t'+str(data['betweenness'])+'\t'+str(data['fracOptContaining'])+'\t'+data['TerminalType']+'\n')
 
 dumSorted = self.dumForest.edges()
 dumSorted.sort(key = itemgetter(0, 1))
