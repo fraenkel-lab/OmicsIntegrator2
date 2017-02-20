@@ -118,38 +118,63 @@ class Graph:
 			prize_file (str or FILE): tab-delimited text file containing all proteins with prizes formatted like "ProteinName\tPrizeValue"
 			options (dict): options with which to run the program
 
-		self.w, self.b, self.D, self.gb, self.mu, self.g, self.r, self.noise
 		"""
 
 		interactome_fieldnames = ["source","target","weight"]
 		interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
 
+		# We first take only the source and target columns from the interactome dataframe.
+		# We then unstack them, which, unintuitively, stacks them into one column, which is a hack
+		# 	allowing us to use factorize, which is a very convenient function.
+		# Factorize builds two datastructures, a unique pd.Index of each ID string to a numerical ID
+		# and the datastructure we passed in with ID strings replaced with those numerical IDs.
+		# We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.
 		(self.edges, self.nodes) = pd.factorize(interactome_dataframe[["source","target"]].unstack())
 
-		self.edges = self.edges.reshape(interactome_dataframe[["source","target"]].shape, order='F').tolist()  # maybe needs to be list of tuples. in that case map(tuple, this)
+		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
+		self.edges = self.edges.reshape(interactome_dataframe[["source","target"]].shape, order='F') #.tolist() # maybe needs to be list of tuples. in that case map(tuple, this)
 
 		self.costs = interactome_dataframe['weight'].tolist()
 
-		self.node_degrees = [ ]
-		# possible to flatten edges, count occurrences / 2 of each number, and then sort by ID number (v easy)
-		# might also be nice to sort by index, so that you can find the distribution by gene symbol or whatever
-
-
-		prizes_dataframe = pd.read_csv(prizes_file, delimiter='\t', names=["name","prize"])
-
-		self.terminals = prizes_dataframe["name"]
-
-		self.prizes = [ for node in self.nodes if ]  # I still don't know how to merge pandas indices
+		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
+		# The indices into this datastructure are the same as those in self.nodes and self.edges.
+		self.node_degrees = np.bincount(self.edges.flatten())
 
 
 		self._add_dummy_node(connected_to=options.dummy_mode)
 
 		self._check_validity_of_instance()
 
-		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04}
+		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33}
+
 		self.params = Options(defaults.update(options))
 
 
+	def prepare_prizes(self, prizes_file):
+		"""
+		"""
+
+		prizes_dataframe = pd.read_csv(prizes_file, delimiter='\t', names=["name","prize"])
+
+		# Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
+		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
+
+		# there will be some nodes in the prize file which we don't have in our interactome
+		nodes_with_prizes_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]
+		prizes_dataframe.drop(-1, inplace=True)
+
+		terminals = sorted(prizes_dataframe.index.tolist())
+
+		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
+		prizes_dataframe = prizes_dataframe.merge(pd.DataFrame(self.nodes, columns=["name"]), on="name", how="outer").fillna(0)
+		# We re-index again, making sure we have a consistent index scheme
+		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
+		prizes_dataframe.sort_index(inplace=True)
+
+		# Our return value is a list, where each entry is a node's prize, indexed as above
+		prizes = prizes_dataframe['prize'].tolist()
+
+		return prizes, terminals, nodes_with_prizes_missing_from_interactome
 
 
 	def _add_dummy_node(self, connected_to="terminals"):
@@ -170,7 +195,7 @@ class Graph:
 		# does there exist an assert module in python? Is that what we would want here? does it play nice with logger?
 
 
-	def pcsf(prizes):
+	def pcsf(prizes, pruning="strong", verbosity_level=0):
 		"""
 		"""
 
@@ -179,21 +204,14 @@ class Graph:
 		# `costs`: the list of edge costs.
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
 		# `num_clusters`: the number of connected components in the output.
+		num_clusters = 1
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
 		vertices, edges = pcst_fast(self.edges, prizes, self.costs, self.root, num_clusters, pruning, verbosity_level)
+
 		# `vertices`: a list of vertices in the output.
 		# `edges`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
-
 		return vertices, edges
-
-			   # betweenness - a boolean flag indicating whether we should do the costly betweenness
-			   #               calculation
-		# OUTPUT: self.optForest - a networkx digraph storing the forest returned by msgsteiner
-		#         self.augForest - a networkx digraph storing the forest returned by msgsteiner, plus
-		#                          all of the edges in the interactome between nodes in that forest
-		#         self.dumForest - a networkx digraph storing the dummy node edges in the optimal
-		#                          forest
 
 
 	def noiseEdges(self, seed=None):
@@ -232,53 +250,30 @@ class Graph:
 
 		if len(PCSFInputObj.undirEdges) + len(PCSFInputObj.dirEdges) < 50: sys.exit("Cannot use --randomTerminals with such a small interactome.")
 
+		pd.Series(self.node_degrees)
+
+		# sort nodes by degree distribution
+
+		# indices of terminals
+
+		# for each terminal index
+		# 	offset = sample from a gaussian centered at 0
+		# 	set the prize of *that* node to the prize the terminal would have had.
+
+		# return a prizes list, simlarly to what prepare_prizes would do
 
 
-		#Find index of current terminal in degrees list
-		for k,terminal in enumerate(PCSFInputObj.origPrizes):
-			for i,value in enumerate(degrees):
-				if terminal == value[0]:
-					index = i
-					break
-			#Choose an index offset to select new terminal (distance from orig terminal in degrees list)
-			#Make sure newly chosen terminal is not already chosen on a previous round
-			newTerm = ''
-			i = -1
-			while newTerm in newPCSFInputObj.origPrizes and i<=10000:
-				i+=1
-				if seed != None: random.seed(seed+k+i)
-				offset = int(random.gauss(0.0,100.0))
-				newIndex = index + offset
-				#if offset causes the index to wraparound to the other side of the list, try again
-				if newIndex<0: continue
-				try:
-					newNode = degrees[newIndex]
-				except IndexError:
-					#if offset points outside list, try loop again
-					continue
-				#To make truly random, need to choose randomly between all nodes with the same degree
-				#Otherwise, ordering of dict iteration matters
-				nodesWithSameDegree = []
-				for node in degrees[newIndex:]:
-					if node[1] == newNode[1]:
-						nodesWithSameDegree.append(node)
-					else:
-						break
-				for node in degrees[newIndex-1::-1]:
-					if node[1] == newNode[1]:
-						nodesWithSameDegree.append(node)
-					else:
-						break
-				newTerm = random.choice(nodesWithSameDegree)[0]
-			#if we've tried 10000 times, throw error to avoid infinite loop
-			if newTerm in newPCSFInputObj.origPrizes:
-				sys.exit('There was a problem with --randomTerminals. Aborting.')
-			#Assign prize to newly chosen terminal
-			newPCSFInputObj.origPrizes[newTerm] = PCSFInputObj.origPrizes[terminal]
-		del newPCSFInputObj.origPrizes['']
-		newPCSFInputObj.assignNegPrizes(newPCSFInputObj.musquared,excludeT)
-		print 'New degree-matched terminals have been chosen.\n'
-		return newPCSFInputObj
+	def output_forest_as_networkx(self, vertices, edges):
+
+		# OUTPUT: self.optForest - a networkx digraph storing the forest returned by msgsteiner
+		#         self.augForest - a networkx digraph storing the forest returned by msgsteiner, plus
+		#                          all of the edges in the interactome between nodes in that forest
+		#         self.dumForest - a networkx digraph storing the dummy node edges in the optimal
+		#                          forest
+		pass
+			   # betweenness - a boolean flag indicating whether we should do the costly betweenness
+			   #               calculation
+
 
 
 def changeValuesAndMergeResults(func, seed, inputObj, numRuns, msgpath, outputpath, outputlabel, excludeT):
@@ -439,6 +434,9 @@ def mergeOutputs(PCSFOutputObj1, PCSFOutputObj2, betweenness, n1=1, n2=1):
     return mergedObj
 
 
+
+def output_networkx_graph_as_gml_for_cytoscape(nxgraph):
+	pass
 
 
 def main(graph, prize_file, output_dir, options):
