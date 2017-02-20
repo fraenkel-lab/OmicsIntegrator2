@@ -47,8 +47,8 @@ def directory(dirname):
 	else: return dirname
 
 # File arguments
-parser.add_argument("-i", "--interactome", dest='interactome_file', type=argparse.FileType('r'), required=True,
-	help ='(Required) Path to the text file containing the interactome edges. Should be a tab delimited file with 3 or 4 columns: "ProteinA\tProteinB\tWeight(between 0 and 1)\tDirectionality(U or D, optional)"')
+parser.add_argument("-i", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
+	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "ProteinA\tProteinB\tWeight(between 0 and 1)"')
 parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
 	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "ProteinName\tPrizeValue"')
 parser.add_argument("-tf", "--tfprizes" dest='garnet_file', type=argparse.FileType('r'), required=False,
@@ -68,13 +68,13 @@ parser.add_argument("-d","--dummyMode", dest='dummy_mode', choices=("terminals",
 
 parser.add_argument("--muSquared", action='store_true', dest='mu_squared', default=False,
 	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: %default]')
-parser.add_argument("--excludeTerms", action='store_true', dest='exclude_terms', default=False,
+parser.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', default=False,
 	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: %default]')
 
-parser.add_argument("--noisyEdges", dest='noiseNum', default=0, type=int,
-	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisyEdges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
-parser.add_argument("--randomTerminals", dest='termNum', default=0, type=int,
-	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_randomTerminals_" added to their names. [default: %default]')
+parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', default=0, type=int,
+	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
+parser.add_argument("--random_terminals", dest='random_terminals_repetitions', default=0, type=int,
+	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: %default]')
 parser.add_argument("--knockout", dest='knockout', nargs='*', default=[],
 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: %default]')
 
@@ -90,7 +90,13 @@ if __name__ == '__main__':
 
 	graph = Graph(edge_file, options)
 
-	main(graph, prize_file, output_dir, options)
+	prizes, terminals, terminals_missing_from_interactome = graph.prepare_prizes(prize_file)
+
+	vertices, edges = graph.pcsf(prizes)
+
+	nxgraph = graph.output_forest_as_networkx(vertices, edges)
+
+	output_networkx_graph_as_gml_for_cytoscape(nxgraph)
 
 
 class Options:
@@ -99,14 +105,16 @@ class Options:
 
 
 class Graph:
-	"""docstring for Graph"""
+	"""
+
+	"""
 	def __init__(self, interactome_file, options):
 		"""
 		Builds a representation of a graph from an interactome file.
 
 		From the interactome_file, populates `self.nodes` (pd.Index), `self.edges` (list of pairs),
 		`self.costs` (list, such that the ordering is the same as in self.edges), and
-		`self.node_degrees` (list, such that the ordering is the same as in self.nodes).
+		`self.node_degrees` and self.negprizes (lists, such that the ordering is the same as in self.nodes).
 
 		From the prize_file, populates self.terminals (list) and self.prizes (list which contains 0
 		everywhere there isn't a terminal with an assigned prize).
@@ -140,27 +148,40 @@ class Graph:
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
+		self.edges = self.edges.tolist()
 
-		self._add_dummy_node(connected_to=options.dummy_mode)
+		# self._add_dummy_node(connected_to=options.dummy_mode)
 
-		self._check_validity_of_instance()
+		# self._check_validity_of_instance()
 
-		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33}
+		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False}
 
 		self.params = Options(defaults.update(options))
 
+		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu
 
-	def prepare_prizes(self, prizes_file):
+
+	def prepare_prizes(self, prize_file):
 		"""
+		Parses a prize file and returns an array of prizes, a list of terminal indices,
+		and terminals missing from the interactome
+
+		Arguments:
+			prize_file (str or FILE): a filepath or file object containing a tsv of two columns: node name and prize
+
+		Returns:
+			list: prizes, properly indexed (ready for input to pcsf function)
+			list: of indices of terminals
+			dataframe: terminals missing from interactome
 		"""
 
-		prizes_dataframe = pd.read_csv(prizes_file, delimiter='\t', names=["name","prize"])
+		prizes_dataframe = pd.read_csv(prize_file, delimiter='\t', names=["name","prize"])
 
 		# Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
 		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
 
 		# there will be some nodes in the prize file which we don't have in our interactome
-		nodes_with_prizes_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]
+		terminals_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]  # if this only returns a view, the next line will cause problems
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.tolist())
@@ -174,7 +195,7 @@ class Graph:
 		# Our return value is a list, where each entry is a node's prize, indexed as above
 		prizes = prizes_dataframe['prize'].tolist()
 
-		return prizes, terminals, nodes_with_prizes_missing_from_interactome
+		return prizes, terminals, terminals_missing_from_interactome
 
 
 	def _add_dummy_node(self, connected_to="terminals"):
@@ -214,7 +235,7 @@ class Graph:
 		return vertices, edges
 
 
-	def noiseEdges(self, seed=None):
+	def noisy_edges(self, seed=None):
 		"""
 		Adds gaussian noise to all edges in the graph
 
@@ -230,14 +251,14 @@ class Graph:
 		if seed: random.seed(seed)
 
 		std_dev = self.params.noise
-		edges = [edge + random.gauss(0,std_dev) for edge in self.edges]
+		costs = [cost + random.gauss(0,std_dev) for cost in self.costs]
 
-		return edges
+		return costs
 
 
-	def randomTerminals(self, seed, excludeT):
+	def random_terminals(self, terminals, prizes, seed=None):
 		"""
-		Succinct description of randomTerminals
+		Succinct description of random_terminals
 
 		Selects nodes with a similar degree distribution to the original terminals, and assigns the prizes to them.
 
@@ -248,19 +269,46 @@ class Graph:
 			list: new terminal nodes
 		"""
 
-		if len(PCSFInputObj.undirEdges) + len(PCSFInputObj.dirEdges) < 50: sys.exit("Cannot use --randomTerminals with such a small interactome.")
+		if len(self.edges) < 50: sys.exit("Cannot use --random_terminals with such a small interactome.")
 
-		pd.Series(self.node_degrees)
+		if seed: random.seed(seed)
 
-		# sort nodes by degree distribution
+		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values()
 
-		# indices of terminals
+		new_prizes = prizes.copy()
+		new_terminals = []
 
-		# for each terminal index
-		# 	offset = sample from a gaussian centered at 0
-		# 	set the prize of *that* node to the prize the terminal would have had.
+		for terminal in terminals:
+			prize = prizes.loc(terminal)
+			new_prizes[terminal] = 0
+			new_terminal = clip(terminal_index_in nodes_sorted_by_degree + random.gauss(0,100.0), lower=0, upper=len(self.nodes))
+			new_prizes[new_terminal] = prize
+			new_terminals.append(new_terminal)
 
-		# return a prizes list, simlarly to what prepare_prizes would do
+		return new_prizes, new_terminals
+
+
+	def randomizations(self, noisy_edges_repetitions, random_terminals_repetitions):
+		"""
+		"""
+
+		results = []
+
+		edge_costs = self.costs.copy()
+
+		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_repetitions)]:
+			self.costs = noisy_edge_costs
+			results.append(self.pcsf(prizes))
+
+		self.costs = edge_costs
+
+		for random_prizes, terminals in [self.random_terminals() for rep in range(random_terminals_repetitions)]:
+
+			results.append(self.pcsf(random_prizes))
+
+		for vertices, edges in results:
+			True
+			# maybe a counter  to count occurrences?
 
 
 	def output_forest_as_networkx(self, vertices, edges):
@@ -273,68 +321,6 @@ class Graph:
 		pass
 			   # betweenness - a boolean flag indicating whether we should do the costly betweenness
 			   #               calculation
-
-
-
-def changeValuesAndMergeResults(func, seed, inputObj, numRuns, msgpath, outputpath, outputlabel, excludeT):
-	"""
-	Changes the prizes/edges in the PCSFInput object according to func and runs the msgsteiner
-	algorithm, then merges the results together with the given PCSFOutput object. Writes
-	cytoscape files for final merged results.
-
-	INPUT: func - the function which takes inputObj and changes the prize/edge values
-				  (i.e. shuffles or adds noise)
-		   numRums - the number of times to change the values and re-run msgsteiner
-		   msgpath - path to the directory where msgsteiner is kept
-		   outputpath - path to the directory where output files should be stored
-		   outputlabel - a label with which to name all of the output files for this run
-
-	OUTPUT: <outputlabel>_changed_#_info.txt - a text file FOR EACH RUN containing the
-					  contents of stderr for all msgsteiner runs
-	RETURNS: merged - the PCSFOutput object that is a result of all the merges
-
-	"""
-	print 'Preparing to change values %i times and get merged results of running the '\
-		  'algorithm on new values.\n' %numRuns
-	#Create multiprocessing Pool
-	if inputObj.processes == None:
-		pool = mp.Pool()
-	else:
-		pool = mp.Pool(inputObj.processes)
-	if seed != None:
-		#For each run, create process, change prize/edge values and run msgsteiner
-		#Note that each run will create a info file
-		results = [pool.apply_async(PCSF, args=(func(inputObj, seed+i, excludeT),
-				  msgpath, seed+i,)) for i in xrange(numRuns)]
-	else:
-		results = [pool.apply_async(PCSF, args=(func(inputObj, seed, excludeT),
-				  msgpath,seed,)) for i in xrange(numRuns)]
-	output = [p.get() for p in results]
-	i = 0
-	#Merge output of new msgsteiner runs together
-	while i <= numRuns-1:
-		(newEdgeList, newInfo) = output[i]
-		#By creating the output object with inputObj instead of changedInputObj,
-		#the prizes stored in the networkx graphs will be the ORIGINAL CORRECT prizes,
-		#not the changed prizes.
-		if str(func)[10:23]  == 'shufflePrizes':
-			changedOutputObj = PCSFOutput(inputObj, newEdgeList, newInfo, outputpath, outputlabel+'_shuffledPrizes_%i'%i, 0)
-		elif str(func)[10:20] == 'noiseEdges':
-			changedOutputObj = PCSFOutput(inputObj, newEdgeList, newInfo, outputpath, outputlabel+'_noisyEdges_%i'%i, 0)
-		elif str(func)[10:25] == 'randomTerminals':
-			changedOutputObj = PCSFOutput(inputObj, newEdgeList, newInfo, outputpath, outputlabel+'_randomTerminals_%i'%i, 0)
-		if i == 0:
-			#first run
-			merged = changedOutputObj
-		elif i == numRuns-1:
-			#last run, merge results and calculate betweenness
-			merged = mergeOutputs(merged, changedOutputObj, 1, i, 1)
-		else:
-			#Merge results of runs with the merged object containing all results so far
-			merged = mergeOutputs(merged, changedOutputObj, 0, i, 1)
-		i += 1
-	#return merged outputobj
-	return merged
 
 
 def mergeOutputs(PCSFOutputObj1, PCSFOutputObj2, betweenness, n1=1, n2=1):
@@ -435,13 +421,11 @@ def mergeOutputs(PCSFOutputObj1, PCSFOutputObj2, betweenness, n1=1, n2=1):
 
 
 
+
+
+
+
+
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph):
 	pass
-
-
-def main(graph, prize_file, output_dir, options):
-	pass
-
-
-
 
