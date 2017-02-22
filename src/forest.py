@@ -390,7 +390,10 @@ class Graph:
 			networkx.Graph: a networkx graph storing the input forest, plus all of the edges in the interactome between nodes in that forest
 		"""
 
-		pass
+		optForest = pd.DataFrame(nx.generate_edgelist(optForest, data=False), columns=['source', 'target'])
+
+
+
 
 	def betweenness(nxgraph):
 		"""
