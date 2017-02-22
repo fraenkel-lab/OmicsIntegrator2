@@ -9,6 +9,8 @@ import argparse
 import pickle
 import logging
 import random
+from collections import Counter
+from copy import copy
 
 # Core python external libraries
 import numpy as np
@@ -46,69 +48,81 @@ def directory(dirname):
 	if not os.path.isdir(dirname): raise argparse.ArgumentTypeError(dirname + " is not a directory")
 	else: return dirname
 
-# File arguments
-parser.add_argument("-i", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
-	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "ProteinA\tProteinB\tWeight(between 0 and 1)"')
+# Input / Output parameters:
+parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
+	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tweight(between 0 and 1)"')
 parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
-	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "ProteinName\tPrizeValue"')
-parser.add_argument("-tf", "--tfprizes" dest='garnet_file', type=argparse.FileType('r'), required=False,
-	help='tsv file containing the output of the GARNET module regression.')
+	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "nodeName\tprize"')
 parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
 	help='(Required) Output directory path')
 
-# Optional arguments
-
-# confFile (): text file containing values for all parameters. Should include the lines "w=<value>", "D=<value>", and "b=<value>".
-parser.add_argument("-c", "--conf", dest='config_file', type=argparse.FileType('r'), default='conf.txt',
-	help='Path to the text file containing the parameters. Should be several lines that looks like: "ParameterName = ParameterValue". Must contain values for w, b, D.  May contain values for optional parameters mu, garnetBeta, noise, r, g. [default: %default]')
-
-# dummyMode (): a string that indicates which nodes in the interactome to connect the dummy node to. 'terminals'=connect to all terminals (default), 'others'=connect to all nodes except for terminals, 'all'=connect to all nodes in the interactome, or a the path to a text file containing a list of proteins to connect to.
-parser.add_argument("-d","--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), default='terminals',
-	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. If you wish you supply your own list of proteins, dummyMode could also be the path to a text file containing a list of proteins (one per line). [default: %default]')
-
-parser.add_argument("--muSquared", action='store_true', dest='mu_squared', default=False,
-	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: %default]')
-parser.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', default=False,
-	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: %default]')
-
-parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', default=0, type=int,
+# Command parameters (specify what the algorithm does):
+parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
-parser.add_argument("--random_terminals", dest='random_terminals_repetitions', default=0, type=int,
+parser.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: %default]')
-parser.add_argument("--knockout", dest='knockout', nargs='*', default=[],
+parser.add_argument("--knockout", dest='knockout', nargs='*', default=[], # TODO:
 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: %default]')
-
 parser.add_argument("-s", "--seed", dest='seed', type=int, default=None,
 	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: %default]')
+
+params = parser.add_argument_group('Parameters', 'Parameters description')
+
+params.add_argument("-w", dest="w", type=float, required=False, default=6,
+	help=)
+params.add_argument("-b", dest="b", type=float, required=False, default=12,
+	help=)
+params.add_argument("-gb", dest="gb", type=float, required=False, default=0.1,
+	help=)
+params.add_argument("-D", dest="D", type=float, required=False, default=6,
+	help=)
+params.add_argument("-mu", dest="mu", type=float, required=False, default=0.04,
+	help=)
+params.add_argument("-r", dest="r", type=float, required=False, default=None,
+	help=)
+params.add_argument("-noise", dest="noise", type=float, required=False, default=0.33,
+	help=)
+params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), default='terminals', required=False,
+	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: %default]')
+
+params.add_argument("--muSquared", action='store_true', dest='mu_squared', default=False,
+	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: %default]')
+
+params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', default=False,
+	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: %default]')
+
 
 
 if __name__ == '__main__':
 
 	args = parser.parse_args()
 
-	options = Options({"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04})
+	params = vars(args.params) # needs to be a sub-thing
 
-	graph = Graph(edge_file, options)
+	graph = Graph(args.edge_file, params)
 
-	prizes, terminals, terminals_missing_from_interactome = graph.prepare_prizes(prize_file)
+	prizes, terminals, terminals_missing_from_interactome = graph.prepare_prizes(args.prize_file)
 
-	vertices, edges = graph.pcsf(prizes)
+	if noisy_edges_repetitions + random_terminals_repetitions > 0:
+		nxgraph = graph.randomizations(noisy_edges_repetitions, random_terminals_repetitions)
 
-	nxgraph = graph.output_forest_as_networkx(vertices, edges)
+	else:
+		vertices, edges = graph.pcsf(prizes)
+		nxgraph = graph.output_forest_as_networkx(vertices, edges)
 
 	output_networkx_graph_as_gml_for_cytoscape(nxgraph)
 
 
 class Options:
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
+	def __init__(self, **kwds):
+		self.__dict__.update(kwds)
 
 
 class Graph:
 	"""
 
 	"""
-	def __init__(self, interactome_file, options):
+	def __init__(self, interactome_file, params):
 		"""
 		Builds a representation of a graph from an interactome file.
 
@@ -124,12 +138,12 @@ class Graph:
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tWeight"
 			prize_file (str or FILE): tab-delimited text file containing all proteins with prizes formatted like "ProteinName\tPrizeValue"
-			options (dict): options with which to run the program
+			params (dict): params with which to run the program
 
 		"""
 
-		interactome_fieldnames = ["source","target","weight"]
-		interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
+		interactome_fieldnames = ["source","target","cost"]
+		self.interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
 
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, which is a hack
@@ -142,7 +156,7 @@ class Graph:
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(interactome_dataframe[["source","target"]].shape, order='F') #.tolist() # maybe needs to be list of tuples. in that case map(tuple, this)
 
-		self.costs = interactome_dataframe['weight'].tolist()
+		self.costs = interactome_dataframe['cost'].tolist()
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -150,13 +164,13 @@ class Graph:
 
 		self.edges = self.edges.tolist()
 
-		# self._add_dummy_node(connected_to=options.dummy_mode)
+		# self._add_dummy_node(connected_to=params.dummy_mode)
 
 		# self._check_validity_of_instance()
 
-		defaults = {"w": 6 , "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False}
+		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals"}
 
-		self.params = Options(defaults.update(options))
+		self.params = Options(defaults.update(params))
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu
 
@@ -294,7 +308,7 @@ class Graph:
 
 		results = []
 
-		edge_costs = self.costs.copy()
+		edge_costs = copy(self.costs)
 
 		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_repetitions)]:
 			self.costs = noisy_edge_costs
@@ -306,12 +320,34 @@ class Graph:
 
 			results.append(self.pcsf(random_prizes))
 
-		for vertices, edges in results:
-			True
-			# maybe a counter  to count occurrences?
+		denominator = len(results)
+		vertex_indices, edge_indices = zip(*results)
+
+		# This is just a data transformation/aggregation.
+		# 1. Flatten the lists of lists of edge indices and vertex indices
+		# 2. Now count the occurrences of each edge and vertex index
+		# 3. Transform from Counter to DataFrame
+		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index','occurrence'])
+		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index','occurrence'])
+		# 4. Convert occurrences to fractions
+		vertex_indices['occurrence'] /= denominator
+		edge_indices['occurrence'] /= denominator
+
+		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
+		# By doing an inner join, we get rid of all the dummy node edges.
+		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+
+		nxgraph = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
+
+		return nxgraph
 
 
 	def output_forest_as_networkx(self, vertices, edges):
+		"""
+		"""
+
+
+
 
 		# OUTPUT: self.optForest - a networkx digraph storing the forest returned by msgsteiner
 		#         self.augForest - a networkx digraph storing the forest returned by msgsteiner, plus
@@ -319,105 +355,12 @@ class Graph:
 		#         self.dumForest - a networkx digraph storing the dummy node edges in the optimal
 		#                          forest
 		pass
-			   # betweenness - a boolean flag indicating whether we should do the costly betweenness
-			   #               calculation
 
-
-def mergeOutputs(PCSFOutputObj1, PCSFOutputObj2, betweenness, n1=1, n2=1):
-    """
-    Merges two PCSFOutput objects together. Creates a new PCSFOutput object whose graphs contain
-    all edges found in either original object, with updated fracOptContaining values and
-    betweenness values.
-
-    INPUT: Two PCSFOutput objects, either individual objects or themselves results of merges.
-                Ideally, these output objects were created using the same interactome (though the
-                prizes or algorithm parameters may have been different). This is not enforced.
-           betweenness - a T/F flag indicating whether to do the costly betweenness calculation
-           n1,n2 - integers, the number of msgsteiner runs each PCSFOutput object is a result of
-                   (if one of PCSFOutputObj is the result of a merge, this should be >1).
-
-    RETURNS: A new PCSFOutput object, with all edges found in either original object, with updated
-                fracOptContaining and betweenness values. If a node or edge is found in both
-                original objects, the prize or weight in this object is copied from
-                PCSFOutputObj1. The inputObj reference in this object is the same as
-                PCSFOutputObj1.
-    """
-    print 'Merging outputs to give summary over %i algorithm runs...'%(n1+n2)
-    mergedObj = copy.deepcopy(PCSFOutputObj1)
-    #Update fracOptContaining for all edges in outputObj1
-    for (node1,node2,data) in PCSFOutputObj1.optForest.edges(data=True):
-        numRuns1 = data['fracOptContaining']*n1
-        try:
-            #if the edge is not in outputObj2 this will return a KeyError
-            numRuns2 = PCSFOutputObj2.optForest[node1][node2]['fracOptContaining'] * n2
-        except KeyError:
-            numRuns2 = 0.0
-        mergedObj.optForest[node1][node2]['fracOptContaining'] = (numRuns1 + numRuns2)/(n1+n2)
-    #Update fracOptContaining for all nodes in outputObj1
-    for (node, data) in PCSFOutputObj1.optForest.nodes(data=True):
-        numRuns1 = data['fracOptContaining']*n1
-        try:
-            #if the node is not in outputObj2 this will return a KeyError
-            numRuns2 = PCSFOutputObj2.optForest.node[node]['fracOptContaining'] * n2
-        except KeyError:
-            numRuns2 = 0.0
-        mergedObj.optForest.node[node]['fracOptContaining'] = (numRuns1 + numRuns2)/(n1+n2)
-    #Add optForest edges to mergedObj that appear in outputObj2 but not in outputObj1
-    for (node1, node2, data) in PCSFOutputObj2.optForest.edges(data=True):
-        try:
-            dataM = mergedObj.optForest[node1][node2]
-        except KeyError:
-            numRuns2 = data['fracOptContaining'] * n2
-            #If there are nodes in outputObj2 not included in 1, they will be added to
-            #mergedObj without error
-            if node1 not in mergedObj.optForest.nodes():
-                mergedObj.optForest.add_node(node1,
-                                             prize=PCSFOutputObj2.optForest.node[node1]['prize'],
-                                             TerminalType=PCSFOutputObj2.optForest.node[node1]['TerminalType'],
-                                             fracOptContaining=numRuns2/(n1+n2))
-            if node2 not in mergedObj.optForest.nodes():
-                mergedObj.optForest.add_node(node2,
-                                            prize=PCSFOutputObj2.optForest.node[node2]['prize'],
-                                            TerminalType=PCSFOutputObj2.optForest.node[node2]['TerminalType'],
-                                            fracOptContaining=numRuns2/(n1+n2))
-            mergedObj.optForest.add_edge(node1, node2, weight=data['weight'],
-                                         fracOptContaining=numRuns2/(n1+n2))
-    #Add dumForest edges to mergedObj that appear in outputObj2 but not in outputObj1
-    for (node1, node2, data) in PCSFOutputObj2.dumForest.edges(data=True):
-        try:
-            dataM = mergedObj.dumForest[node1][node2]
-        except KeyError:
-            mergedObj.dumForest.add_edge(node1, node2)
-
-    #Create augForest based on new optForest
-    #Need to first copy optForest in case an edge previously included in augForest
-    #has a new fracOptContaining
-    mergedObj.augForest = copy.deepcopy(mergedObj.optForest)
-    for node in mergedObj.augForest.nodes():
-        edges = {}
-        try:
-            edges.update(mergedObj.inputObj.undirEdges[node])
-        except KeyError:
-            pass
-        try:
-           edges.update(mergedObj.inputObj.dirEdges[node])
-        except KeyError:
-            #If a node found in mergedObj.optForest is not found in PCSFInputObj1's interactome,
-            #it is quietly ignored in making augForest
-            pass
-        for node2 in edges:
-            if node2 in mergedObj.augForest.nodes():
-                if (node, node2) not in mergedObj.optForest.edges():
-                    mergedObj.augForest.add_edge(node, node2, weight=edges[node2],
-                                                 fracOptContaining=0.0)
-
-    #Calculate betweenness centrality for all nodes in augmented forest
-    if betweenness:
-        betweenness = nx.betweenness_centrality(mergedObj.augForest)
-        nx.set_node_attributes(mergedObj.augForest, 'betweenness', betweenness)
-
-    print 'Outputs were successfully merged.\n'
-    return mergedObj
+		# betweenness - a boolean flag indicating whether we should do the costly betweenness calculation
+		#Calculate betweenness centrality for all nodes in augmented forest
+		# if betweenness:
+		#     betweenness = nx.betweenness_centrality(mergedObj.augForest)
+		#     nx.set_node_attributes(mergedObj.augForest, 'betweenness', betweenness)
 
 
 
@@ -426,6 +369,26 @@ def mergeOutputs(PCSFOutputObj1, PCSFOutputObj2, betweenness, n1=1, n2=1):
 
 
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph):
-	pass
+def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
+	"""
+
+	Filenames ending in .gz or .bz2 will be compressed.
+
+
+	"""
+
+	nx.write_gml(nxgraph, filename)
+
+
+def merge_two_prize_files(prize_file_1, prize_file_2):
+	"""
+	"""
+
+
+
+
+
+
+
+def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
