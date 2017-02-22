@@ -23,8 +23,8 @@ import networkx as nx
 import garnet
 import pcst_fast.pcst_fast as pcst_fast
 
-# list of public methods:
-__all__ = ["Graph"]
+# list of classes and methods we'd like to export:
+__all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files"]
 
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,14 @@ handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter('%(asctime)s - Forest: %(levelname)s - %(message)s', "%I:%M:%S"))
 logger.addHandler(handler)
+
+
+# Some arbitrary helpers I believe should exist in the language anyhow
+def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
+
+class Options:
+	def __init__(self, **kwds):
+		self.__dict__.update(kwds)
 
 
 parser = argparse.ArgumenParser(description="""
@@ -112,10 +120,6 @@ if __name__ == '__main__':
 
 	output_networkx_graph_as_gml_for_cytoscape(nxgraph)
 
-
-class Options:
-	def __init__(self, **kwds):
-		self.__dict__.update(kwds)
 
 
 class Graph:
@@ -353,9 +357,9 @@ class Graph:
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 
-		nxgraph = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
+		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
 
-		return nxgraph
+		return optForest
 
 
 	def output_forest_as_networkx(self, vertex_indices, edge_indices):
@@ -369,18 +373,44 @@ class Graph:
 			networkx.Graph: a networkx graph object
 		"""
 
-		# optForest - a networkx digraph storing the forest returned by msgsteiner
-		# augForest - a networkx digraph storing the forest returned by msgsteiner, plus all of the edges in the interactome between nodes in that forest
-		# dumForest - a networkx digraph storing the dummy node edges in the optimal forest
+		vertex_indices = pd.DataFrame(vertex_indices, columns=['node_index'])
+		edge_indices = pd.DataFrame(edge_indices, columns=['edge_index'])
+
+		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
+		# By doing an inner join, we get rid of all the dummy node edges.
+		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+
+		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+
+		return optForest
+
+
+	def augment_forest(optForest):
+		"""
+
+		Arguments:
+			optForest (networkx.Graph): a networkx graph storing a forest (e.g. the forest returned by pcsf)
+
+		Returns:
+			networkx.Graph: a networkx graph storing the input forest, plus all of the edges in the interactome between nodes in that forest
+		"""
 
 		pass
 
-		# betweenness - a boolean flag indicating whether we should do the costly betweenness calculation
-		# Calculate betweenness centrality for all nodes in augmented forest
-		# if betweenness:
-		#     betweenness = nx.betweenness_centrality(mergedObj.augForest)
-		#     nx.set_node_attributes(mergedObj.augForest, 'betweenness', betweenness)
+	def betweenness(nxgraph):
+		"""
+		Calculate betweenness centrality for all nodes in augmented forest
 
+		Arguments:
+			nxgraph (networkx.Graph): a networkx graph object
+
+		Returns:
+			networkx.Graph: a networkx graph object
+		"""
+
+		betweenness = nx.betweenness_centrality(nxgraph)
+		nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+		return nxgraph
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
@@ -403,5 +433,4 @@ def merge_two_prize_files(prize_file_1, prize_file_2):
 
 
 
-def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
