@@ -69,27 +69,25 @@ parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, d
 	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
 parser.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: %default]')
-parser.add_argument("--knockout", dest='knockout', nargs='*', default=[], # TODO:
-	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: %default]')
-parser.add_argument("-s", "--seed", dest='seed', type=int, default=None,
-	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: %default]')
+# parser.add_argument("--knockout", dest='knockout', nargs='*', default=[],
+# 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: %default]')
 
 params = parser.add_argument_group('Parameters', 'Parameters description')
 
 params.add_argument("-w", dest="w", type=float, required=False,
-	help="[default: 6]")
+	help="   [default: 6]")
 params.add_argument("-b", dest="b", type=float, required=False,
-	help="[default: 12]")
+	help="   [default: 12]")
 params.add_argument("-gb", dest="gb", type=float, required=False,
-	help="[default: 0.1]")
+	help="   [default: 0.1]")
 params.add_argument("-D", dest="D", type=float, required=False,
-	help="[default: 6]")
+	help="   [default: 6]")
 params.add_argument("-mu", dest="mu", type=float, required=False,
-	help="[default: 0.04]")
+	help="   [default: 0.04]")
 params.add_argument("-r", dest="r", type=float, required=False,
-	help="[default: None]")
+	help="   [default: None]")
 params.add_argument("-noise", dest="noise", type=float, required=False,
-	help="[default: 0.33]")
+	help="   [default: 0.33]")
 params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
 
@@ -99,13 +97,16 @@ params.add_argument("--muSquared", action='store_true', dest='mu_squared', requi
 params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
 	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: False]')
 
+params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
+	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
+
 
 
 if __name__ == '__main__':
 
 	args = parser.parse_args()
 
-	params = vars(args.params) # needs to be a sub-thing
+	params = vars(args.params) # http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
 	graph = Graph(args.edge_file, params)
 
@@ -118,7 +119,7 @@ if __name__ == '__main__':
 		vertices, edges = graph.pcsf(prizes)
 		nxgraph = graph.output_forest_as_networkx(vertices, edges)
 
-	output_networkx_graph_as_gml_for_cytoscape(nxgraph)
+	output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
 
 
 
@@ -169,7 +170,7 @@ class Graph:
 		self.edges = self.edges.tolist()
 
 
-		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals"}
+		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
 
 		self.params = Options(defaults.update(params))
 
@@ -254,20 +255,15 @@ class Graph:
 		return vertices, edges
 
 
-	def _noisy_edges(self, seed=None):
+	def _noisy_edges(self):
 		"""
 		Adds gaussian noise to all edges in the graph
 
 		Generate gaussian noise values, mean=0, stdev default=0.333 (edge values range between 0 and 1)
 
-		Arguments:
-			seed (): a random seed
-
 		Returns:
 			list: edge weights with gaussian noise
 		"""
-
-		if seed: random.seed(seed)
 
 		std_dev = self.params.noise
 		costs = [cost + random.gauss(0,std_dev) for cost in self.costs]
@@ -275,7 +271,7 @@ class Graph:
 		return costs
 
 
-	def _random_terminals(self, terminals, prizes, seed=None):
+	def _random_terminals(self, terminals, prizes):
 		"""
 		Succinct description of random_terminals
 
@@ -284,15 +280,12 @@ class Graph:
 		Arguments:
 			terminals ():
 			prizes ():
-			seed (): a random seed
 
 		Returns:
 			list: new terminal nodes
 		"""
 
 		if len(self.edges) < 50: sys.exit("Cannot use --random_terminals with such a small interactome.")
-
-		if seed: random.seed(seed)
 
 		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values()
 
@@ -319,6 +312,8 @@ class Graph:
 		Returns:
 			networkx.Graph:
 		"""
+
+		if self.seed: random.seed(seed)
 
 		results = []
 
@@ -411,6 +406,7 @@ class Graph:
 		betweenness = nx.betweenness_centrality(nxgraph)
 		nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
 		return nxgraph
+
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
