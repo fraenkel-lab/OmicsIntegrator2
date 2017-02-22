@@ -164,9 +164,6 @@ class Graph:
 
 		self.edges = self.edges.tolist()
 
-		# self._add_dummy_node(connected_to=params.dummy_mode)
-
-		# self._check_validity_of_instance()
 
 		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals"}
 
@@ -234,6 +231,10 @@ class Graph:
 		"""
 		"""
 
+		dummy_edges, dummy_costs, root = self._add_dummy_node(connected_to=self.params.dummy_mode)
+
+		self._check_validity_of_instance()
+
 		# `edges`: a list of pairs of integers. Each pair specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
 		# `prizes`: the list of node prizes.
 		# `costs`: the list of edge costs.
@@ -242,14 +243,14 @@ class Graph:
 		num_clusters = 1
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
-		vertices, edges = pcst_fast(self.edges, prizes, self.costs, self.root, num_clusters, pruning, verbosity_level)
+		vertex_indices, edge_indices = pcst_fast(self.edges + dummy_edges, prizes, self.costs + dummy_costs, root, num_clusters, pruning, verbosity_level)
 
-		# `vertices`: a list of vertices in the output.
-		# `edges`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
+		# `vertex_indices`: a list of vertices in the output.
+		# `edge_indices`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
 		return vertices, edges
 
 
-	def noisy_edges(self, seed=None):
+	def _noisy_edges(self, seed=None):
 		"""
 		Adds gaussian noise to all edges in the graph
 
@@ -270,13 +271,15 @@ class Graph:
 		return costs
 
 
-	def random_terminals(self, terminals, prizes, seed=None):
+	def _random_terminals(self, terminals, prizes, seed=None):
 		"""
 		Succinct description of random_terminals
 
 		Selects nodes with a similar degree distribution to the original terminals, and assigns the prizes to them.
 
 		Arguments:
+			terminals ():
+			prizes ():
 			seed (): a random seed
 
 		Returns:
@@ -304,29 +307,42 @@ class Graph:
 
 	def randomizations(self, noisy_edges_repetitions, random_terminals_repetitions):
 		"""
+
+		Arguments:
+			noisy_edges_repetitions (int):
+			random_terminals_repetitions (int):
+
+		Returns:
+			networkx.Graph:
 		"""
 
 		results = []
 
+		# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
+		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
 		edge_costs = copy(self.costs)
 
+		# Do the noisy edges runs
 		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_repetitions)]:
 			self.costs = noisy_edge_costs
 			results.append(self.pcsf(prizes))
 
+		# Reset the true edges
 		self.costs = edge_costs
 
+		# Do the random terminals runs
 		for random_prizes, terminals in [self.random_terminals() for rep in range(random_terminals_repetitions)]:
 
 			results.append(self.pcsf(random_prizes))
 
 		denominator = len(results)
+		# Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
 		vertex_indices, edge_indices = zip(*results)
 
-		# This is just a data transformation/aggregation.
+		# These next steps are just data transformation/aggregation.
 		# 1. Flatten the lists of lists of edge indices and vertex indices
-		# 2. Now count the occurrences of each edge and vertex index
-		# 3. Transform from Counter to DataFrame
+		# 2. Count the occurrences of each edge and vertex index
+		# 3. Transform from Counter object to DataFrame through list
 		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index','occurrence'])
 		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index','occurrence'])
 		# 4. Convert occurrences to fractions
@@ -342,51 +358,48 @@ class Graph:
 		return nxgraph
 
 
-	def output_forest_as_networkx(self, vertices, edges):
+	def output_forest_as_networkx(self, vertex_indices, edge_indices):
 		"""
+
+		Arguments:
+			vertex_indices (list): indices of the vertices selected in self.nodes
+			edge_indices (list): indices of the edges selected in self.edges
+
+		Returns:
+			networkx.Graph: a networkx graph object
 		"""
 
+		# optForest - a networkx digraph storing the forest returned by msgsteiner
+		# augForest - a networkx digraph storing the forest returned by msgsteiner, plus all of the edges in the interactome between nodes in that forest
+		# dumForest - a networkx digraph storing the dummy node edges in the optimal forest
 
-
-
-		# OUTPUT: self.optForest - a networkx digraph storing the forest returned by msgsteiner
-		#         self.augForest - a networkx digraph storing the forest returned by msgsteiner, plus
-		#                          all of the edges in the interactome between nodes in that forest
-		#         self.dumForest - a networkx digraph storing the dummy node edges in the optimal
-		#                          forest
 		pass
 
 		# betweenness - a boolean flag indicating whether we should do the costly betweenness calculation
-		#Calculate betweenness centrality for all nodes in augmented forest
+		# Calculate betweenness centrality for all nodes in augmented forest
 		# if betweenness:
 		#     betweenness = nx.betweenness_centrality(mergedObj.augForest)
 		#     nx.set_node_attributes(mergedObj.augForest, 'betweenness', betweenness)
 
 
 
-
-
-
-
-
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
 	"""
-
-	Filenames ending in .gz or .bz2 will be compressed.
-
-
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		filename (str): A full filepath. Filenames ending in .gz or .bz2 will be compressed.
 	"""
-
 	nx.write_gml(nxgraph, filename)
 
 
 def merge_two_prize_files(prize_file_1, prize_file_2):
 	"""
+
+	Arguments:
+		prize_file_1 ():
+		prize_file_2 ():
 	"""
-
-
-
-
+	pass
 
 
 
