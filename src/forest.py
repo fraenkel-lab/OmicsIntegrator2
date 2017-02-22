@@ -82,14 +82,14 @@ params.add_argument("-r", dest="r", type=float, required=False,
 	help="[default: None]")
 params.add_argument("-noise", dest="noise", type=float, required=False,
 	help="[default: 0.33]")
-params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), default='terminals', required=False,
-	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: %default]')
+params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
+	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
 
-params.add_argument("--muSquared", action='store_true', dest='mu_squared', default=False,
-	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: %default]')
+params.add_argument("--muSquared", action='store_true', dest='mu_squared', required=False,
+	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: False]')
 
-params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', default=False,
-	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: %default]')
+params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
+	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: False]')
 
 
 
