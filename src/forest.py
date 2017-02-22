@@ -68,20 +68,20 @@ parser.add_argument("-s", "--seed", dest='seed', type=int, default=None,
 
 params = parser.add_argument_group('Parameters', 'Parameters description')
 
-params.add_argument("-w", dest="w", type=float, required=False, default=6,
-	help=)
-params.add_argument("-b", dest="b", type=float, required=False, default=12,
-	help=)
-params.add_argument("-gb", dest="gb", type=float, required=False, default=0.1,
-	help=)
-params.add_argument("-D", dest="D", type=float, required=False, default=6,
-	help=)
-params.add_argument("-mu", dest="mu", type=float, required=False, default=0.04,
-	help=)
-params.add_argument("-r", dest="r", type=float, required=False, default=None,
-	help=)
-params.add_argument("-noise", dest="noise", type=float, required=False, default=0.33,
-	help=)
+params.add_argument("-w", dest="w", type=float, required=False,
+	help="[default: 6]")
+params.add_argument("-b", dest="b", type=float, required=False,
+	help="[default: 12]")
+params.add_argument("-gb", dest="gb", type=float, required=False,
+	help="[default: 0.1]")
+params.add_argument("-D", dest="D", type=float, required=False,
+	help="[default: 6]")
+params.add_argument("-mu", dest="mu", type=float, required=False,
+	help="[default: 0.04]")
+params.add_argument("-r", dest="r", type=float, required=False,
+	help="[default: None]")
+params.add_argument("-noise", dest="noise", type=float, required=False,
+	help="[default: 0.33]")
 params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), default='terminals', required=False,
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: %default]')
 
