@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
 	graph = Graph(args.edge_file, params)
 
-	prizes, terminals, terminals_missing_from_interactome = graph.prepare_prizes(args.prize_file)
+	prizes, terminals = graph.prepare_prizes(args.prize_file)
 
 	if noisy_edges_repetitions + random_terminals_repetitions > 0:
 		nxgraph = graph.randomizations(noisy_edges_repetitions, random_terminals_repetitions)
@@ -167,7 +167,7 @@ class Graph:
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
-		self.edges = self.edges.tolist()
+		self.edges = map(tuple, self.edges.tolist())
 
 
 		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
@@ -197,7 +197,9 @@ class Graph:
 		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
 
 		# there will be some nodes in the prize file which we don't have in our interactome
-		terminals_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]  # if this only returns a view, the next line will cause problems
+		terminals_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]
+		logger.info("Members of the prize file not present in the interactome:")
+		logger.info(terminals_missing_from_interactome)
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.tolist())
@@ -211,17 +213,16 @@ class Graph:
 		# Our return value is a list, where each entry is a node's prize, indexed as above
 		prizes = prizes_dataframe['prize'].tolist()
 
-		return prizes, terminals, terminals_missing_from_interactome
+		return prizes, terminals
 
 
-	def _add_dummy_node(self, connected_to="terminals"):
+	def _add_dummy_node(self, connected_to=[]):
 
-		self.dummy_id = len(self.nodes)
+		dummy_id = len(self.nodes)
+		dummy_edges = [(dummy_id, connection) for connection in connected_to]
+		dummy_costs = [self.params.w] * len(dummy_edges)
 
-		# if connected_to == 'terminals' or connected_to == 'all':
-
-		# if connected_to == 'others' or connected_to == 'all':
-
+		return dummy_edges, dummy_costs, dummy_id
 
 	def _check_validity_of_instance(self):
 		"""
@@ -236,7 +237,17 @@ class Graph:
 		"""
 		"""
 
-		dummy_edges, dummy_costs, root = self._add_dummy_node(connected_to=self.params.dummy_mode)
+		terminals = pd.Series(prizes).nonzero()[0].tolist()
+		others = list(set(range(len(self.nodes))) - set(terminals))
+		all = list(range(len(self.nodes)))
+
+		if self.params.dummy_mode == 'terminals': endpoints = terminals
+		elif self.params.dummy_mode == 'other': endpoints = others
+		elif self.params.dummy_mode == 'all': endpoints = all
+		else: sys.exit("Invalid dummy mode")
+
+		dummy_edges, dummy_costs, root = self._add_dummy_node(connected_to=endpoints)
+
 
 		self._check_validity_of_instance()
 
@@ -271,49 +282,49 @@ class Graph:
 		return costs
 
 
-	def _random_terminals(self, terminals, prizes):
+	def _random_terminals(self, prizes, terminals):
 		"""
 		Succinct description of random_terminals
 
 		Selects nodes with a similar degree distribution to the original terminals, and assigns the prizes to them.
 
 		Arguments:
-			terminals ():
 			prizes ():
+			terminals ():
 
 		Returns:
 			list: new terminal nodes
 		"""
 
-		if len(self.edges) < 50: sys.exit("Cannot use --random_terminals with such a small interactome.")
+		if len(self.edges) < 50: sys.exit("Cannot use random_terminals with such a small interactome.")
 
-		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values()
+		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values().index
+		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in terminals])
+		new_terminal_degree_rankings = np.clip(terminal_degree_rankings + numpy.random.normal(0,100.0,len(terminals)), 0, len(self.nodes)).tolist()
+		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings][0]
 
-		new_prizes = prizes.copy()
-		new_terminals = []
+		new_prizes = copy(prizes)
 
-		for terminal in terminals:
-			prize = prizes.loc(terminal)
-			new_prizes[terminal] = 0
-			new_terminal = clip(terminal_index_in nodes_sorted_by_degree + random.gauss(0,100.0), lower=0, upper=len(self.nodes))
-			new_prizes[new_terminal] = prize
-			new_terminals.append(new_terminal)
+		for old_terminal, new_terminal in zip(terminals, new_terminals):
+			new_prizes[old_terminal] = 0
+			new_prizes[new_terminal] = prizes[old_terminal]
 
-		return new_prizes, new_terminals
+		return new_prizes, np.unique(new_terminals)
 
 
-	def randomizations(self, noisy_edges_repetitions, random_terminals_repetitions):
+	def randomizations(self, prizes, noisy_edges_reps, random_terminals_reps):
 		"""
 
 		Arguments:
-			noisy_edges_repetitions (int):
-			random_terminals_repetitions (int):
+			prizes ():
+			noisy_edges_reps (int):
+			random_terminals_reps (int):
 
 		Returns:
 			networkx.Graph:
 		"""
 
-		if self.seed: random.seed(seed)
+		if self.seed: random.seed(seed); numpy.random.seed(seed=seed)
 
 		results = []
 
@@ -321,16 +332,15 @@ class Graph:
 		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
 		edge_costs = copy(self.costs)
 
-		# Do the noisy edges runs
-		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_repetitions)]:
+		#### NOSY EDGES ####
+		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_reps)]:
 			self.costs = noisy_edge_costs
 			results.append(self.pcsf(prizes))
-
 		# Reset the true edges
 		self.costs = edge_costs
 
-		# Do the random terminals runs
-		for random_prizes, terminals in [self.random_terminals() for rep in range(random_terminals_repetitions)]:
+		#### RANDOM TERMINALS ####
+		for random_prizes, terminals in [self.random_terminals(prizes) for rep in range(random_terminals_reps)]:
 
 			results.append(self.pcsf(random_prizes))
 
@@ -351,8 +361,10 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
 		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
+		nx.set_node_attributes(optForest, 'occurrence', vertices['occurrence'].to_dict())
 
 		return optForest
 
@@ -374,6 +386,7 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
 		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
@@ -392,7 +405,7 @@ class Graph:
 
 		optForest = pd.DataFrame(nx.generate_edgelist(optForest, data=False), columns=['source', 'target'])
 
-
+		# TODO: finish this function
 
 
 	def betweenness(nxgraph):
@@ -408,8 +421,8 @@ class Graph:
 
 		betweenness = nx.betweenness_centrality(nxgraph)
 		nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
-		return nxgraph
 
+		return nxgraph
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
