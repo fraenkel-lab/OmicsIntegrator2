@@ -20,8 +20,7 @@ import pandas as pd
 import networkx as nx
 
 # Lab modules
-import garnet
-import pcst_fast.pcst_fast as pcst_fast
+from pcst_fast.pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
 __all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files"]
@@ -38,12 +37,12 @@ logger.addHandler(handler)
 # Some arbitrary helpers I believe should exist in the language anyhow
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
-class Options:
-	def __init__(self, **kwds):
-		self.__dict__.update(kwds)
+class Options(object):
+	def __init__(self, options):
+		self.__dict__.update(options)
 
 
-parser = argparse.ArgumenParser(description="""
+parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using
 	the Prize Collecting Steiner Forest problem.""")
 
@@ -78,10 +77,6 @@ params.add_argument("-w", dest="w", type=float, required=False,
 	help="   [default: 6]")
 params.add_argument("-b", dest="b", type=float, required=False,
 	help="   [default: 12]")
-params.add_argument("-gb", dest="gb", type=float, required=False,
-	help="   [default: 0.1]")
-params.add_argument("-D", dest="D", type=float, required=False,
-	help="   [default: 6]")
 params.add_argument("-mu", dest="mu", type=float, required=False,
 	help="   [default: 0.04]")
 params.add_argument("-r", dest="r", type=float, required=False,
@@ -149,6 +144,7 @@ class Graph:
 
 		interactome_fieldnames = ["source","target","cost"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
+		# self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, which is a hack
@@ -156,23 +152,24 @@ class Graph:
 		# Factorize builds two datastructures, a unique pd.Index of each ID string to a numerical ID
 		# and the datastructure we passed in with ID strings replaced with those numerical IDs.
 		# We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.
-		(self.edges, self.nodes) = pd.factorize(interactome_dataframe[["source","target"]].unstack())
+		(self.edges, self.nodes) = pd.factorize(self.interactome_dataframe[["source","target"]].unstack())
+
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
-		self.edges = self.edges.reshape(interactome_dataframe[["source","target"]].shape, order='F') #.tolist() # maybe needs to be list of tuples. in that case map(tuple, this)
+		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F') #.tolist() # maybe needs to be list of tuples. in that case map(tuple, this)
 
-		self.costs = interactome_dataframe['cost'].tolist()
+		self.costs = self.interactome_dataframe['cost'].tolist()
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
-		self.edges = map(tuple, self.edges.tolist())
+		self.edges = list(map(tuple, self.edges.tolist()))
 
 
-		defaults = {"w": 6, "b": 12, :"gb": 0.1, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
+		defaults = {"w": 6, "b": 12, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
 
-		self.params = Options(defaults.update(params))
+		self.params = Options({**defaults, **params})
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu
 
@@ -263,6 +260,7 @@ class Graph:
 
 		# `vertex_indices`: a list of vertices in the output.
 		# `edge_indices`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
+
 		return vertices, edges
 
 
@@ -363,10 +361,12 @@ class Graph:
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
-		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
-		nx.set_node_attributes(optForest, 'occurrence', vertices['occurrence'].to_dict())
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
+		nx.set_node_attributes(forest, 'occurrence', vertices['occurrence'].to_dict())
 
-		return optForest
+		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
+
+		return forest, augmented_forest
 
 
 	def output_forest_as_networkx(self, vertex_indices, edge_indices):
@@ -388,29 +388,16 @@ class Graph:
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
-		optForest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
-		return optForest
+		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
 
-
-	def augment_forest(optForest):
-		"""
-
-		Arguments:
-			optForest (networkx.Graph): a networkx graph storing a forest (e.g. the forest returned by pcsf)
-
-		Returns:
-			networkx.Graph: a networkx graph storing the input forest, plus all of the edges in the interactome between nodes in that forest
-		"""
-
-		optForest = pd.DataFrame(nx.generate_edgelist(optForest, data=False), columns=['source', 'target'])
-
-		# TODO: finish this function
+		return forest, augmented_forest
 
 
 	def betweenness(nxgraph):
 		"""
-		Calculate betweenness centrality for all nodes in augmented forest
+		Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
 
 		Arguments:
 			nxgraph (networkx.Graph): a networkx graph object
