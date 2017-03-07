@@ -156,18 +156,16 @@ class Graph:
 
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
-		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F') #.tolist() # maybe needs to be list of tuples. in that case map(tuple, this)
+		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self.interactome_dataframe['cost'].tolist()
+		self.costs = self.interactome_dataframe['cost'].values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
-		self.edges = list(map(tuple, self.edges.tolist()))
 
-
-		defaults = {"w": 6, "b": 12, "D": 6, "mu": 0.04, "r": None, "noise": 0.33, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
+		defaults = {"w": 6, "b": 12, "D": 6, "mu": 0.04, "r": None, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
 
 		self.params = Options({**defaults, **params})
 
@@ -199,7 +197,7 @@ class Graph:
 		logger.info(terminals_missing_from_interactome)
 		prizes_dataframe.drop(-1, inplace=True)
 
-		terminals = sorted(prizes_dataframe.index.tolist())
+		terminals = sorted(prizes_dataframe.index.values)
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = prizes_dataframe.merge(pd.DataFrame(self.nodes, columns=["name"]), on="name", how="outer").fillna(0)
@@ -208,7 +206,7 @@ class Graph:
 		prizes_dataframe.sort_index(inplace=True)
 
 		# Our return value is a list, where each entry is a node's prize, indexed as above
-		prizes = prizes_dataframe['prize'].tolist()
+		prizes = prizes_dataframe['prize'].values
 
 		return prizes, terminals
 
@@ -216,10 +214,11 @@ class Graph:
 	def _add_dummy_node(self, connected_to=[]):
 
 		dummy_id = len(self.nodes)
-		dummy_edges = [(dummy_id, connection) for connection in connected_to]
-		dummy_costs = [self.params.w] * len(dummy_edges)
+		dummy_edges = np.array([(dummy_id, connection) for connection in connected_to])
+		dummy_costs = np.array([self.params.w] * len(dummy_edges))
 
 		return dummy_edges, dummy_costs, dummy_id
+
 
 	def _check_validity_of_instance(self):
 		"""
@@ -227,10 +226,8 @@ class Graph:
 		"""
 		pass
 
-		# does there exist an assert module in python? Is that what we would want here? does it play nice with logger?
 
-
-	def pcsf(prizes, pruning="strong", verbosity_level=0):
+	def pcsf(self, prizes, pruning="strong", verbosity_level=0):
 		"""
 		"""
 
@@ -245,23 +242,23 @@ class Graph:
 
 		dummy_edges, dummy_costs, root = self._add_dummy_node(connected_to=endpoints)
 
-
 		self._check_validity_of_instance()
 
-		# `edges`: a list of pairs of integers. Each pair specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
-		# `prizes`: the list of node prizes.
-		# `costs`: the list of edge costs.
+		# `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
+		edges = np.concatenate((self.edges, dummy_edges))
+		# `prizes`: the node prizes as a 1D float64 array.
+		# `costs`: the edge costs as a 1D float64 array.
+		costs = np.concatenate((self.costs, dummy_costs))
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
 		# `num_clusters`: the number of connected components in the output.
-		num_clusters = 1
+		num_clusters = 0
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
-		vertex_indices, edge_indices = pcst_fast(self.edges + dummy_edges, prizes, self.costs + dummy_costs, root, num_clusters, pruning, verbosity_level)
+		vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
+		# `vertices`: the vertices in the solution as a 1D int64 array.
+		# `edges`: the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
-		# `vertex_indices`: a list of vertices in the output.
-		# `edge_indices`: a list of edges in the output. The list contains indices into the list of edges passed into the function.
-
-		return vertices, edges
+		return vertex_indices, edge_indices
 
 
 	def _noisy_edges(self):
@@ -271,13 +268,10 @@ class Graph:
 		Generate gaussian noise values, mean=0, stdev default=0.333 (edge values range between 0 and 1)
 
 		Returns:
-			list: edge weights with gaussian noise
+			np.ndarray: edge weights with gaussian noise
 		"""
 
-		std_dev = self.params.noise
-		costs = [cost + random.gauss(0,std_dev) for cost in self.costs]
-
-		return costs
+		return np.clip(np.random.normal(self.costs, self.params.noise), 0, 1)
 
 
 	def _random_terminals(self, prizes, terminals):
@@ -291,7 +285,8 @@ class Graph:
 			terminals ():
 
 		Returns:
-			list: new terminal nodes
+			np.ndarray: new prizes
+			np.ndarray: new terminals
 		"""
 
 		if len(self.edges) < 50: sys.exit("Cannot use random_terminals with such a small interactome.")
@@ -322,7 +317,7 @@ class Graph:
 			networkx.Graph:
 		"""
 
-		if self.seed: random.seed(seed); numpy.random.seed(seed=seed)
+		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
 
 		results = []
 
@@ -330,15 +325,15 @@ class Graph:
 		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
 		edge_costs = copy(self.costs)
 
-		#### NOSY EDGES ####
-		for noisy_edge_costs in [self.noisy_edges() for rep in range(noisy_edges_reps)]:
+		#### NOISY EDGES ####
+		for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
 			self.costs = noisy_edge_costs
 			results.append(self.pcsf(prizes))
 		# Reset the true edges
 		self.costs = edge_costs
 
 		#### RANDOM TERMINALS ####
-		for random_prizes, terminals in [self.random_terminals(prizes) for rep in range(random_terminals_reps)]:
+		for random_prizes, terminals in [self._random_terminals(prizes) for rep in range(random_terminals_reps)]:
 
 			results.append(self.pcsf(random_prizes))
 
@@ -395,7 +390,7 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def betweenness(nxgraph):
+	def betweenness(self, nxgraph):
 		"""
 		Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
 
