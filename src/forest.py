@@ -137,7 +137,7 @@ class Graph:
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self.interactome_dataframe['cost'].values
+		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['cost'].values)
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -149,6 +149,10 @@ class Graph:
 		self.params = Options({**defaults, **params})
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu
+
+
+	# def _determine_costs_from_interactome_file(self, native_costs_array): return 1 - native_costs_array
+	def _determine_costs_from_interactome_file(self, native_costs_array): return native_costs_array
 
 
 	def prepare_prizes(self, prize_file):
@@ -398,14 +402,42 @@ def merge_two_prize_files(prize_file_1, prize_file_2):
 	"""
 
 	Arguments:
-		prize_file_1 ():
-		prize_file_2 ():
+		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name\tprize
+		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name\tprize
+
+	Returns:
+		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
-	pass
+
+	prize_df1 = pd.read_csv(prize_file_1, delimiter='\t', names=["name","prize"])
+	prize_df2 = pd.read_csv(prize_file_2, delimiter='\t', names=["name","prize"])
+
+	return merge_two_prize_dataframes(prize_df1, prize_df2)
 
 
+def merge_two_prize_dataframes(prize_df1, prize_df2):
+	"""
+
+	Arguments:
+		prize_df1 (pandas.DataFrame): a dataframe with columns 'name' and 'prize'
+		prize_df2 (pandas.DataFrame): a dataframe with columns 'name' and 'prize'
+
+	Returns:
+		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
+	"""
+
+	prizes_dataframe = pd.concat((prize_df1, prize_df2))
+	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True)
+
+	return prizes_dataframe
 
 
+def output_dataframe_to_tsv(dataframe, output_dir, filename):
+	"""
+	Output the dataframe to a csv
+	"""
+	path = os.path.join(os.path.abspath(output_dir), filename)
+	dataframe.to_csv(path, sep='\t', header=True, index=False)
 
 
 if __name__ == '__main__':
@@ -420,13 +452,11 @@ if __name__ == '__main__':
 	prizes, terminals = graph.prepare_prizes(args.prize_file)
 
 	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-		nxgraph = graph.randomizations(prizes, terminals, args.noisy_edges_repetitions, args.random_terminals_repetitions)
+		forest, augmented_forest = graph.randomizations(prizes, terminals, args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
 	else:
 		vertices, edges = graph.pcsf(prizes)
-		nxgraph = graph.output_forest_as_networkx(vertices, edges)
+		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges)
 
-	print(nxgraph)
-
-	# output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
+	output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
 
