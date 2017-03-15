@@ -1,4 +1,4 @@
 numpy==1.12.0
 pandas==0.19.2
-garnet==0.2.0
+garnet==0.2.12
 networkx==1.11
