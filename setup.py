@@ -19,6 +19,7 @@ setup(
         "numpy",
         "pandas",
         "garnet",
-        "networkx"
+        "networkx",
+        "pcst_fast"
     ],
 )
