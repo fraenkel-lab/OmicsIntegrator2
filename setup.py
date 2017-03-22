@@ -9,9 +9,8 @@ setup(
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7'],
-    license='GNU General Public License',
+        'Programming Language :: Python :: 3.6'],
+    license='MIT',
     author='zfrenchee',
     author_email='alex@lenail.org',
     description='',
