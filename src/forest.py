@@ -20,7 +20,7 @@ import pandas as pd
 import networkx as nx
 
 # Lab modules
-from pcst_fast.pcst_fast import pcst_fast
+from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
 __all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files"]
@@ -234,7 +234,7 @@ class Graph:
 		costs = np.concatenate((self.costs, dummy_costs))
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
 		# `num_clusters`: the number of connected components in the output.
-		num_clusters = 0
+		num_clusters = 1
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
 		vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
