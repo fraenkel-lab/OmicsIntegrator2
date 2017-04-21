@@ -244,6 +244,16 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
+	def dataframe_indices_to_gene_symbols(self, dataframe, edge_or_vertex):
+
+		if edge_or_vertex == "vertex": 
+			out = dataframe.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+		elif edge_or_vertex == "edge":
+			out = dataframe.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+
+		return out
+
+
 	def _noisy_edges(self):
 		"""
 		Adds gaussian noise to all edges in the graph
@@ -335,11 +345,14 @@ class Graph:
 
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
-		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+
+		prizes_dataframe = pd.DataFrame({"name": self.nodes, "prize": prizes})
+		edges = self.dataframe_indices_to_gene_symbols(edge_indices, "edge")
+		vertices = self.dataframe_indices_to_gene_symbols(vertex_indices, "vertex").merge(prizes_dataframe, right_on="name", left_index=True, how="left").set_index('name')
 
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
 		nx.set_node_attributes(forest, 'occurrence', vertices['occurrence'].to_dict())
+		nx.set_node_attributes(forest, 'prize', vertices['prize'].to_dict())
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
 
@@ -458,5 +471,5 @@ if __name__ == '__main__':
 		vertices, edges = graph.pcsf(prizes)
 		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges)
 
-	output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
+	# output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
 
