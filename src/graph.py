@@ -42,61 +42,6 @@ class Options(object):
 		self.__dict__.update(options)
 
 
-parser = argparse.ArgumentParser(description="""
-	Find multiple pathways within an interactome that are altered in a particular condition using
-	the Prize Collecting Steiner Forest problem.""")
-
-class FullPaths(argparse.Action):
-	"""Expand user- and relative-paths"""
-	def __call__(self,parser, namespace, values, option_string=None):
-		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
-
-def directory(dirname):
-	if not os.path.isdir(dirname): raise argparse.ArgumentTypeError(dirname + " is not a directory")
-	else: return dirname
-
-# Input / Output parameters:
-parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
-	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tweight(between 0 and 1)"')
-parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
-	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "nodeName\tprize"')
-parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
-	help='(Required) Output directory path')
-
-# Command parameters (specify what the algorithm does):
-parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
-	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
-parser.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
-	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: %default]')
-# parser.add_argument("--knockout", dest='knockout', nargs='*', default=[],
-# 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: %default]')
-
-params = parser.add_argument_group('Parameters', 'Parameters description')
-
-params.add_argument("-w", dest="w", type=float, required=False,
-	help="   [default: 6]")
-params.add_argument("-b", dest="b", type=float, required=False,
-	help="   [default: 12]")
-params.add_argument("-mu", dest="mu", type=float, required=False,
-	help="   [default: 0.04]")
-params.add_argument("-r", dest="r", type=float, required=False,
-	help="   [default: None]")
-params.add_argument("-noise", dest="noise", type=float, required=False,
-	help="   [default: 0.33]")
-params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
-	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
-
-params.add_argument("--muSquared", action='store_true', dest='mu_squared', required=False,
-	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: False]')
-
-params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
-	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: False]')
-
-params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
-	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
-
-
-
 class Graph:
 	"""
 
@@ -126,29 +71,33 @@ class Graph:
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
-		# We then unstack them, which, unintuitively, stacks them into one column, which is a hack
-		# 	allowing us to use factorize, which is a very convenient function.
+		# We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.
 		# Factorize builds two datastructures, a unique pd.Index of each ID string to a numerical ID
 		# and the datastructure we passed in with ID strings replaced with those numerical IDs.
 		# We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.
 		(self.edges, self.nodes) = pd.factorize(self.interactome_dataframe[["source","target"]].unstack())
 
-
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['cost'].values)
+		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['cost'].astype(float).values)
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
 
-		defaults = {"w": 6, "b": 12, "D": 6, "mu": 0.04, "r": None, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
+		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
 
 		self.params = Options({**defaults, **params})
 
-		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu
+		# self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
+
+		N = len(self.nodes)
+		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
+							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
+
+		self.costs = (self.costs + self.edge_penalties)
 
 
 	# def _determine_costs_from_interactome_file(self, native_costs_array): return 1 - native_costs_array
@@ -187,7 +136,7 @@ class Graph:
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
-		prizes = prizes_dataframe['prize'].values
+		prizes = prizes_dataframe['prize'].values * self.params.b
 
 		return prizes, terminals
 
@@ -438,25 +387,4 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	dataframe.to_csv(path, sep='\t', header=True, index=False)
-
-
-if __name__ == '__main__':
-
-	args = parser.parse_args()
-
-	# params = vars(args.params) # http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
-	params = {}
-
-	graph = Graph(args.edge_file, params)
-
-	prizes, terminals = graph.prepare_prizes(args.prize_file)
-
-	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-		forest, augmented_forest = graph.randomizations(prizes, terminals, args.noisy_edges_repetitions, args.random_terminals_repetitions)
-
-	else:
-		vertices, edges = graph.pcsf(prizes)
-		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges)
-
-	output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir+'/output.gml')
 

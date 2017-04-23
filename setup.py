@@ -1,11 +1,10 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='OmicsIntegrator',
-    version='0.2.0',
     packages=['OmicsIntegrator'],
-    package_dir={'OmicsIntegrator2': 'src'},
-    scripts=['src/forest.py'],
+    package_dir={'OmicsIntegrator': 'src'},
+    version='0.2.0',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
@@ -21,4 +20,11 @@ setup(
         "networkx",
         "pcst_fast"
     ],
+    entry_points={
+        'console_scripts': [ 'OmicsIntegrator = src.__main__:main' ]
+    },
 )
+
+
+
+
