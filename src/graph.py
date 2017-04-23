@@ -67,7 +67,7 @@ class Graph:
 		"""
 
 		interactome_fieldnames = ["source","target","cost"]
-		self.interactome_dataframe = pd.read_csv(interactome_file, delimiter='\t', names=interactome_fieldnames)
+		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
@@ -91,7 +91,7 @@ class Graph:
 
 		self.params = Options({**defaults, **params})
 
-		# self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
+		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
@@ -115,30 +115,33 @@ class Graph:
 		Returns:
 			list: prizes, properly indexed (ready for input to pcsf function)
 			list: of indices of terminals
-			dataframe: terminals missing from interactome
 		"""
 
-		prizes_dataframe = pd.read_csv(prize_file, delimiter='\t', names=["name","prize"])
-		# Strangely some files have duplicates. We quietly keep the first value.
-		prizes_dataframe.drop_duplicates(subset=['name'], inplace=True)
+		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
+		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
+
+		# Strangely some files have duplicate genes, sometimes with different prizes. Keep the max prize.
+		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
+		logger.info(prizes_dataframe[prizes_dataframe.set_index('name').index.duplicated()]['name'].tolist())
+		prizes_dataframe = prizes_dataframe.groupby('name').max().reset_index()
 
 		# Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
 		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
 
 		# there will be some nodes in the prize file which we don't have in our interactome
-		terminals_missing_from_interactome = prizes_dataframe[prizes_dataframe.index == -1]
 		logger.info("Members of the prize file not present in the interactome:")
-		logger.info(terminals_missing_from_interactome)
+		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.values)
+		terminal_attributes = prizes_dataframe.iloc[:,2:]
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
 		prizes = prizes_dataframe['prize'].values * self.params.b
 
-		return prizes, terminals
+		return prizes, terminals, terminal_attributes
 
 
 	def _add_dummy_node(self, connected_to=[]):
@@ -187,8 +190,8 @@ class Graph:
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
 		vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
-		# `vertices`: the vertices in the solution as a 1D int64 array.
-		# `edges`: the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
+		# `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.
+		# `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
 		return vertex_indices, edge_indices
 
@@ -296,7 +299,7 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def output_forest_as_networkx(self, vertex_indices, edge_indices):
+	def output_forest_as_networkx(self, vertex_indices, edge_indices, terminal_attributes):
 		"""
 
 		Arguments:
@@ -316,6 +319,8 @@ class Graph:
 		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+
+		# set terminal_attributes on nodes
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
 
@@ -352,15 +357,17 @@ def merge_two_prize_files(prize_file_1, prize_file_2):
 	"""
 
 	Arguments:
-		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name\tprize
-		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name\tprize
+		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prize_df1 = pd.read_csv(prize_file_1, delimiter='\t', names=["name","prize"])
-	prize_df2 = pd.read_csv(prize_file_2, delimiter='\t', names=["name","prize"])
+	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
+	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
+	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
+	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
 
 	return merge_two_prize_dataframes(prize_df1, prize_df2)
 
@@ -369,8 +376,8 @@ def merge_two_prize_dataframes(prize_df1, prize_df2):
 	"""
 
 	Arguments:
-		prize_df1 (pandas.DataFrame): a dataframe with columns 'name' and 'prize'
-		prize_df2 (pandas.DataFrame): a dataframe with columns 'name' and 'prize'
+		prize_df1 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
+		prize_df2 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
