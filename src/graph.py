@@ -284,6 +284,7 @@ class Graph:
 
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
+
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
@@ -387,4 +388,5 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	dataframe.to_csv(path, sep='\t', header=True, index=False)
+
 
