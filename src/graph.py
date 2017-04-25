@@ -130,12 +130,11 @@ class Graph:
 
 		# there will be some nodes in the prize file which we don't have in our interactome
 		logger.info("Members of the prize file not present in the interactome:")
-		# logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
+		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.values)
-		terminal_attributes = prizes_dataframe.set_index("name")
-		terminal_attributes["node_type"] = "Terminal"
+		terminal_attributes = prizes_dataframe.iloc[:,2:]
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
@@ -212,7 +211,7 @@ class Graph:
 
 	def _random_terminals(self, prizes, terminals):
 		"""
-		Succinct description of random_terminals
+		Succinct description of _random_terminals
 
 		Selects nodes with a similar degree distribution to the original terminals, and assigns the prizes to them.
 
@@ -241,11 +240,41 @@ class Graph:
 		return new_prizes, np.unique(new_terminals)
 
 
+	def _aggregate_pcsf(results, frequency_attribute_name):
+		"""
+		Succinct description of _aggregate_pcsf
+
+		Longer explanation of_aggregate_pcsf.
+
+		Arguments:
+			results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.
+			frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.
+
+		Returns:
+			pd.DataFrame: new prizes
+			pd.DataFrame: new terminals
+		"""
+
+		# Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
+		vertex_indices, edge_indices = zip(*results)
+
+		# These next steps are just data transformation/aggregation.
+		# 1. Flatten the lists of lists of edge indices and vertex indices
+		# 2. Count the occurrences of each edge and vertex index
+		# 3. Transform from Counter object to DataFrame through list
+		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index',frequency_attribute_name])
+		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index',frequency_attribute_name])
+		# 4. Convert occurrences to fractions
+		vertex_indices[frequency_attribute_name] /= len(results)
+		edge_indices[frequency_attribute_name] /= len(results)
+
+
 	def randomizations(self, prizes, terminals, noisy_edges_reps, random_terminals_reps):
 		"""
 
 		Arguments:
 			prizes ():
+			terminals ():
 			noisy_edges_reps (int):
 			random_terminals_reps (int):
 
@@ -268,32 +297,27 @@ class Graph:
 		# Reset the true edges
 		self.costs = edge_costs
 
+		if len(results) > 0: robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
+
+		results = []
+
 		#### RANDOM TERMINALS ####
 		for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
 			results.append(self.pcsf(random_prizes))
 
-		denominator = len(results)
-		# Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
-		vertex_indices, edge_indices = zip(*results)
+		if len(results) > 0: specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
 
-		# These next steps are just data transformation/aggregation.
-		# 1. Flatten the lists of lists of edge indices and vertex indices
-		# 2. Count the occurrences of each edge and vertex index
-		# 3. Transform from Counter object to DataFrame through list
-		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index','occurrence'])
-		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index','occurrence'])
-		# 4. Convert occurrences to fractions
-		vertex_indices['occurrence'] /= denominator
-		edge_indices['occurrence'] /= denominator
+		vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
+		edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
 
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
-
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
-		nx.set_node_attributes(forest, 'occurrence', vertices['occurrence'].to_dict()) # I suspect this is not working as intended
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','robustness','specificity'])
+		nx.set_node_attributes(forest, 'robustness', vertices['robustness'].to_dict())
+		nx.set_node_attributes(forest, 'specificity', vertices['specificity'].to_dict())
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
 
@@ -317,43 +341,15 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
-		logger.info(vertices.shape)
-		vertices = vertices.merge(terminal_attributes, how='left', left_index=True, right_index=True)
-		vertices["prize"].fillna(0, inplace=True)
-		vertices["node_type"].fillna("Steiner", inplace=True)
-		logger.info(vertices.head(20))
-		logger.info(vertices.shape)
-		# logger.info(vertices['node_type'].to_dict())
+		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
 		# set terminal_attributes on nodes
-		nx.set_node_attributes(forest, 'node_type', vertices['node_type'].to_dict())
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
-		logger.info(forest["RNF13"])
+		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
+
 		return forest, augmented_forest
-
-
-	def output_forest_as_node_attributes_tsv(self, vertex_indices, edge_indices, terminal_attributes):
-
-		vertex_indices = pd.DataFrame(vertex_indices, columns=['node_index'])
-		# edge_indices = pd.DataFrame(edge_indices, columns=['edge_index'])
-
-		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
-		# By doing an inner join, we get rid of all the dummy node edges.
-		# edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
-		node_attributes = vertices.merge(terminal_attributes, how='left', left_index=True, right_index=True).drop("node_index", 1)
-		node_attributes["prize"].fillna(0, inplace=True)
-		node_attributes["node_type"].fillna("Steiner", inplace=True)
-
-		# forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
-
-		# set terminal_attributes on nodes
-		# augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
-
-		return node_attributes
 
 
 	def betweenness(self, nxgraph):
@@ -377,7 +373,8 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
-		filename (str): A full filepath. Filenames ending in .gz or .bz2 will be compressed.
+		output_dir (str): the directory in which to output the graph. Must already exist.
+		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
@@ -424,6 +421,6 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	Output the dataframe to a csv
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True)
+	dataframe.to_csv(path, sep='\t', header=True, index=False)
 
 
