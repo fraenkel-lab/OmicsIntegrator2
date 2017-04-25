@@ -130,11 +130,12 @@ class Graph:
 
 		# there will be some nodes in the prize file which we don't have in our interactome
 		logger.info("Members of the prize file not present in the interactome:")
-		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
+		# logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.values)
-		terminal_attributes = prizes_dataframe.iloc[:,2:]
+		terminal_attributes = prizes_dataframe.set_index("name")
+		terminal_attributes["node_type"] = "Terminal"
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
@@ -292,7 +293,7 @@ class Graph:
 		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','occurrence'])
-		nx.set_node_attributes(forest, 'occurrence', vertices['occurrence'].to_dict())
+		nx.set_node_attributes(forest, 'occurrence', vertices['occurrence'].to_dict()) # I suspect this is not working as intended
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
 
@@ -316,15 +317,43 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
-
+		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+		logger.info(vertices.shape)
+		vertices = vertices.merge(terminal_attributes, how='left', left_index=True, right_index=True)
+		vertices["prize"].fillna(0, inplace=True)
+		vertices["node_type"].fillna("Steiner", inplace=True)
+		logger.info(vertices.head(20))
+		logger.info(vertices.shape)
+		# logger.info(vertices['node_type'].to_dict())
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
 		# set terminal_attributes on nodes
+		nx.set_node_attributes(forest, 'node_type', vertices['node_type'].to_dict())
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
-
+		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
+		logger.info(forest["RNF13"])
 		return forest, augmented_forest
+
+
+	def output_forest_as_node_attributes_tsv(self, vertex_indices, edge_indices, terminal_attributes):
+
+		vertex_indices = pd.DataFrame(vertex_indices, columns=['node_index'])
+		# edge_indices = pd.DataFrame(edge_indices, columns=['edge_index'])
+
+		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
+		# By doing an inner join, we get rid of all the dummy node edges.
+		# edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+		node_attributes = vertices.merge(terminal_attributes, how='left', left_index=True, right_index=True).drop("node_index", 1)
+		node_attributes["prize"].fillna(0, inplace=True)
+		node_attributes["node_type"].fillna("Steiner", inplace=True)
+
+		# forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+
+		# set terminal_attributes on nodes
+		# augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
+
+		return node_attributes
 
 
 	def betweenness(self, nxgraph):
@@ -344,13 +373,14 @@ class Graph:
 		return nxgraph
 
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph, filename):
+def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		filename (str): A full filepath. Filenames ending in .gz or .bz2 will be compressed.
 	"""
-	nx.write_gml(nxgraph, filename)
+	path = os.path.join(os.path.abspath(output_dir), filename)
+	nx.write_gml(nxgraph, path)
 
 
 def merge_two_prize_files(prize_file_1, prize_file_2):
@@ -394,6 +424,6 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	Output the dataframe to a csv
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=False)
+	dataframe.to_csv(path, sep='\t', header=True)
 
 

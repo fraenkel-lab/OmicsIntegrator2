@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 # Core python modules
-import sys
+import sys, os
 
 # Peripheral python modules
 import argparse
 
 # import this module
-from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files
+# from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files
+from graph import *
 
 
 parser = argparse.ArgumentParser(description="""
