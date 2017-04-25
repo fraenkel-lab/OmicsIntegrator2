@@ -23,7 +23,7 @@ import networkx as nx
 from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
-__all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files"]
+__all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files", "get_networkx_graph_as_dataframe_of_nodes"]
 
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class Graph:
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
 		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
 
-		# Strangely some files have duplicate genes, sometimes with different prizes. Keep the max prize.
+		# Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.
 		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
 		logger.info(prizes_dataframe[prizes_dataframe.set_index('name').index.duplicated()]['name'].tolist())
 		prizes_dataframe = prizes_dataframe.groupby('name').max().reset_index()
@@ -134,7 +134,7 @@ class Graph:
 		prizes_dataframe.drop(-1, inplace=True)
 
 		terminals = sorted(prizes_dataframe.index.values)
-		terminal_attributes = prizes_dataframe.iloc[:,2:]
+		terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
@@ -206,7 +206,7 @@ class Graph:
 			np.ndarray: edge weights with gaussian noise
 		"""
 
-		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, 1)
+		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, 100)  ## note this 100 is an arbitrary hack. There is no way to do one-sided clipping in numpy, unfortunately.
 
 
 	def _random_terminals(self, prizes, terminals):
@@ -228,7 +228,7 @@ class Graph:
 
 		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values().index
 		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in terminals])
-		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes))
+		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
 		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
 
 		new_prizes = copy(prizes)
@@ -240,7 +240,7 @@ class Graph:
 		return new_prizes, np.unique(new_terminals)
 
 
-	def _aggregate_pcsf(results, frequency_attribute_name):
+	def _aggregate_pcsf(self, results, frequency_attribute_name):
 		"""
 		Succinct description of _aggregate_pcsf
 
@@ -268,8 +268,10 @@ class Graph:
 		vertex_indices[frequency_attribute_name] /= len(results)
 		edge_indices[frequency_attribute_name] /= len(results)
 
+		return vertex_indices, edge_indices
 
-	def randomizations(self, prizes, terminals, noisy_edges_reps, random_terminals_reps):
+
+	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
 		"""
 
 		Arguments:
@@ -297,7 +299,8 @@ class Graph:
 		# Reset the true edges
 		self.costs = edge_costs
 
-		if len(results) > 0: robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
+		if len(results) > 0:
+			robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
 
 		results = []
 
@@ -305,19 +308,38 @@ class Graph:
 		for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
 			results.append(self.pcsf(random_prizes))
 
-		if len(results) > 0: specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
+		if len(results) > 0:
+			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
 
-		vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
-		edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
+		###########
+
+		if random_terminals_reps == 0:  # but noisy_edges_reps != 0
+			vertex_indices = robust_vertices; edge_indices = robust_edges;
+
+		elif noisy_edges_reps == 0:  # but random_terminals_reps != 0
+			vertex_indices = specific_vertices; edge_indices = specific_edges;
+
+		else:  # noisy_edges_reps != 0 and random_terminals_reps != 0
+			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
+			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
+
+		###########
 
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost','robustness','specificity'])
-		nx.set_node_attributes(forest, 'robustness', vertices['robustness'].to_dict())
-		nx.set_node_attributes(forest, 'specificity', vertices['specificity'].to_dict())
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		forest_nodes = forest.nodes()
+
+		if noisy_edges_reps > 0:
+			nx.set_node_attributes(forest, 'robustness', {node: robustness for node, robustness in vertices['robustness'].to_dict().items() if node in forest_nodes})
+		if random_terminals_reps > 0:
+			nx.set_node_attributes(forest, 'specificity', {node: specificity for node, specificity in vertices['specificity'].to_dict().items() if node in forest_nodes})
+
+		for attribute in terminal_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
 
@@ -345,7 +367,8 @@ class Graph:
 
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
-		# set terminal_attributes on nodes
+		for attribute in terminal_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, terminal_attributes[attribute].to_dict())
 
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
 
@@ -380,12 +403,27 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	nx.write_gml(nxgraph, path)
 
 
-def merge_two_prize_files(prize_file_1, prize_file_2):
+def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+
+	Returns:
+		pd.DataFrame: nodes and their attributes as a dataframe
+	"""
+
+	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+
+
+
+def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
 	"""
 
 	Arguments:
 		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
 		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_file_1_node_type
+		prize_file_2_node_type
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
@@ -393,8 +431,10 @@ def merge_two_prize_files(prize_file_1, prize_file_2):
 
 	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
 	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
+	if prize_file_1_node_type: prize_df1['type'] = prize_file_1_node_type
 	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
 	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
+	if prize_file_2_node_type: prize_df2['type'] = prize_file_2_node_type
 
 	return merge_two_prize_dataframes(prize_df1, prize_df2)
 
@@ -411,7 +451,7 @@ def merge_two_prize_dataframes(prize_df1, prize_df2):
 	"""
 
 	prizes_dataframe = pd.concat((prize_df1, prize_df2))
-	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True)
+	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
 
 	return prizes_dataframe
 

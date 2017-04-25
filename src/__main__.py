@@ -79,7 +79,7 @@ def main():
 	prizes, terminals, terminal_attributes = graph.prepare_prizes(args.prize_file)
 
 	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-		forest, augmented_forest = graph.randomizations(prizes, terminals, args.noisy_edges_repetitions, args.random_terminals_repetitions)
+		forest, augmented_forest = graph.randomizations(prizes, terminals, terminal_attributes, args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
 	else:
 		vertices, edges = graph.pcsf(prizes)
