@@ -26,7 +26,8 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
 			"merge_two_prize_files",
-			"get_networkx_graph_as_dataframe_of_nodes" ]
+			"get_networkx_graph_as_dataframe_of_nodes",
+			"get_networkx_graph_as_dataframe_of_edges" ]
 
 
 logger = logging.getLogger(__name__)
@@ -347,7 +348,7 @@ class Graph:
 		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
 		nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
 
 		return forest, augmented_forest
 
@@ -379,13 +380,9 @@ class Graph:
 		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
 
 		return forest, augmented_forest
-
-
-	# def output_forest_as_dataframe_of_nodes(elf, vertex_indices, edge_indices, terminal_attributes):
-		# Arguably this method should exist.
 
 
 	def betweenness(self, nxgraph):
@@ -404,6 +401,7 @@ class Graph:
 
 		return nxgraph
 
+
 	def pcsf_objective_value(self, prizes, forest):
 		"""
 		Calculate PCSF objective function
@@ -416,7 +414,7 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(prizes) - sum(forest.nodes()['prizes'])) + sum(forest.edges()['cost']) + (self.params.w * nx.number_connected_components(forest))
+		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
@@ -436,11 +434,25 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 
 	Returns:
-		pd.DataFrame: nodes and their attributes as a dataframe
+		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
 	"""
 
 	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
 
+
+def get_networkx_graph_as_dataframe_of_edges(nxgraph):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+
+	Returns:
+		pd.DataFrame: edges from the input graph and their attributes as a dataframe
+	"""
+
+	intermediate = pd.DataFrame(nxgraph.edges(data=True))
+	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
+	# TODO: in the future, get the other attributes out into columns
+	return intermediate[['protein1', 'protein2']]
 
 
 def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
