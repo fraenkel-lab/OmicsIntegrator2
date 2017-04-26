@@ -23,7 +23,10 @@ import networkx as nx
 from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
-__all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files", "get_networkx_graph_as_dataframe_of_nodes"]
+__all__ = [ "Graph",
+			"output_networkx_graph_as_gml_for_cytoscape",
+			"merge_two_prize_files",
+			"get_networkx_graph_as_dataframe_of_nodes" ]
 
 
 logger = logging.getLogger(__name__)
@@ -373,6 +376,10 @@ class Graph:
 		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
 
 		return forest, augmented_forest
+
+
+	# def output_forest_as_dataframe_of_nodes(elf, vertex_indices, edge_indices, terminal_attributes):
+		# Arguably this method should exist.
 
 
 	def betweenness(self, nxgraph):
