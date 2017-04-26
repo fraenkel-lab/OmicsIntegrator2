@@ -67,8 +67,6 @@ def main():
 
 	args = parser.parse_args()
 
-	print(vars(args))
-
 	params = {"w":args.w, "b":args.b, "mu":args.mu, "a":args.a, "noise":args.noise, "dummy_mode":args.dummy_mode, "mu_squared":args.mu_squared, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
 	params = {param: value for param, value in params.items() if value}
 	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
