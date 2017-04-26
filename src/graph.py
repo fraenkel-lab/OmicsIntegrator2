@@ -402,6 +402,20 @@ class Graph:
 
 		return nxgraph
 
+	def pcsf_objective_value(self, prizes, forest):
+		"""
+		Calculate PCSF objective function
+
+		Arguments:
+			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
+
+		Returns:
+			float: PCSF objective function score
+		"""
+
+		return (sum(prizes) - sum(forest.nodes()['prizes'])) + sum(forest.edges()['cost']) + (self.params.w * nx.number_connected_components(forest))
+
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
