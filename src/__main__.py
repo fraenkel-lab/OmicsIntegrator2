@@ -46,8 +46,8 @@ params.add_argument("-w", dest="w", type=float, required=False,
 	help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 6]")
 params.add_argument("-b", dest="b", type=float, required=False,
 	help="Beta: scaling factor of prizes [default: 1]")
-# params.add_argument("-mu", dest="mu", type=float, required=False,
-# 	help="Mu: multiplicative node penalty from degree of node [default: 0]")
+params.add_argument("-mu", dest="mu", type=float, required=False,
+	help="Mu: multiplicative node penalty from degree of node [default: 0]")
 params.add_argument("-a", dest="a", type=float, required=False,
 	help="Alpha: multiplicative edge penalty from degree of endpoints [default: 20]")
 params.add_argument("-noise", dest="noise", type=float, required=False,
@@ -67,12 +67,11 @@ def main():
 
 	args = parser.parse_args()
 
-	params = vars(args)
-	params.pop('edge_file')
-	params.pop('prize_file')
-	params.pop('output_dir')
-	params.pop('noisy_edges_repetitions')
-	params.pop('random_terminals_repetitions')   # gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
+	print(vars(args))
+
+	params = {"w":args.w, "b":args.b, "mu":args.mu, "a":args.a, "noise":args.noise, "dummy_mode":args.dummy_mode, "mu_squared":args.mu_squared, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
+	params = {param: value for param, value in params.items() if value}
+	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
 	graph = Graph(args.edge_file, params)
 
@@ -83,7 +82,7 @@ def main():
 
 	else:
 		vertices, edges = graph.pcsf(prizes)
-		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges)
+		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges, terminal_attributes)
 
 	output_networkx_graph_as_gml_for_cytoscape(nxgraph, os.path.join(output_dir, 'output.gml'))
 
