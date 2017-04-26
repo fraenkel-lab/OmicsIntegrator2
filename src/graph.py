@@ -23,7 +23,11 @@ import networkx as nx
 from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
-__all__ = ["Graph", "output_networkx_graph_as_gml_for_cytoscape", "merge_two_prize_files", "get_networkx_graph_as_dataframe_of_nodes"]
+__all__ = [ "Graph",
+			"output_networkx_graph_as_gml_for_cytoscape",
+			"merge_two_prize_files",
+			"get_networkx_graph_as_dataframe_of_nodes",
+			"get_networkx_graph_as_dataframe_of_edges" ]
 
 
 logger = logging.getLogger(__name__)
@@ -206,7 +210,7 @@ class Graph:
 			np.ndarray: edge weights with gaussian noise
 		"""
 
-		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, 100)  ## note this 100 is an arbitrary hack. There is no way to do one-sided clipping in numpy, unfortunately.
+		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
 
 
 	def _random_terminals(self, prizes, terminals):
@@ -341,7 +345,10 @@ class Graph:
 		for attribute in terminal_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(vertices.index.tolist()))
+		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
+		nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
 
 		return forest, augmented_forest
 
@@ -368,9 +375,12 @@ class Graph:
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
 		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, terminal_attributes[attribute].to_dict())
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
-		augmented_forest = nx.compose(forest, self.interactome_graph.subgraph(nodes.index.tolist()))
+		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
+		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
 
 		return forest, augmented_forest
 
@@ -392,6 +402,21 @@ class Graph:
 		return nxgraph
 
 
+	def pcsf_objective_value(self, prizes, forest):
+		"""
+		Calculate PCSF objective function
+
+		Arguments:
+			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
+
+		Returns:
+			float: PCSF objective function score
+		"""
+
+		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+
+
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
@@ -409,11 +434,25 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 
 	Returns:
-		pd.DataFrame: nodes and their attributes as a dataframe
+		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
 	"""
 
 	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
 
+
+def get_networkx_graph_as_dataframe_of_edges(nxgraph):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+
+	Returns:
+		pd.DataFrame: edges from the input graph and their attributes as a dataframe
+	"""
+
+	intermediate = pd.DataFrame(nxgraph.edges(data=True))
+	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
+	# TODO: in the future, get the other attributes out into columns
+	return intermediate[['protein1', 'protein2']]
 
 
 def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
