@@ -206,7 +206,7 @@ class Graph:
 			np.ndarray: edge weights with gaussian noise
 		"""
 
-		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, 100)  ## note this 100 is an arbitrary hack. There is no way to do one-sided clipping in numpy, unfortunately.
+		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
 
 
 	def _random_terminals(self, prizes, terminals):
