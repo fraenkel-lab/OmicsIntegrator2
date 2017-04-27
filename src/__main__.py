@@ -8,7 +8,7 @@ import argparse
 
 # import this module
 # from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files
-from graph import *
+from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files, get_networkx_graph_as_dataframe_of_nodes, get_networkx_graph_as_dataframe_of_edges
 
 
 parser = argparse.ArgumentParser(description="""
