@@ -1,5 +1,6 @@
 data/*
 output/*
+PCSF_compare/*
 
 # sftp-configs
 sftp-config.json

@@ -27,7 +27,8 @@ __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
 			"merge_two_prize_files",
 			"get_networkx_graph_as_dataframe_of_nodes",
-			"get_networkx_graph_as_dataframe_of_edges" ]
+			"get_networkx_graph_as_dataframe_of_edges",
+			"output_dataframe_to_tsv"]
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ def flatten(list_of_lists): return [item for sublist in list_of_lists for item i
 
 class Options(object):
 	def __init__(self, options):
-		self.__dict__.update(options)
+		self.__dict__.update(**options)
 
 
 class Graph:
@@ -90,10 +91,7 @@ class Graph:
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
-
-		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
-
-		self.params = Options({**defaults, **params})
+		self.params = Options({**params})
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
@@ -413,8 +411,7 @@ class Graph:
 		Returns:
 			float: PCSF objective function score
 		"""
-
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return sum(nx.get_node_attributes(forest, 'prize').values())*self.params.b - sum(nx.get_edge_attributes(forest, 'cost').values()) - (self.params.w * nx.number_connected_components(forest))
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
@@ -450,9 +447,9 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	"""
 
 	intermediate = pd.DataFrame(nxgraph.edges(data=True))
-	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
+	intermediate.columns = ['source', 'target'] + intermediate.columns[2:].tolist()
 	# TODO: in the future, get the other attributes out into columns
-	return intermediate[['protein1', 'protein2']]
+	return intermediate[['source', 'target']]
 
 
 def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
