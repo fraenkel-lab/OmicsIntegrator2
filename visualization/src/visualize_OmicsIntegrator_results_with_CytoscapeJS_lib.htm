@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Omics Integrator Result</title>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.0.0/cytoscape.js"></script>
+ <script src="graph.js"></script>
+ <script src="style.js"></script>
+ <script src="../src/FileSaver.js"></script>
+
+</head>
+<style>
+    #cy {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 25px;
+        left: 0px;
+    }
+</style>
+<style>
+.legend { list-style: none; margin: 0 0 0 60px;}
+.legend li { float: left; margin-right: 10px;}
+.legend span { border: 1px solid #ccc; float: left; width: 12px; height: 12px; margin: 2px; }
+.legend .positiveprotein { background-color: red; }
+.legend .zeroprotein { background-color: #ccffff; }
+.legend .negativeprotein { background-color: blue; }
+.legend .genenode { background-color: #40bf40; }
+.legend .positivegene { background-color: white; border-color: orange; border: 4px solid orange; width: 8px; height: 8px;}
+.legend .zerogene { background-color: white; border-color: gray;}
+.legend .negativegene { background-color: white; border-color: #990099; border: 4px solid #990099; width: 8px; height: 8px;}
+</style>
+<body>
+  <form name="formJSON"> 
+  <input type="button" onClick="saveJSON();" value="Save JSON">
+  </form> 
+</body>
+<body>
+<ul class="legend">
+    <li><span class="positiveprotein"></span> Protein-Level Change > 0</li>
+    <li><span class="zeroprotein"></span> Protein-Level Change = 0</li>
+    <li><span class="negativeprotein"></span> Protein-Level Change < 0</li>
+    <li><span class="genenode"></span> mRNA</li>
+    <li><span class="positivegene"></span> Gene-Level Change > 0</li>
+    <li><span class="zerogene"></span> Gene-Level Change = 0</li>
+    <li><span class="negativegene"></span> Gene-Level Change < 0</li>
+</ul>
+</body>
+<body>
+  <div id="cy"></div>
+  <script>
+  var cy = cytoscape({
+    container: document.getElementById('cy'),
+    style: style[0].style,
+    layout: {
+        name: 'cose',
+        padding: 30,
+        randomize: true,
+        componentSpacing: 250,
+        nodeRepulsion: function( node ){ return 400000; },
+        nodeOverlap: 10,
+        idealEdgeLength: function( edge ){ return 10; },
+        edgeElasticity: function( edge ){ return 100; },
+        nestingFactor: 5,
+        gravity: 80,
+        numIter: 1000,
+        initialTemp: 200,
+        coolingFactor: 0.95,
+        minTemp: 1.0,
+        useMultitasking: true
+    },
+    elements: graph.elements
+    });
+
+    function saveJSON() 
+    { 
+    var jsonBlob = new Blob([JSON.stringify( cy.json() )], { type: 'application/javascript;charset=utf-8' });
+    saveAs(jsonBlob, "graph_json.json");
+    } 
+  </script>
+</body>
+</html>
