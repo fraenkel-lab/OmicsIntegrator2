@@ -379,8 +379,8 @@ class Graph:
 		for attribute in terminal_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
-		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
-		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+		#node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
+		#nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
 
