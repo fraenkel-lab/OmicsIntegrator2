@@ -3,3 +3,4 @@ pandas==0.19.2
 garnet==0.2.20
 networkx==1.11
 pcst_fast==1.0.6
+py2cytoscape==0.6.2

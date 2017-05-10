@@ -8,7 +8,7 @@ import argparse
 
 # import this module
 # from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files
-from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files, get_networkx_graph_as_dataframe_of_nodes, get_networkx_graph_as_dataframe_of_edges
+from . import Graph, output_networkx_graph_as_gml_for_cytoscape, merge_two_prize_files, get_networkx_graph_as_dataframe_of_nodes, get_networkx_graph_as_dataframe_of_edges, output_networkx_graph_as_json_for_cytoscapejs
 
 
 parser = argparse.ArgumentParser(description="""
@@ -82,7 +82,8 @@ def main():
 		vertices, edges = graph.pcsf(prizes)
 		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges, terminal_attributes)
 
-	output_networkx_graph_as_gml_for_cytoscape(nxgraph, os.path.join(output_dir, 'output.gml'))
+    #output_networkx_graph_as_gml_for_cytoscape(nxgraph, os.path.join(output_dir, 'output.gml'))
+	output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir)
 
 
 if __name__ == '__main__':

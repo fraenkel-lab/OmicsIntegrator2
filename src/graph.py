@@ -11,6 +11,7 @@ import logging
 import random
 from collections import Counter
 from copy import copy
+import json
 
 # Core python external libraries
 import numpy as np
@@ -18,6 +19,7 @@ import pandas as pd
 
 # Peripheral python external libraries
 import networkx as nx
+from py2cytoscape import util as cy
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -427,6 +429,18 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
 
+
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_json.json)
+	"""
+	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+	njs = cy.from_networkx(nxgraph)
+	with open(path,'w') as outf:
+		outf.write(json.dumps(njs, indent=4))
+	
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
