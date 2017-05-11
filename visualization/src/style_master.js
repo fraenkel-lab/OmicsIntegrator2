@@ -133,7 +133,7 @@ var style = [ {
       "shape" : "rectangle"
     }
   }, {
-    "selector" : "node[TerminalType = 'Steiner']",
+    "selector" : "node[TerminalType = 0]",
     "css" : {
       "shape" : "hexagon"
     }
@@ -143,7 +143,7 @@ var style = [ {
       "background-color" : "green"
     }
   }, {
-    "selector" : "node[TerminalType = 'Steiner']",
+    "selector" : "node[TerminalType = 0]",
     "css" : {
       "background-color" : "rgb(221,255,255)"
     }
@@ -213,12 +213,12 @@ var style = [ {
       "border-width" : "2"
     }
   }, {
-    "selector" : "node[TerminalType = 'Steiner']",
+    "selector" : "node[TerminalType = 0]",
     "css" : {
       "border-color" : "gray"
     }
   }, {
-    "selector" : "node[TerminalType = 'Steiner']",
+    "selector" : "node[TerminalType = 0]",
     "css" : {
       "border-width" : "2"
     }
