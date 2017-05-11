@@ -72,9 +72,9 @@ class Graph:
 
 		"""
 
-		interactome_fieldnames = ["source","target","cost"]
+		interactome_fieldnames = ["source","target","Weight"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
-		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
+		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['Weight'])
 
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.
@@ -86,7 +86,7 @@ class Graph:
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['cost'].astype(float).values)
+		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['Weight'].astype(float).values)
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -106,8 +106,11 @@ class Graph:
 		self.costs = (self.costs + self.edge_penalties)
 
 
-	# def _determine_costs_from_interactome_file(self, native_costs_array): return 1 - native_costs_array
-	def _determine_costs_from_interactome_file(self, native_costs_array): return native_costs_array
+	def _determine_costs_from_interactome_file(self, native_costs_array): 
+		flip_costs = 1 - native_costs_array
+		pos_costs = flip_costs[flip_costs<0] = 0
+		return pos_costs
+	# def _determine_costs_from_interactome_file(self, native_costs_array): return native_costs_array
 
 
 	def prepare_prizes(self, prize_file):
@@ -374,7 +377,7 @@ class Graph:
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
 		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['Weight'])
 
 		for attribute in terminal_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
@@ -416,7 +419,7 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'Weight').values()) + (self.params.w * nx.number_connected_components(forest))
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
