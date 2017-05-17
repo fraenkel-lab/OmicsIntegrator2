@@ -1,0 +1,72 @@
+
+--------------------------------------------------------------------------
+
+           Description of the Files in visualization/src
+
+--------------------------------------------------------------------------
+
+(1) create_style_code_for_visualization.py
+
+    This Python code 
+    (a) extracts min and max values of the “ProteinChange” attribute from all nodes in a network JSON file (graph_json.json).
+    (b) automatically generates the JavasScript code that programs the visual styles specific to the current network sample.
+    (c) converts a network JSON file into a JavaScript code. 
+
+
+(2) style_master.js
+
+    This JavaScript code programs the visual styles that are common to all network samples.
+
+
+(3) visualize_OmicsIntegrator_results_with_CytoscapeJS_lib.htm
+
+    This HTML code contains the JavaScript code that programs the network visualization of the OmicsIntegrator results 
+    using the cytoscape.js library.
+    It codes with the cose layout in cytoscape.js.
+    The HTML code implements the "Save JSON" functionality.
+    It also implements a legend for the node colors & border colors to be displayed with the network.
+
+
+(4) visualize_user_saved_JSON_file_with_CytoscapeJS_lib.htm
+
+    This HTML code contains the JavaScript code that programs the network visualization of the user saved JSON file 
+    using the cytoscape.js library.
+    The HTML code implements the "Save JSON" functionality.
+    It also implements a legend for the node colors & border colors to be displayed with the network.
+
+
+(5) run_visualization_for_OmicsIntegrator_results.sh
+
+    This bash script runs the visualization for the OmicsIntegrator results.
+    It creates a sample-specific directory visualize_results_<sample_name>/
+    which contains the network graph.js and style.js specific to the current network sample, and a HTML file.
+    
+
+(6) run_visualization_for_OmicsIntegrator_results.bat
+
+    This script is a Windows version of run_visualization_for_OmicsIntegrator_results.sh.
+
+
+(7) run_visualization_for_user_saved_JSON_file.sh
+
+    This bash script runs the visualization for the user saved JSON file.
+    It creates a sample-specific directory visualize_saved_JSON_<sample_name>/
+    which contains the network graph.js and style.js specific to the current network sample, and a HTML file.
+
+
+(8) run_visualization_for_user_saved_JSON_file.bat
+
+    This script is a Windows version of run_visualization_for_user_saved_JSON_file.sh.
+
+
+(9) graph_head.txt
+
+    This text file contains the top line code to be used to convert a network JSON file into a JavaScript code.
+
+
+(10) FileSaver.js
+
+    This JavaScript code is a saveAs() FileSaver implementation.
+
+
+
