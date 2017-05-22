@@ -5,7 +5,7 @@
 #
 FOREST_OUTPUT_DIR=$1
 USER_SAMPLE=$2
-USER_RESULT_DIR="../visualize_results_$USER_SAMPLE"
+USER_RESULT_DIR="$FOREST_OUTPUT_DIR/visualize_results_$USER_SAMPLE"
 #
 # Make a visualize_results_rundir/ after clearing out the existing one (if exists). 
 # This run dir is for creating the final graph.js and style.js files of a specific network, 

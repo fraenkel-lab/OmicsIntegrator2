@@ -84,5 +84,9 @@ def main():
 	#output_networkx_graph_as_gml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
 	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
 
+    #visualization
+	os.chdir('~/OmicsIntegrator2/visualization/src/')
+	os.system('./run_visualization_for_OmicsIntegrator_results.sh %s w%i_b%i_a%i'%(args.output_dir, args.w,args.b,args.a))
+
 if __name__ == '__main__':
 	main()
