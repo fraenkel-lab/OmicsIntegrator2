@@ -19,7 +19,11 @@ def extract_min_max(json_file):
         min_value = 0
         max_value = 0
         for node in node_list:
-            current_value = node["data"]["ProteinChange"]
+            if "ProteinChange" in node["data"]:
+                current_value = node["data"]["ProteinChange"]
+            else:
+                print node
+                continue
             if current_value > max_value:
                 max_value = current_value
             if current_value < min_value:
