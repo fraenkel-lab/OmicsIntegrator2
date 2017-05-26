@@ -54,18 +54,16 @@ class Graph:
 		"""
 		Builds a representation of a graph from an interactome file.
 
-		From the interactome_file, populates `self.nodes` (pd.Index), `self.edges` (list of pairs),
-		`self.costs` (list, such that the ordering is the same as in self.edges), and
-		`self.node_degrees` and self.negprizes (lists, such that the ordering is the same as in self.nodes).
-
-		From the prize_file, populates self.terminals (list) and self.prizes (list which contains 0
-		everywhere there isn't a terminal with an assigned prize).
-
-		From the garnet_file, merge the TF terminals and prizes with `self.terminals` and `self.prizes`.
+		From the interactome_file, populates
+		- `self.interactome_dataframe` (pandas.DataFrame)
+		- `self.interactome_graph` (networkx.Graph)
+		- `self.nodes` (pandas.Index),
+		- `self.edges` (list of pairs),
+		- `self.costs` and `self.edge_penalties` (lists, such that the ordering is the same as in self.edges),
+		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
 
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tWeight"
-			prize_file (str or FILE): tab-delimited text file containing all proteins with prizes formatted like "ProteinName\tPrizeValue"
 			params (dict): params with which to run the program
 
 		"""
@@ -77,14 +75,14 @@ class Graph:
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.
 		# Factorize builds two datastructures, a unique pd.Index of each ID string to a numerical ID
-		# and the datastructure we passed in with ID strings replaced with those numerical IDs.
+		# and the datastructure we passed it with ID strings replaced with those numerical IDs.
 		# We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.
 		(self.edges, self.nodes) = pd.factorize(self.interactome_dataframe[["source","target"]].unstack())
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['cost'].astype(float).values)
+		self.costs = self.interactome_dataframe['cost'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -104,21 +102,25 @@ class Graph:
 		self.costs = (self.costs + self.edge_penalties)
 
 
-	# def _determine_costs_from_interactome_file(self, native_costs_array): return 1 - native_costs_array
-	def _determine_costs_from_interactome_file(self, native_costs_array): return native_costs_array
-
-
 	def prepare_prizes(self, prize_file):
 		"""
-		Parses a prize file and returns an array of prizes, a list of terminal indices,
-		and terminals missing from the interactome
+		Parses a prize file and returns an array of prizes, a list of terminal indices.
+
+		This function logs duplicate assignments in the prize file and memebers of the prize file
+		not found in the interactome.
+
+		This file passed to this function must have at least two columns: node name and prize.
+		Any additional columns will be assumed to be node attributes. However, in order to know
+		the names of those attributes, this function now requires the input file contain headers,
+		i.e. the first row of the tsv must be the names of the columns.
 
 		Arguments:
-			prize_file (str or FILE): a filepath or file object containing a tsv of two columns: node name and prize
+			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
 
 		Returns:
-			list: prizes, properly indexed (ready for input to pcsf function)
-			list: of indices of terminals
+			numpy.array: prizes, properly indexed (ready for input to pcsf function)
+			numpy.array: terminals, their indices
+			pandas.DataFrame: terminal_attributes
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
@@ -152,7 +154,7 @@ class Graph:
 
 		dummy_id = len(self.nodes)
 		dummy_prize = np.array([0])
-		dummy_edges = np.array([(dummy_id, connection) for connection in connected_to])
+		dummy_edges = np.array([(dummy_id, node_id) for node_id in connected_to])
 		dummy_costs = np.array([self.params.w] * len(dummy_edges))
 
 		return dummy_edges, dummy_costs, dummy_id, dummy_prize
@@ -167,6 +169,21 @@ class Graph:
 
 	def pcsf(self, prizes, pruning="strong", verbosity_level=0):
 		"""
+		Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.
+
+		This function mostly defers to pcst_fast, but does one important pre-processing step: it
+		adds a dummy node which will serve as the PCSF root and connects that dummy node to either
+		terminals, non-terminals, or all other nodes with edges weighted by self.params.w.
+
+		In order to interpret the results of this function, use `output_forest_as_networkx` with
+		the results of this function.
+
+		Arguments:
+			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+
+		Returns:
+			numpy.array: indices of the selected vertices
+			numpy.array: indices of the selected edges
 		"""
 
 		terminals = pd.Series(prizes).nonzero()[0].tolist()
@@ -198,159 +215,6 @@ class Graph:
 		# `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
 		return vertex_indices, edge_indices
-
-
-	def _noisy_edges(self):
-		"""
-		Adds gaussian noise to all edges in the graph
-
-		Generate gaussian noise values, mean=0, stdev default=0.333 (edge values range between 0 and 1)
-
-		Returns:
-			np.ndarray: edge weights with gaussian noise
-		"""
-
-		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
-
-
-	def _random_terminals(self, prizes, terminals):
-		"""
-		Succinct description of _random_terminals
-
-		Selects nodes with a similar degree distribution to the original terminals, and assigns the prizes to them.
-
-		Arguments:
-			prizes ():
-			terminals ():
-
-		Returns:
-			np.ndarray: new prizes
-			np.ndarray: new terminals
-		"""
-
-		if len(self.edges) < 50: sys.exit("Cannot use random_terminals with such a small interactome.")
-
-		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values().index
-		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in terminals])
-		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
-		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
-
-		new_prizes = copy(prizes)
-
-		for old_terminal, new_terminal in zip(terminals, new_terminals):
-			new_prizes[old_terminal] = 0
-			new_prizes[new_terminal] = prizes[old_terminal]
-
-		return new_prizes, np.unique(new_terminals)
-
-
-	def _aggregate_pcsf(self, results, frequency_attribute_name):
-		"""
-		Succinct description of _aggregate_pcsf
-
-		Longer explanation of_aggregate_pcsf.
-
-		Arguments:
-			results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.
-			frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.
-
-		Returns:
-			pd.DataFrame: new prizes
-			pd.DataFrame: new terminals
-		"""
-
-		# Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
-		vertex_indices, edge_indices = zip(*results)
-
-		# These next steps are just data transformation/aggregation.
-		# 1. Flatten the lists of lists of edge indices and vertex indices
-		# 2. Count the occurrences of each edge and vertex index
-		# 3. Transform from Counter object to DataFrame through list
-		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index',frequency_attribute_name])
-		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index',frequency_attribute_name])
-		# 4. Convert occurrences to fractions
-		vertex_indices[frequency_attribute_name] /= len(results)
-		edge_indices[frequency_attribute_name] /= len(results)
-
-		return vertex_indices, edge_indices
-
-
-	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
-		"""
-
-		Arguments:
-			prizes ():
-			terminals ():
-			noisy_edges_reps (int):
-			random_terminals_reps (int):
-
-		Returns:
-			networkx.Graph:
-		"""
-
-		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
-
-		results = []
-
-		# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
-		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
-		edge_costs = copy(self.costs)
-
-		#### NOISY EDGES ####
-		for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
-			self.costs = noisy_edge_costs
-			results.append(self.pcsf(prizes))
-		# Reset the true edges
-		self.costs = edge_costs
-
-		if len(results) > 0:
-			robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
-
-		results = []
-
-		#### RANDOM TERMINALS ####
-		for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
-			results.append(self.pcsf(random_prizes))
-
-		if len(results) > 0:
-			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
-
-		###########
-
-		if random_terminals_reps == 0:  # but noisy_edges_reps != 0
-			vertex_indices = robust_vertices; edge_indices = robust_edges;
-
-		elif noisy_edges_reps == 0:  # but random_terminals_reps != 0
-			vertex_indices = specific_vertices; edge_indices = specific_edges;
-
-		else:  # noisy_edges_reps != 0 and random_terminals_reps != 0
-			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
-			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
-
-		###########
-
-		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
-		# By doing an inner join, we get rid of all the dummy node edges.
-		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
-
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
-		forest_nodes = forest.nodes()
-
-		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 'robustness', {node: robustness for node, robustness in vertices['robustness'].to_dict().items() if node in forest_nodes})
-		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 'specificity', {node: specificity for node, specificity in vertices['specificity'].to_dict().items() if node in forest_nodes})
-
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
-
-		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
-		nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
-
-		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
-
-		return forest, augmented_forest
 
 
 	def output_forest_as_networkx(self, vertex_indices, edge_indices, terminal_attributes):
@@ -385,6 +249,174 @@ class Graph:
 		return forest, augmented_forest
 
 
+	def pcsf_objective_value(self, prizes, forest):
+		"""
+		Calculate PCSF objective function
+
+		Arguments:
+			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
+
+		Returns:
+			float: PCSF objective function score
+		"""
+
+		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+
+
+	def _noisy_edges(self):
+		"""
+		Adds gaussian noise to all edges in the graph
+
+		Generate gaussian noise values, mean=0, stdev default=0.333 (edge values range between 0 and 1)
+
+		Returns:
+			numpy.array: edge weights with gaussian noise
+		"""
+
+		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
+
+
+	def _random_terminals(self, prizes, terminals):
+		"""
+		Switches the terminams with random nodes with a similar degree distribution.
+
+		Arguments:
+			prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
+			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above)
+
+		Returns:
+			numpy.array: new prizes
+			numpy.array: new terminals
+		"""
+
+		if len(self.edges) < 50: sys.exit("Cannot use random_terminals with such a small interactome.")
+
+		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values().index
+		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in terminals])
+		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
+		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
+
+		new_prizes = copy(prizes)
+
+		for old_terminal, new_terminal in zip(terminals, new_terminals):
+			new_prizes[old_terminal] = 0
+			new_prizes[new_terminal] = prizes[old_terminal]
+
+		return new_prizes, np.unique(new_terminals)
+
+
+	def _aggregate_pcsf(self, results, frequency_attribute_name):
+		"""
+		Merge multiple PCSF results into one DataFrame
+
+		Arguments:
+			results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.
+			frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.
+
+		Returns:
+			pandas.DataFrame: vertex indices and their fractional rate of occurrence in the PCSF results
+			pandas.DataFrame: edge indices and their fractional rate of occurrence in the PCSF results
+		"""
+
+		# Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
+		vertex_indices, edge_indices = zip(*results)
+
+		# These next steps are just data transformation/aggregation.
+		# 1. Flatten the lists of lists of edge indices and vertex indices
+		# 2. Count the occurrences of each edge and vertex index
+		# 3. Transform from Counter object to DataFrame through list
+		vertex_indices = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index',frequency_attribute_name])
+		edge_indices = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index',frequency_attribute_name])
+		# 4. Convert occurrences to fractions
+		vertex_indices[frequency_attribute_name] /= len(results)
+		edge_indices[frequency_attribute_name] /= len(results)
+
+		return vertex_indices, edge_indices
+
+
+	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
+		"""
+		Macro function which performs randomizations and merges the results
+
+		Arguments:
+			prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
+			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from prepare_prizes)
+			noisy_edges_reps (int): Number of "Noisy Edges" type randomizations to perform
+			random_terminals_reps (int): Number of "Random Terminals" type randomizations to perform
+
+		Returns:
+			networkx.Graph: forest
+			networkx.Graph: augmented_forest
+		"""
+
+		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
+
+		#### NOISY EDGES ####
+		results = []
+
+		# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
+		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
+		edge_costs = copy(self.costs)
+
+		for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
+			self.costs = noisy_edge_costs
+			results.append(self.pcsf(prizes))
+		# Reset the true edges
+		self.costs = edge_costs
+
+		if len(results) > 0:
+			robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
+
+		results = []
+
+		#### RANDOM TERMINALS ####
+		for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
+			results.append(self.pcsf(random_prizes))
+
+		if len(results) > 0:
+			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
+
+		###########
+
+		if random_terminals_reps == 0 and noisy_edges_reps != 0:
+			vertex_indices = robust_vertices; edge_indices = robust_edges;
+
+		elif noisy_edges_reps == 0 and random_terminals_reps != 0:
+			vertex_indices = specific_vertices; edge_indices = specific_edges;
+
+		elif noisy_edges_reps != 0 and random_terminals_reps != 0:
+			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
+			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
+
+		else: sys.exit("Randomizations was called with 0 noisy_edges_reps and 0 random_terminals_reps.")
+
+		###########
+
+		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
+		# By doing an inner join, we get rid of all the dummy node edges.
+		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
+		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		forest_nodes = forest.nodes()
+
+		if noisy_edges_reps > 0:
+			nx.set_node_attributes(forest, 'robustness', {node: robustness for node, robustness in vertices['robustness'].to_dict().items() if node in forest_nodes})
+		if random_terminals_reps > 0:
+			nx.set_node_attributes(forest, 'specificity', {node: specificity for node, specificity in vertices['specificity'].to_dict().items() if node in forest_nodes})
+
+		for attribute in terminal_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
+
+		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
+		nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
+
+		return forest, augmented_forest
+
+
 	def betweenness(self, nxgraph):
 		"""
 		Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
@@ -400,21 +432,6 @@ class Graph:
 		nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
 
 		return nxgraph
-
-
-	def pcsf_objective_value(self, prizes, forest):
-		"""
-		Calculate PCSF objective function
-
-		Arguments:
-			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
-			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
-
-		Returns:
-			float: PCSF objective function score
-		"""
-
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
@@ -457,12 +474,11 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 
 def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
 	"""
-
 	Arguments:
 		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
 		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_file_1_node_type
-		prize_file_2_node_type
+		prize_file_1_node_type (str): a node type name to associate with the nodes from prize_file_1
+		prize_file_2_node_type (str): a node type name to associate with the nodes from prize_file_2
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
@@ -471,6 +487,7 @@ def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=Non
 	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
 	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
 	if prize_file_1_node_type: prize_df1['type'] = prize_file_1_node_type
+
 	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
 	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
 	if prize_file_2_node_type: prize_df2['type'] = prize_file_2_node_type
