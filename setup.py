@@ -4,7 +4,7 @@ setup(
     name='OmicsIntegrator',
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
-    version='0.2.1',
+    version='0.2.3',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
