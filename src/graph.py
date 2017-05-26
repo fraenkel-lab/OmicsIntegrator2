@@ -370,7 +370,6 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
 		# By doing an inner join, we get rid of all the dummy node edges.
 		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
 
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
 
@@ -380,7 +379,7 @@ class Graph:
 		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
-		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
 		return forest, augmented_forest
 
@@ -500,6 +499,6 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	Output the dataframe to a csv
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=False)
+	dataframe.to_csv(path, sep='\t', header=True, index=True)
 
 
