@@ -1,3 +1,10 @@
+/* style_master.js
+ *
+ * Program the visual styles for Omics Integrator visualization
+ * using the Cytoscape.js library.
+ *
+ */
+
 var style = [ {
   "format_version" : "1.0",
   "target_cytoscapejs_version" : "~2.1",
@@ -33,6 +40,12 @@ var style = [ {
       "target-arrow-fill" : "filled"
     }
   }, {
+    "selector" : "edge[interaction = 'tp']",
+    "css" : {
+      "target-arrow-shape" : "triangle",
+      "target-arrow-fill" : "filled"
+    }
+  }, {
     "selector" : "edge[interaction = 'pp']",
     "css" : {
       "line-color" : "rgb(153,153,153)",
@@ -45,6 +58,13 @@ var style = [ {
       "line-color" : "rgb(51,153,0)",
       "target-arrow-color" : "rgb(51,153,0)",
       "source-arrow-color" : "rgb(51,153,0)"
+    }
+  }, {
+    "selector" : "edge[interaction = 'tp']",
+    "css" : {
+      "line-color" : "rgb(152,233,7)",
+      "target-arrow-color" : "rgb(152,233,7)",
+      "source-arrow-color" : "rgb(152,233,7)"
     }
   }, {
     "selector" : "edge[Weight > 0.99]",
@@ -193,16 +213,6 @@ var style = [ {
       "background-color" : "rgb(221,255,255)"
     }
   }, {
-    "selector" : "node[TerminalType = 'TF']",
-    "css" : {
-      "border-color" : "gray"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF']",
-    "css" : {
-      "border-width" : "2"
-    }
-  }, {
     "selector" : "node[TerminalType = 'Metabolite']",
     "css" : {
       "border-color" : "gray"
@@ -254,6 +264,24 @@ var style = [ {
     }
   }, {
     "selector" : "node[TerminalType = 'mRNA'][GeneChange = 0]",
+    "css" : {
+      "border-color" : "gray",
+      "border-width" : "2"
+    }
+  }, {
+    "selector" : "node[TerminalType = 'TF'][GeneChange > 0]",
+    "css" : {
+      "border-color" : "rgb(255,153,0)",
+      "border-width" : "7"
+    }
+  }, {
+    "selector" : "node[TerminalType = 'TF'][GeneChange < 0]",
+    "css" : {
+      "border-color" : "purple",
+      "border-width" : "7"
+    }
+  }, {
+    "selector" : "node[TerminalType = 'TF'][GeneChange = 0]",
     "css" : {
       "border-color" : "gray",
       "border-width" : "2"
