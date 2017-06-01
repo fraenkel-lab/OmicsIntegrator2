@@ -1,4 +1,5 @@
 import json
+import sys
 
 def extract_min_max(json_file):
         """
@@ -194,12 +195,13 @@ def create_style_code_cytoscape(min_max, style_filename):
 
 
 if __name__ == '__main__':
-        process_graph_json("../visualize_results_rundir/graph.js")
 
-        min_max_values = extract_min_max("graph_json.json")
+        outdir = sys.argv[1]
+        user_dir = sys.argv[2]
 
-        create_style_code_cytoscape(min_max_values, "../visualize_results_rundir/style.js")
+        process_graph_json("%s/graph.js"%outdir)
 
-        
+        min_max_values = extract_min_max("%s/graph_json.json"%user_dir)
 
-        
+        create_style_code_cytoscape(min_max_values, "%s/style.js"%outdir)
+
