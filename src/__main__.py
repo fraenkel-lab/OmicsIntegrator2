@@ -86,7 +86,10 @@ def main():
 
     #visualization
 	cdir = os.path.dirname(__file__)
-	os.system('%s/../visualization/src/run_visualization_for_OmicsIntegrator_results.sh %s w%i_b%i_a%i'%(cdir, args.output_dir, args.w,args.b,args.a))
+	if "a" in params and "w" in params and "b" in params:
+		os.system('%s/../visualization/src/run_visualization_for_OmicsIntegrator_results.sh %s w%i_b%i_a%i'%(cdir, args.output_dir, args.w,args.b,args.a))
+	else:
+		os.system('%s/../visualization/src/run_visualization_for_OmicsIntegrator_results.sh %s defaultparams'%(cdir, args.output_dir))
 
 if __name__ == '__main__':
 	main()
