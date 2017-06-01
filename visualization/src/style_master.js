@@ -101,17 +101,17 @@ var style = [ {
     "css" : {
       "color" : "rgb(0,0,0)",
       "background-opacity" : 1.0,
-      "border-color" : "rgb(204,204,204)",
+      "border-color" : "gray",
       "text-opacity" : 1.0,
-      "background-color" : "rgb(137,208,245)",
+      "background-color" : "rgb(221,255,255)",
       "width" : 75.0,
       "font-family" : "SansSerif.plain",
       "font-weight" : "normal",
       "text-valign" : "center",
       "text-halign" : "center",
       "border-opacity" : 1.0,
-      "border-width" : 1.0,
-      "shape" : "roundrectangle",
+      "border-width" : "2",
+      "shape" : "hexagon",
       "height" : 35.0,
       "font-size" : 12,
       "content" : "data(name)"
@@ -153,19 +153,9 @@ var style = [ {
       "shape" : "rectangle"
     }
   }, {
-    "selector" : "node[TerminalType = 0]",
-    "css" : {
-      "shape" : "hexagon"
-    }
-  }, {
     "selector" : "node[TerminalType = 'mRNA']",
     "css" : {
       "background-color" : "green"
-    }
-  }, {
-    "selector" : "node[TerminalType = 0]",
-    "css" : {
-      "background-color" : "rgb(221,255,255)"
     }
   }, {
     "selector" : "node[TerminalType = 'Proteomic'][ProteinChange < 0]",
@@ -219,16 +209,6 @@ var style = [ {
     }
   }, {
     "selector" : "node[TerminalType = 'Metabolite']",
-    "css" : {
-      "border-width" : "2"
-    }
-  }, {
-    "selector" : "node[TerminalType = 0]",
-    "css" : {
-      "border-color" : "gray"
-    }
-  }, {
-    "selector" : "node[TerminalType = 0]",
     "css" : {
       "border-width" : "2"
     }
