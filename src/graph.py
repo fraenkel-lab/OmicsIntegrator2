@@ -227,7 +227,7 @@ class Graph:
 
 		# Remove the dummy node and dummy edges for convenience
 		vertex_indices = vertex_indices[vertex_indices != root]
-		edge_indices = edge_indices[edge_indices != dummy_edges]
+		edge_indices = edge_indices[np.in1d(edge_indices, dummy_edges, invert=True)]
 
 		return vertex_indices, edge_indices
 
@@ -251,7 +251,7 @@ class Graph:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
 		# Add the degree as an attribute
-		node_degree_dict = nx.degree(graph.interactome_graph)
+		node_degree_dict = nx.degree(self.interactome_graph)
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
@@ -411,14 +411,14 @@ class Graph:
 
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
 
-		vertex_indices.index = self.nodes[vertex_indices]
+		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
 		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 'robustness', vertices['robustness'].to_dict().items())
-			nx.set_node_attributes(augmented_forest, 'robustness', vertices['robustness'].to_dict().items())
+			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict().items())
+			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict().items())
 		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 'specificity', vertices['specificity'].to_dict().items())
-			nx.set_node_attributes(augmented_forest, 'specificity', vertices['specificity'].to_dict().items())
+			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict().items())
+			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict().items())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
 
@@ -427,7 +427,9 @@ class Graph:
 
 	def grid_search(self, prize_file, As, Bs, Ws):
 		"""
-		Macro function which performs grid search and merges the results
+		Macro function which performs grid search and merges the results.
+
+		This function is under construction and subject to change.
 
 		Arguments:
 			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
@@ -445,16 +447,25 @@ class Graph:
 		def run(params):
 			self._set_hyperparameters(params)
 			prizes = bare_prizes * float(params['b'])
-			return (params, self.pcsf(prizes))
+			paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+			return (paramstring, self.pcsf(prizes))
 
-		results = map(run, parameter_permutations)
+		results = list(map(run, parameter_permutations))
 
-		params_by_nodes = [(params, self.nodes[vertex_indices[vertex_indices < len(self.nodes)]]) for params, (vertex_indices, edge_indices) in results]
+		### GET THE REGULAR OUTPUT ###
+		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
 
-		vertex_indices, edge_indices = self._aggregate_pcsf(results, 'frequency')
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
 
-		return vertex_indices, edge_indices, params_by_nodes
+		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
+		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict().items())
+		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
+
+		### GET THE OUTPUT NEEDED BY JOHNNY'S VISUALIZATION ###
+		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results})
+
+		return forest, augmented_forest, params_by_nodes
 
 
 def betweenness(nxgraph):
