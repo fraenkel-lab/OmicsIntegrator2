@@ -444,6 +444,7 @@ class Graph:
 		bare_prizes = prizes / self.params.b
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
 
+
 		def run(params):
 			self._set_hyperparameters(params)
 			prizes = bare_prizes * float(params['b'])
