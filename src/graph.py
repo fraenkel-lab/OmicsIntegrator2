@@ -10,14 +10,14 @@ import pickle
 import logging
 import random
 from collections import Counter
+from itertools import product
 from copy import copy
 
-# Core python external libraries
+# python external libraries
 import numpy as np
 import pandas as pd
-
-# Peripheral python external libraries
 import networkx as nx
+import yaml
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -48,7 +48,8 @@ class Options(object):
 
 class Graph:
 	"""
-
+	A Graph object is a representation of a graph, with convenience methods for using the pcst_fast
+	package, which computes an approximate minimization Prize-Collecting Steiner Forest objective.
 	"""
 	def __init__(self, interactome_file, params):
 		"""
@@ -82,12 +83,22 @@ class Graph:
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 
-		self.costs = self.interactome_dataframe['cost'].astype(float).values
+		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
+		self._set_hyperparameters(params)
+
+
+	def _set_hyperparameters(self, params):
+		"""
+		Set the parameters on Graph and compute parameter-dependent features.
+
+		Arguments:
+			params (dict): params with which to run the program
+		"""
 
 		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
 
@@ -99,7 +110,7 @@ class Graph:
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
 
-		self.costs = (self.costs + self.edge_penalties)
+		self.costs = (self.edge_costs + self.edge_penalties)
 
 
 	def prepare_prizes(self, prize_file):
@@ -214,6 +225,10 @@ class Graph:
 		# `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.
 		# `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
+		# Remove the dummy node and dummy edges for convenience
+		vertex_indices = vertex_indices[vertex_indices != root]
+		edge_indices = edge_indices[edge_indices != dummy_edges]
+
 		return vertex_indices, edge_indices
 
 
@@ -228,20 +243,16 @@ class Graph:
 			networkx.Graph: a networkx graph object
 		"""
 
-		vertex_indices = pd.DataFrame(vertex_indices, columns=['node_index'])
-		edge_indices = pd.DataFrame(edge_indices, columns=['edge_index'])
-
-		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
-		# By doing an inner join, we get rid of all the dummy node edges.
-		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		nodes = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
-
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['cost'])
+		# Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
+		edges = self.interactome_dataframe.loc[edge_indices]
+		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		nodes = forest.nodes()
 
 		for attribute in terminal_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
-		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
+		# Add the degree as an attribute
+		node_degree_dict = nx.degree(graph.interactome_graph)
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
@@ -339,9 +350,13 @@ class Graph:
 		"""
 		Macro function which performs randomizations and merges the results
 
+		Note that these are additive, not multiplicative:
+		`noisy_edges_reps` = 5 and `random_terminals_reps` = 5 makes 10 PCSF runs, not 25.
+
 		Arguments:
-			prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
-			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from prepare_prizes)
+			prizes (numpy.array): prizes, properly indexed (e.g. from `prepare_prizes`)
+			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from `prepare_prizes`)
+			terminal_attributes (pandas.DataFrame): additional attributes on the terminals (from `prepare_prizes`)
 			noisy_edges_reps (int): Number of "Noisy Edges" type randomizations to perform
 			random_terminals_reps (int): Number of "Random Terminals" type randomizations to perform
 
@@ -353,85 +368,111 @@ class Graph:
 		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
 
 		#### NOISY EDGES ####
-		results = []
+		if noisy_edges_reps > 0:
 
-		# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
-		# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
-		edge_costs = copy(self.costs)
+			results = []
 
-		for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
-			self.costs = noisy_edge_costs
-			results.append(self.pcsf(prizes))
-		# Reset the true edges
-		self.costs = edge_costs
+			# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
+			# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
+			true_edge_costs = copy(self.costs)
 
-		if len(results) > 0:
+			for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
+				self.costs = noisy_edge_costs
+				results.append(self.pcsf(prizes))
+			# Reset the true edges
+			self.costs = true_edge_costs
+
 			robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
 
-		results = []
-
 		#### RANDOM TERMINALS ####
-		for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
-			results.append(self.pcsf(random_prizes))
+		if random_terminals_reps > 0:
 
-		if len(results) > 0:
+			results = []
+
+			for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
+				results.append(self.pcsf(random_prizes))
+
 			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
 
 		###########
 
-		if random_terminals_reps == 0 and noisy_edges_reps != 0:
+		if random_terminals_reps == 0 and noisy_edges_reps > 0:
 			vertex_indices = robust_vertices; edge_indices = robust_edges;
 
-		elif noisy_edges_reps == 0 and random_terminals_reps != 0:
+		elif noisy_edges_reps == 0 and random_terminals_reps > 0:
 			vertex_indices = specific_vertices; edge_indices = specific_edges;
 
-		elif noisy_edges_reps != 0 and random_terminals_reps != 0:
+		elif noisy_edges_reps > 0 and random_terminals_reps > 0:
 			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
 			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
 
-		else: sys.exit("Randomizations was called with 0 noisy_edges_reps and 0 random_terminals_reps.")
+		else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
 		###########
 
-		# Replace the edge indices with the actual edges (source name, target name) by merging with the interactome
-		# By doing an inner join, we get rid of all the dummy node edges.
-		edges = edge_indices.merge(self.interactome_dataframe, how='inner', left_on='edge_index', right_index=True)
-		vertices = vertex_indices.merge(pd.DataFrame(self.nodes, columns=['name']), how='inner', left_on='node_index', right_index=True).set_index('name')
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
 
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
-		forest_nodes = forest.nodes()
+		vertex_indices.index = self.nodes[vertex_indices]
 
 		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 'robustness', {node: robustness for node, robustness in vertices['robustness'].to_dict().items() if node in forest_nodes})
+			nx.set_node_attributes(forest, 'robustness', vertices['robustness'].to_dict().items())
+			nx.set_node_attributes(augmented_forest, 'robustness', vertices['robustness'].to_dict().items())
 		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 'specificity', {node: specificity for node, specificity in vertices['specificity'].to_dict().items() if node in forest_nodes})
+			nx.set_node_attributes(forest, 'specificity', vertices['specificity'].to_dict().items())
+			nx.set_node_attributes(augmented_forest, 'specificity', vertices['specificity'].to_dict().items())
 
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
-
-		node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
-		nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
-
-		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
+		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
 
 		return forest, augmented_forest
 
 
-	def betweenness(self, nxgraph):
+	def grid_search(self, prize_file, As, Bs, Ws):
 		"""
-		Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
+		Macro function which performs grid search and merges the results
 
 		Arguments:
-			nxgraph (networkx.Graph): a networkx graph object
+			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
+			parameter_permutations (list): list of dictionaries of parameters
 
 		Returns:
-			networkx.Graph: a networkx graph object
+			list: [(vertex_indices, edge_indices),...] from PCSF runs.
 		"""
 
-		betweenness = nx.betweenness_centrality(nxgraph)
-		nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+		prizes, terminals, terminal_attributes = self.prepare_prizes(prize_file)
 
-		return nxgraph
+		bare_prizes = prizes / self.params.b
+		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
+
+		def run(params):
+			self._set_hyperparameters(params)
+			prizes = bare_prizes * float(params['b'])
+			return (params, self.pcsf(prizes))
+
+		results = map(run, parameter_permutations)
+
+		params_by_nodes = [(params, self.nodes[vertex_indices[vertex_indices < len(self.nodes)]]) for params, (vertex_indices, edge_indices) in results]
+
+		vertex_indices, edge_indices = self._aggregate_pcsf(results, 'frequency')
+
+		return vertex_indices, edge_indices, params_by_nodes
+
+
+
+def betweenness(nxgraph):
+	"""
+	Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
+
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph object
+
+	Returns:
+		networkx.Graph: a networkx graph object
+	"""
+
+	betweenness = nx.betweenness_centrality(nxgraph)
+	nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+
+	return nxgraph
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
