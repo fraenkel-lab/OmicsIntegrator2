@@ -246,7 +246,6 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
-		nodes = forest.nodes()
 
 		for attribute in terminal_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
@@ -255,7 +254,7 @@ class Graph:
 		node_degree_dict = nx.degree(graph.interactome_graph)
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
-		augmented_forest = nx.compose(self.interactome_graph.subgraph(nodes.index.tolist()), forest)
+		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
 		return forest, augmented_forest
 
@@ -558,6 +557,6 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	Output the dataframe to a csv
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=False)
+	dataframe.to_csv(path, sep='\t', header=True, index=True)
 
 
