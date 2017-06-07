@@ -23,11 +23,11 @@
 import os, sys
 sys.path.insert(0, os.path.abspath('../../src'))
 
-# import sphinx_rtd_theme
+import sphinx_rtd_theme
 
-# html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_rtd_theme"
 
-# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 
 # -- General configuration ------------------------------------------------
@@ -97,7 +97,7 @@ todo_include_todos = False
 #
 # html_theme = 'haiku'
 
-html_theme = 'alabaster'
+# html_theme = 'alabaster'
 # html_theme_path = ['_theme']
 # html_static_path = ['_static']
 # html_theme_options = {
