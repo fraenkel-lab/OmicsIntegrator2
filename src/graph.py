@@ -17,7 +17,7 @@ from copy import copy
 import numpy as np
 import pandas as pd
 import networkx as nx
-import yaml
+import community    # pip install python-louvain
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -470,20 +470,17 @@ class Graph:
 
 
 def betweenness(nxgraph):
-	"""
-	Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
+	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
 
-	Arguments:
-		nxgraph (networkx.Graph): a networkx graph object
 
-	Returns:
-		networkx.Graph: a networkx graph object
-	"""
+def louvain_clustering(nxgraph):
+	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
 
-	betweenness = nx.betweenness_centrality(nxgraph)
-	nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+def edge_betweenness_clustering(nxgraph):
+	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', nx.girvan_newman(nxgraph)) # this returns node IDs in lists, need to convert.
 
-	return nxgraph
+def k_clique_clustering(nxgraph):
+	nx.set_node_attributes(nxgraph, 'k_clique_clusters', nx.k_clique_communities(nxgraph))  # this returns node IDs in lists, need to convert.
 
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
