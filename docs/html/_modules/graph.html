@@ -1,0 +1,797 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>graph &mdash; OmicsIntegrator2 2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="OmicsIntegrator2 2.0 documentation" href="../index.html"/>
+        <link rel="up" title="Module code" href="index.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> OmicsIntegrator2
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                2.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">OmicsIntegrator2</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>graph</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for graph</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+
+<span class="c1"># Core python modules</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="c1"># Peripheral python modules</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Counter</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">product</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span>
+
+<span class="c1"># python external libraries</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="c1"># Lab modules</span>
+<span class="kn">from</span> <span class="nn">pcst_fast</span> <span class="k">import</span> <span class="n">pcst_fast</span>
+
+<span class="c1"># list of classes and methods we&#39;d like to export:</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;Graph&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;output_networkx_graph_as_gml_for_cytoscape&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;merge_two_prize_files&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;get_networkx_graph_as_dataframe_of_nodes&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;get_networkx_graph_as_dataframe_of_edges&quot;</span> <span class="p">]</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - Forest: </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;%I:%M:%S&quot;</span><span class="p">))</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+
+
+<span class="c1"># Some arbitrary helpers I believe should exist in the language anyhow</span>
+<span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">list_of_lists</span><span class="p">):</span> <span class="k">return</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">list_of_lists</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
+
+<span class="k">class</span> <span class="nc">Options</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Graph"><a class="viewcode-back" href="../index.html#graph.Graph">[docs]</a><span class="k">class</span> <span class="nc">Graph</span><span class="p">:</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	A Graph object is a representation of a graph, with convenience methods for using the pcst_fast</span>
+<span class="sd">	package, which computes an approximate minimization Prize-Collecting Steiner Forest objective.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interactome_file</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Builds a representation of a graph from an interactome file.</span>
+
+<span class="sd">		From the interactome_file, populates</span>
+<span class="sd">		- `self.interactome_dataframe` (pandas.DataFrame)</span>
+<span class="sd">		- `self.interactome_graph` (networkx.Graph)</span>
+<span class="sd">		- `self.nodes` (pandas.Index),</span>
+<span class="sd">		- `self.edges` (list of pairs),</span>
+<span class="sd">		- `self.costs` and `self.edge_penalties` (lists, such that the ordering is the same as in self.edges),</span>
+<span class="sd">		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like &quot;ProteinA\tProteinB\tWeight&quot;</span>
+<span class="sd">			params (dict): params with which to run the program</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">interactome_fieldnames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">,</span><span class="s2">&quot;target&quot;</span><span class="p">,</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">interactome_file</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">interactome_fieldnames</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">interactome_graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">from_pandas_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="p">,</span> <span class="s1">&#39;source&#39;</span><span class="p">,</span> <span class="s1">&#39;target&#39;</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">])</span>
+
+		<span class="c1"># We first take only the source and target columns from the interactome dataframe.</span>
+		<span class="c1"># We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.</span>
+		<span class="c1"># Factorize builds two datastructures, a unique pd.Index of each ID string to a numerical ID</span>
+		<span class="c1"># and the datastructure we passed it with ID strings replaced with those numerical IDs.</span>
+		<span class="c1"># We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.</span>
+		<span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">factorize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="p">[[</span><span class="s2">&quot;source&quot;</span><span class="p">,</span><span class="s2">&quot;target&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">unstack</span><span class="p">())</span>
+
+		<span class="c1"># Here we do the inverse operation of &quot;unstack&quot; above, which gives us an interpretable edges datastructure</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="p">[[</span><span class="s2">&quot;source&quot;</span><span class="p">,</span><span class="s2">&quot;target&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">edge_costs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+
+		<span class="c1"># Numpy has a convenient counting function. However we&#39;re assuming here that each edge only appears once.</span>
+		<span class="c1"># The indices into this datastructure are the same as those in self.nodes and self.edges.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_set_hyperparameters</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">_set_hyperparameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Set the parameters on Graph and compute parameter-dependent features.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			params (dict): params with which to run the program</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;w&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;mu&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s2">&quot;noise&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;mu_squared&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;exclude_terminals&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;dummy_mode&quot;</span><span class="p">:</span> <span class="s2">&quot;terminals&quot;</span><span class="p">,</span> <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">Options</span><span class="p">({</span><span class="o">**</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">})</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">negprizes</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="o">**</span><span class="mi">2</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mu_squared</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mu</span> <span class="c1"># unless self.params.exclude_terminals TODO</span>
+
+		<span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">edge_penalties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">a</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">/</span>
+							<span class="p">((</span><span class="n">N</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">b</span><span class="p">])</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">])</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">costs</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edge_costs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_penalties</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Graph.prepare_prizes"><a class="viewcode-back" href="../index.html#graph.Graph.prepare_prizes">[docs]</a>	<span class="k">def</span> <span class="nf">prepare_prizes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prize_file</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Parses a prize file and returns an array of prizes, a list of terminal indices.</span>
+
+<span class="sd">		This function logs duplicate assignments in the prize file and memebers of the prize file</span>
+<span class="sd">		not found in the interactome.</span>
+
+<span class="sd">		This file passed to this function must have at least two columns: node name and prize.</span>
+<span class="sd">		Any additional columns will be assumed to be node attributes. However, in order to know</span>
+<span class="sd">		the names of those attributes, this function now requires the input file contain headers,</span>
+<span class="sd">		i.e. the first row of the tsv must be the names of the columns.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			numpy.array: prizes, properly indexed (ready for input to pcsf function)</span>
+<span class="sd">			numpy.array: terminals, their indices</span>
+<span class="sd">			pandas.DataFrame: terminal_attributes</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">prizes_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">prize_file</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+		<span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+		<span class="c1"># Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Duplicated gene symbols in the prize file (we&#39;ll keep the max prize):&quot;</span><span class="p">)</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">[</span><span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+		<span class="n">prizes_dataframe</span> <span class="o">=</span> <span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+		<span class="c1"># Here&#39;s we&#39;re indexing the terminal nodes and associated prizes by the indices we used for nodes</span>
+		<span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">get_indexer</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+		<span class="c1"># there will be some nodes in the prize file which we don&#39;t have in our interactome</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Members of the prize file not present in the interactome:&quot;</span><span class="p">)</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">[</span><span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+		<span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+		<span class="n">terminals</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+		<span class="n">terminal_attributes</span> <span class="o">=</span> <span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+		<span class="c1"># Here we&#39;re making a dataframe with all the nodes as keys and the prizes from above or 0</span>
+		<span class="n">prizes_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+		<span class="c1"># Our return value is a 1D array, where each entry is a node&#39;s prize, indexed as above</span>
+		<span class="n">prizes</span> <span class="o">=</span> <span class="n">prizes_dataframe</span><span class="p">[</span><span class="s1">&#39;prize&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span>
+
+		<span class="k">return</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">terminals</span><span class="p">,</span> <span class="n">terminal_attributes</span></div>
+
+
+	<span class="k">def</span> <span class="nf">_add_dummy_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connected_to</span><span class="o">=</span><span class="p">[]):</span>
+
+		<span class="n">dummy_id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+		<span class="n">dummy_prize</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+		<span class="n">dummy_edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="n">dummy_id</span><span class="p">,</span> <span class="n">node_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="n">connected_to</span><span class="p">])</span>
+		<span class="n">dummy_costs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">dummy_edges</span><span class="p">))</span>
+
+		<span class="k">return</span> <span class="n">dummy_edges</span><span class="p">,</span> <span class="n">dummy_costs</span><span class="p">,</span> <span class="n">dummy_id</span><span class="p">,</span> <span class="n">dummy_prize</span>
+
+
+	<span class="k">def</span> <span class="nf">_check_validity_of_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Assert that the parammeters and files passed to this program are valid, log useful error messages otherwise.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">pass</span>
+
+
+<div class="viewcode-block" id="Graph.pcsf"><a class="viewcode-back" href="../index.html#graph.Graph.pcsf">[docs]</a>	<span class="k">def</span> <span class="nf">pcsf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">pruning</span><span class="o">=</span><span class="s2">&quot;strong&quot;</span><span class="p">,</span> <span class="n">verbosity_level</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.</span>
+
+<span class="sd">		This function mostly defers to pcst_fast, but does one important pre-processing step: it</span>
+<span class="sd">		adds a dummy node which will serve as the PCSF root and connects that dummy node to either</span>
+<span class="sd">		terminals, non-terminals, or all other nodes with edges weighted by self.params.w.</span>
+
+<span class="sd">		In order to interpret the results of this function, use `output_forest_as_networkx` with</span>
+<span class="sd">		the results of this function.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			prizes (list): a list of prizes like the one returned by the prepare_prizes method.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			numpy.array: indices of the selected vertices</span>
+<span class="sd">			numpy.array: indices of the selected edges</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">terminals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">prizes</span><span class="p">)</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+		<span class="n">others</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)))</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">terminals</span><span class="p">))</span>
+		<span class="nb">all</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)))</span>
+
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dummy_mode</span> <span class="o">==</span> <span class="s1">&#39;terminals&#39;</span><span class="p">:</span> <span class="n">endpoints</span> <span class="o">=</span> <span class="n">terminals</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dummy_mode</span> <span class="o">==</span> <span class="s1">&#39;other&#39;</span><span class="p">:</span> <span class="n">endpoints</span> <span class="o">=</span> <span class="n">others</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dummy_mode</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span> <span class="n">endpoints</span> <span class="o">=</span> <span class="nb">all</span>
+		<span class="k">else</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;Invalid dummy mode&quot;</span><span class="p">)</span>
+
+		<span class="n">dummy_edges</span><span class="p">,</span> <span class="n">dummy_costs</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">dummy_prize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_dummy_node</span><span class="p">(</span><span class="n">connected_to</span><span class="o">=</span><span class="n">endpoints</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_check_validity_of_instance</span><span class="p">()</span>
+
+		<span class="c1"># `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.</span>
+		<span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">,</span> <span class="n">dummy_edges</span><span class="p">))</span>
+		<span class="c1"># `prizes`: the node prizes as a 1D float64 array.</span>
+		<span class="n">prizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">prizes</span><span class="p">,</span> <span class="n">dummy_prize</span><span class="p">))</span>
+		<span class="c1"># `costs`: the edge costs as a 1D float64 array.</span>
+		<span class="n">costs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">costs</span><span class="p">,</span> <span class="n">dummy_costs</span><span class="p">))</span>
+		<span class="c1"># `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.</span>
+		<span class="c1"># `num_clusters`: the number of connected components in the output.</span>
+		<span class="n">num_clusters</span> <span class="o">=</span> <span class="mi">1</span>
+		<span class="c1"># `pruning`: a string value indicating the pruning method. Possible values are `&#39;none&#39;`, `&#39;simple&#39;`, `&#39;gw&#39;`, and `&#39;strong&#39;` (all literals are case-insensitive).</span>
+		<span class="c1"># `verbosity_level`: an integer indicating how much debug output the function should produce.</span>
+		<span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span> <span class="o">=</span> <span class="n">pcst_fast</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">costs</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">num_clusters</span><span class="p">,</span> <span class="n">pruning</span><span class="p">,</span> <span class="n">verbosity_level</span><span class="p">)</span>
+		<span class="c1"># `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.</span>
+		<span class="c1"># `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.</span>
+
+		<span class="c1"># Remove the dummy node and dummy edges for convenience</span>
+		<span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="n">vertex_indices</span> <span class="o">!=</span> <span class="n">root</span><span class="p">]</span>
+		<span class="n">edge_indices</span> <span class="o">=</span> <span class="n">edge_indices</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span><span class="n">edge_indices</span><span class="p">,</span> <span class="n">dummy_edges</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+
+		<span class="k">return</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span></div>
+
+
+<div class="viewcode-block" id="Graph.output_forest_as_networkx"><a class="viewcode-back" href="../index.html#graph.Graph.output_forest_as_networkx">[docs]</a>	<span class="k">def</span> <span class="nf">output_forest_as_networkx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span><span class="p">,</span> <span class="n">terminal_attributes</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			vertex_indices (list): indices of the vertices selected in self.nodes</span>
+<span class="sd">			edge_indices (list): indices of the edges selected in self.edges</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			networkx.Graph: a networkx graph object</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="c1"># Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome</span>
+		<span class="n">edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">edge_indices</span><span class="p">]</span>
+		<span class="n">forest</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">from_pandas_dataframe</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="s1">&#39;source&#39;</span><span class="p">,</span> <span class="s1">&#39;target&#39;</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="n">terminal_attributes</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+			<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="n">attr</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">terminal_attributes</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forest</span><span class="o">.</span><span class="n">nodes</span><span class="p">()})</span>
+
+		<span class="c1"># Add the degree as an attribute</span>
+		<span class="n">node_degree_dict</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">degree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interactome_graph</span><span class="p">)</span>
+		<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="s1">&#39;degree&#39;</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="n">degree</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span> <span class="n">degree</span> <span class="ow">in</span> <span class="n">node_degree_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forest</span><span class="o">.</span><span class="n">nodes</span><span class="p">()})</span>
+
+		<span class="n">augmented_forest</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interactome_graph</span><span class="o">.</span><span class="n">subgraph</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">nodes</span><span class="p">()),</span> <span class="n">forest</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span></div>
+
+
+<div class="viewcode-block" id="Graph.pcsf_objective_value"><a class="viewcode-back" href="../index.html#graph.Graph.pcsf_objective_value">[docs]</a>	<span class="k">def</span> <span class="nf">pcsf_objective_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">forest</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Calculate PCSF objective function</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			prizes (list): a list of prizes like the one returned by the prepare_prizes method.</span>
+<span class="sd">			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			float: PCSF objective function score</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">return</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">prizes</span><span class="p">)</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_edge_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="s1">&#39;cost&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="n">nx</span><span class="o">.</span><span class="n">number_connected_components</span><span class="p">(</span><span class="n">forest</span><span class="p">))</span></div>
+
+
+	<span class="k">def</span> <span class="nf">_noisy_edges</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Adds gaussian noise to all edges in the graph</span>
+
+<span class="sd">		Generate gaussian noise values, mean=0, stdev default=0.333 (edge values range between 0 and 1)</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			numpy.array: edge weights with gaussian noise</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">costs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">noise</span><span class="p">),</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># None means don&#39;t clip above</span>
+
+
+	<span class="k">def</span> <span class="nf">_random_terminals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">terminals</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Switches the terminams with random nodes with a similar degree distribution.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)</span>
+<span class="sd">			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above)</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			numpy.array: new prizes</span>
+<span class="sd">			numpy.array: new terminals</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;Cannot use random_terminals with such a small interactome.&quot;</span><span class="p">)</span>
+
+		<span class="n">nodes_sorted_by_degree</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">()</span><span class="o">.</span><span class="n">index</span>
+		<span class="n">terminal_degree_rankings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">nodes_sorted_by_degree</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">terminal</span><span class="p">)</span> <span class="k">for</span> <span class="n">terminal</span> <span class="ow">in</span> <span class="n">terminals</span><span class="p">])</span>
+		<span class="n">new_terminal_degree_rankings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">terminal_degree_rankings</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+		<span class="n">new_terminals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">nodes_sorted_by_degree</span><span class="p">)[</span><span class="n">new_terminal_degree_rankings</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
+		<span class="n">new_prizes</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">prizes</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">old_terminal</span><span class="p">,</span> <span class="n">new_terminal</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">terminals</span><span class="p">,</span> <span class="n">new_terminals</span><span class="p">):</span>
+			<span class="n">new_prizes</span><span class="p">[</span><span class="n">old_terminal</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+			<span class="n">new_prizes</span><span class="p">[</span><span class="n">new_terminal</span><span class="p">]</span> <span class="o">=</span> <span class="n">prizes</span><span class="p">[</span><span class="n">old_terminal</span><span class="p">]</span>
+
+		<span class="k">return</span> <span class="n">new_prizes</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">new_terminals</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">_aggregate_pcsf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">frequency_attribute_name</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Merge multiple PCSF results into one DataFrame</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.</span>
+<span class="sd">			frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			pandas.DataFrame: vertex indices and their fractional rate of occurrence in the PCSF results</span>
+<span class="sd">			pandas.DataFrame: edge indices and their fractional rate of occurrence in the PCSF results</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="c1"># Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])</span>
+		<span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">results</span><span class="p">)</span>
+
+		<span class="c1"># These next steps are just data transformation/aggregation.</span>
+		<span class="c1"># 1. Flatten the lists of lists of edge indices and vertex indices</span>
+		<span class="c1"># 2. Count the occurrences of each edge and vertex index</span>
+		<span class="c1"># 3. Transform from Counter object to DataFrame through list</span>
+		<span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">Counter</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">vertex_indices</span><span class="p">))</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;node_index&#39;</span><span class="p">,</span><span class="n">frequency_attribute_name</span><span class="p">])</span>
+		<span class="n">edge_indices</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">Counter</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">edge_indices</span><span class="p">))</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;edge_index&#39;</span><span class="p">,</span><span class="n">frequency_attribute_name</span><span class="p">])</span>
+		<span class="c1"># 4. Convert occurrences to fractions</span>
+		<span class="n">vertex_indices</span><span class="p">[</span><span class="n">frequency_attribute_name</span><span class="p">]</span> <span class="o">/=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+		<span class="n">edge_indices</span><span class="p">[</span><span class="n">frequency_attribute_name</span><span class="p">]</span> <span class="o">/=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span>
+
+
+<div class="viewcode-block" id="Graph.randomizations"><a class="viewcode-back" href="../index.html#graph.Graph.randomizations">[docs]</a>	<span class="k">def</span> <span class="nf">randomizations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prizes</span><span class="p">,</span> <span class="n">terminals</span><span class="p">,</span> <span class="n">terminal_attributes</span><span class="p">,</span> <span class="n">noisy_edges_reps</span><span class="p">,</span> <span class="n">random_terminals_reps</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Macro function which performs randomizations and merges the results</span>
+
+<span class="sd">		Note that these are additive, not multiplicative:</span>
+<span class="sd">		`noisy_edges_reps` = 5 and `random_terminals_reps` = 5 makes 10 PCSF runs, not 25.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			prizes (numpy.array): prizes, properly indexed (e.g. from `prepare_prizes`)</span>
+<span class="sd">			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from `prepare_prizes`)</span>
+<span class="sd">			terminal_attributes (pandas.DataFrame): additional attributes on the terminals (from `prepare_prizes`)</span>
+<span class="sd">			noisy_edges_reps (int): Number of &quot;Noisy Edges&quot; type randomizations to perform</span>
+<span class="sd">			random_terminals_reps (int): Number of &quot;Random Terminals&quot; type randomizations to perform</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			networkx.Graph: forest</span>
+<span class="sd">			networkx.Graph: augmented_forest</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">seed</span><span class="p">:</span> <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">);</span> <span class="n">numpy</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+
+		<span class="c1">#### NOISY EDGES ####</span>
+		<span class="k">if</span> <span class="n">noisy_edges_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+
+			<span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+
+			<span class="c1"># This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges</span>
+			<span class="c1"># with randomized edges before each pcsf run. So we need to copy the true edges to reset later</span>
+			<span class="n">true_edge_costs</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">costs</span><span class="p">)</span>
+
+			<span class="k">for</span> <span class="n">noisy_edge_costs</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_noisy_edges</span><span class="p">()</span> <span class="k">for</span> <span class="n">rep</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">noisy_edges_reps</span><span class="p">)]:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">costs</span> <span class="o">=</span> <span class="n">noisy_edge_costs</span>
+				<span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pcsf</span><span class="p">(</span><span class="n">prizes</span><span class="p">))</span>
+			<span class="c1"># Reset the true edges</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">costs</span> <span class="o">=</span> <span class="n">true_edge_costs</span>
+
+			<span class="n">robust_vertices</span><span class="p">,</span> <span class="n">robust_edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregate_pcsf</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="s1">&#39;robustness&#39;</span><span class="p">)</span>
+
+		<span class="c1">#### RANDOM TERMINALS ####</span>
+		<span class="k">if</span> <span class="n">random_terminals_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+
+			<span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+
+			<span class="k">for</span> <span class="n">random_prizes</span><span class="p">,</span> <span class="n">terminals</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_random_terminals</span><span class="p">(</span><span class="n">prizes</span><span class="p">,</span> <span class="n">terminals</span><span class="p">)</span> <span class="k">for</span> <span class="n">rep</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">random_terminals_reps</span><span class="p">)]:</span>
+				<span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pcsf</span><span class="p">(</span><span class="n">random_prizes</span><span class="p">))</span>
+
+			<span class="n">specific_vertices</span><span class="p">,</span> <span class="n">specific_edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregate_pcsf</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="s1">&#39;specificity&#39;</span><span class="p">)</span>
+
+		<span class="c1">###########</span>
+
+		<span class="k">if</span> <span class="n">random_terminals_reps</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">noisy_edges_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">robust_vertices</span><span class="p">;</span> <span class="n">edge_indices</span> <span class="o">=</span> <span class="n">robust_edges</span><span class="p">;</span>
+
+		<span class="k">elif</span> <span class="n">noisy_edges_reps</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">random_terminals_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">specific_vertices</span><span class="p">;</span> <span class="n">edge_indices</span> <span class="o">=</span> <span class="n">specific_edges</span><span class="p">;</span>
+
+		<span class="k">elif</span> <span class="n">noisy_edges_reps</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">random_terminals_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">robust_vertices</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">specific_vertices</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;outer&#39;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">&#39;node_index&#39;</span><span class="p">)</span>
+			<span class="n">edge_indices</span> <span class="o">=</span> <span class="n">robust_edges</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">specific_edges</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;outer&#39;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">&#39;edge_index&#39;</span><span class="p">)</span>
+
+		<span class="k">else</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.&quot;</span><span class="p">)</span>
+
+		<span class="c1">###########</span>
+
+		<span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_forest_as_networkx</span><span class="p">(</span><span class="n">vertex_indices</span><span class="o">.</span><span class="n">node_index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">edge_indices</span><span class="o">.</span><span class="n">edge_index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">terminal_attributes</span><span class="p">)</span>
+
+		<span class="n">vertex_indices</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">vertex_indices</span><span class="o">.</span><span class="n">node_index</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
+
+		<span class="k">if</span> <span class="n">noisy_edges_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> 			 <span class="s1">&#39;robustness&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;robustness&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+			<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">,</span> <span class="s1">&#39;robustness&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;robustness&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+		<span class="k">if</span> <span class="n">random_terminals_reps</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> 			 <span class="s1">&#39;specificity&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;specificity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+			<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">,</span> <span class="s1">&#39;specificity&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;specificity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+		<span class="c1"># TODO we aren&#39;t yet using edge_indices which contain robustness and specificity information.</span>
+
+		<span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span></div>
+
+
+<div class="viewcode-block" id="Graph.grid_search"><a class="viewcode-back" href="../index.html#graph.Graph.grid_search">[docs]</a>	<span class="k">def</span> <span class="nf">grid_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prize_file</span><span class="p">,</span> <span class="n">As</span><span class="p">,</span> <span class="n">Bs</span><span class="p">,</span> <span class="n">Ws</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Macro function which performs grid search and merges the results.</span>
+
+<span class="sd">		This function is under construction and subject to change.</span>
+
+<span class="sd">		Arguments:</span>
+<span class="sd">			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)</span>
+<span class="sd">			parameter_permutations (list): list of dictionaries of parameters</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			networkx.Graph: forest</span>
+<span class="sd">			networkx.Graph: augmented_forest</span>
+<span class="sd">			pd.DataFrame: parameters and node membership lists</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">prizes</span><span class="p">,</span> <span class="n">terminals</span><span class="p">,</span> <span class="n">terminal_attributes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_prizes</span><span class="p">(</span><span class="n">prize_file</span><span class="p">)</span>
+
+		<span class="n">bare_prizes</span> <span class="o">=</span> <span class="n">prizes</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span>
+		<span class="n">parameter_permutations</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span><span class="n">a</span><span class="p">,</span><span class="s1">&#39;b&#39;</span><span class="p">:</span><span class="n">b</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">:</span><span class="n">w</span><span class="p">}</span> <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">As</span><span class="p">,</span> <span class="n">Bs</span><span class="p">,</span> <span class="n">Ws</span><span class="p">)]</span>
+
+
+		<span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_set_hyperparameters</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+			<span class="n">prizes</span> <span class="o">=</span> <span class="n">bare_prizes</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">])</span>
+			<span class="n">paramstring</span> <span class="o">=</span> <span class="s1">&#39;A_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39;_B_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39;_W_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;w&#39;</span><span class="p">])</span>
+			<span class="k">return</span> <span class="p">(</span><span class="n">paramstring</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pcsf</span><span class="p">(</span><span class="n">prizes</span><span class="p">))</span>
+
+		<span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">run</span><span class="p">,</span> <span class="n">parameter_permutations</span><span class="p">))</span>
+
+		<span class="c1">### GET THE REGULAR OUTPUT ###</span>
+		<span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregate_pcsf</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="s1">&#39;frequency&#39;</span><span class="p">)</span>
+
+		<span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_forest_as_networkx</span><span class="p">(</span><span class="n">vertex_indices</span><span class="o">.</span><span class="n">node_index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">edge_indices</span><span class="o">.</span><span class="n">edge_index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">terminal_attributes</span><span class="p">)</span>
+
+		<span class="n">vertex_indices</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">vertex_indices</span><span class="o">.</span><span class="n">node_index</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
+
+		<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> 			 <span class="s1">&#39;frequency&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;frequency&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+		<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">,</span> <span class="s1">&#39;frequency&#39;</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="s1">&#39;frequency&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+		<span class="c1">### GET THE OUTPUT NEEDED BY JOHNNY&#39;S VISUALIZATION ###</span>
+		<span class="n">params_by_nodes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">paramstring</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">vertex_indices</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span><span class="p">[</span><span class="n">vertex_indices</span><span class="p">]))</span> <span class="k">for</span> <span class="n">paramstring</span><span class="p">,</span> <span class="p">(</span><span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span><span class="p">)</span> <span class="ow">in</span> <span class="n">results</span><span class="p">})</span>
+
+		<span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span><span class="p">,</span> <span class="n">params_by_nodes</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">betweenness</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		nxgraph (networkx.Graph): a networkx graph object</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		networkx.Graph: a networkx graph object</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">betweenness</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">betweenness_centrality</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span>
+	<span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;betweenness&#39;</span><span class="p">,</span> <span class="n">betweenness</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">nxgraph</span>
+
+
+<div class="viewcode-block" id="output_networkx_graph_as_gml_for_cytoscape"><a class="viewcode-back" href="../index.html#graph.output_networkx_graph_as_gml_for_cytoscape">[docs]</a><span class="k">def</span> <span class="nf">output_networkx_graph_as_gml_for_cytoscape</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		nxgraph (networkx.Graph): any instance of networkx.Graph</span>
+<span class="sd">		output_dir (str): the directory in which to output the graph. Must already exist.</span>
+<span class="sd">		filename (str): Filenames ending in .gz or .bz2 will be compressed.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">output_dir</span><span class="p">),</span> <span class="n">filename</span><span class="p">)</span>
+	<span class="n">nx</span><span class="o">.</span><span class="n">write_gml</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_networkx_graph_as_dataframe_of_nodes"><a class="viewcode-back" href="../index.html#graph.get_networkx_graph_as_dataframe_of_nodes">[docs]</a><span class="k">def</span> <span class="nf">get_networkx_graph_as_dataframe_of_nodes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		nxgraph (networkx.Graph): any instance of networkx.Graph</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		pd.DataFrame: nodes from the input graph and their attributes as a dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_networkx_graph_as_dataframe_of_edges"><a class="viewcode-back" href="../index.html#graph.get_networkx_graph_as_dataframe_of_edges">[docs]</a><span class="k">def</span> <span class="nf">get_networkx_graph_as_dataframe_of_edges</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		nxgraph (networkx.Graph): any instance of networkx.Graph</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		pd.DataFrame: edges from the input graph and their attributes as a dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">intermediate</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+	<span class="n">intermediate</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;protein1&#39;</span><span class="p">,</span> <span class="s1">&#39;protein2&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">intermediate</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+	<span class="c1"># TODO: in the future, get the other attributes out into columns</span>
+	<span class="k">return</span> <span class="n">intermediate</span><span class="p">[[</span><span class="s1">&#39;protein1&#39;</span><span class="p">,</span> <span class="s1">&#39;protein2&#39;</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="merge_two_prize_files"><a class="viewcode-back" href="../index.html#graph.merge_two_prize_files">[docs]</a><span class="k">def</span> <span class="nf">merge_two_prize_files</span><span class="p">(</span><span class="n">prize_file_1</span><span class="p">,</span> <span class="n">prize_file_2</span><span class="p">,</span> <span class="n">prize_file_1_node_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prize_file_2_node_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...</span>
+<span class="sd">		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...</span>
+<span class="sd">		prize_file_1_node_type (str): a node type name to associate with the nodes from prize_file_1</span>
+<span class="sd">		prize_file_2_node_type (str): a node type name to associate with the nodes from prize_file_2</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">prize_df1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">prize_file_1</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+	<span class="n">prize_df1</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">prize_df1</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+	<span class="k">if</span> <span class="n">prize_file_1_node_type</span><span class="p">:</span> <span class="n">prize_df1</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">prize_file_1_node_type</span>
+
+	<span class="n">prize_df2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">prize_file_2</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+	<span class="n">prize_df2</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">prize_df2</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+	<span class="k">if</span> <span class="n">prize_file_2_node_type</span><span class="p">:</span> <span class="n">prize_df2</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">prize_file_2_node_type</span>
+
+	<span class="k">return</span> <span class="n">merge_two_prize_dataframes</span><span class="p">(</span><span class="n">prize_df1</span><span class="p">,</span> <span class="n">prize_df2</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">merge_two_prize_dataframes</span><span class="p">(</span><span class="n">prize_df1</span><span class="p">,</span> <span class="n">prize_df2</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		prize_df1 (pandas.DataFrame): a dataframe with at least columns &#39;name&#39; and &#39;prize&#39;</span>
+<span class="sd">		prize_df2 (pandas.DataFrame): a dataframe with at least columns &#39;name&#39; and &#39;prize&#39;</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">prizes_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">prize_df1</span><span class="p">,</span> <span class="n">prize_df2</span><span class="p">))</span>
+	<span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># Unclear if we should do this?</span>
+
+	<span class="k">return</span> <span class="n">prizes_dataframe</span>
+
+
+<span class="k">def</span> <span class="nf">output_dataframe_to_tsv</span><span class="p">(</span><span class="n">dataframe</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Output the dataframe to a csv</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">output_dir</span><span class="p">),</span> <span class="n">filename</span><span class="p">)</span>
+	<span class="n">dataframe</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Alexander LeNail.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'2.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

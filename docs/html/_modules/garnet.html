@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    
+    <title>garnet &mdash; GarNet 2.0 documentation</title>
+    
+    <link rel="stylesheet" type="text/css" href="../_static/css/spc-bootstrap.css">
+    <link rel="stylesheet" type="text/css" href="../_static/css/spc-extend.css">
+    <link rel="stylesheet" href="../_static/scipy.css" type="text/css" >
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" >
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../_static/js/copybutton.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" >
+    <link rel="search" title="Search" href="../search.html" >
+    <link rel="top" title="GarNet 2.0 documentation" href="../index.html" >
+    <link rel="up" title="Module code" href="index.html" > 
+  </head>
+  <body>
+
+  <div class="container">
+    <div class="header">
+    </div>
+  </div>
+
+
+    <div class="container">
+      <div class="main">
+        
+
+	<div class="row-fluid"><div class="span1"></div>
+          <div class="span10">
+	  
+            
+	      <div class="row-fluid">
+		<div class="span9">
+  		  <div class="spc-navbar">
+		    <generator object macro at 0x111b8f728>
+		  </div>
+		</div>
+	      </div>
+            
+        <div class="bodywrapper">
+          <div class="body" id="spc-section-body">
+            
+  <h1>Source code for garnet</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+
+<span class="c1"># Core python modules</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="c1"># Peripheral python modules</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="c1"># Core python external libraries</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">statsmodels.formula.api</span> <span class="k">import</span> <span class="n">ols</span> <span class="k">as</span> <span class="n">linear_regression</span>
+<span class="kn">from</span> <span class="nn">statsmodels.graphics.regressionplots</span> <span class="k">import</span> <span class="n">abline_plot</span> <span class="k">as</span> <span class="n">plot_regression</span>
+
+<span class="c1"># Peripheral python external libraries</span>
+<span class="kn">from</span> <span class="nn">intervaltree</span> <span class="k">import</span> <span class="n">IntervalTree</span>
+<span class="kn">import</span> <span class="nn">jinja2</span>
+
+<span class="c1"># list of public methods:</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;map_known_genes_and_motifs_to_peaks&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;map_known_genes_to_peaks&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;map_motifs_to_peaks&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;map_known_genes_to_motifs&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;TF_regression&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;batch_scan_epigenomics_files&quot;</span><span class="p">]</span>
+
+
+<span class="n">templateLoader</span> <span class="o">=</span> <span class="n">jinja2</span><span class="o">.</span><span class="n">FileSystemLoader</span><span class="p">(</span><span class="n">searchpath</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+<span class="n">templateEnv</span> <span class="o">=</span> <span class="n">jinja2</span><span class="o">.</span><span class="n">Environment</span><span class="p">(</span><span class="n">loader</span><span class="o">=</span><span class="n">templateLoader</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - GarNet: </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;%I:%M:%S&quot;</span><span class="p">))</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+
+
+<span class="c1">######################################## File Parsing Logic #######################################</span>
+
+<span class="k">def</span> <span class="nf">parse_known_genes_file</span><span class="p">(</span><span class="n">known_genes_filepath_or_file_object</span><span class="p">,</span> <span class="n">kgXref_filepath_or_file_object_or_None</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		known_genes_filepath_or_file_object (string or FILE): A filepath or file object (conventionally the result of a call to `open(filepath, &#39;r&#39;)`)</span>
+
+<span class="sd">	The known genes file format is the following:</span>
+<span class="sd">	http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.sql</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: known genes dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">known_genes_fieldnames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span><span class="s2">&quot;strand&quot;</span><span class="p">,</span><span class="s2">&quot;txStart&quot;</span><span class="p">,</span><span class="s2">&quot;txEnd&quot;</span><span class="p">,</span><span class="s2">&quot;cdsStart&quot;</span><span class="p">,</span><span class="s2">&quot;cdsEnd&quot;</span><span class="p">,</span><span class="s2">&quot;exonCount&quot;</span><span class="p">,</span><span class="s2">&quot;exonStarts&quot;</span><span class="p">,</span><span class="s2">&quot;exonEnds&quot;</span><span class="p">,</span><span class="s2">&quot;proteinID&quot;</span><span class="p">,</span><span class="s2">&quot;alignID&quot;</span><span class="p">]</span>
+
+	<span class="n">known_genes_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">known_genes_filepath_or_file_object</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">known_genes_fieldnames</span><span class="p">)</span>
+
+	<span class="n">known_genes_dataframe</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;txStart&quot;</span><span class="p">:</span><span class="s2">&quot;geneStart&quot;</span><span class="p">,</span> <span class="s2">&quot;txEnd&quot;</span><span class="p">:</span><span class="s2">&quot;geneEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span><span class="s2">&quot;geneName&quot;</span><span class="p">,</span><span class="s2">&quot;strand&quot;</span><span class="p">:</span><span class="s2">&quot;geneStrand&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+	<span class="k">if</span> <span class="n">kgXref_filepath_or_file_object_or_None</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Program was not supplied with a kgXref file, gene names will only be supplied as kgID&#39;</span><span class="p">)</span>
+
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">kgXref_dataframe</span> <span class="o">=</span> <span class="n">parse_kgXref_file</span><span class="p">(</span><span class="n">kgXref_filepath_or_file_object_or_None</span><span class="p">)</span>
+
+		<span class="n">known_genes_dataframe</span> <span class="o">=</span> <span class="n">known_genes_dataframe</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">kgXref_dataframe</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s1">&#39;geneName&#39;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s1">&#39;kgID&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">known_genes_dataframe</span>
+
+
+<span class="k">def</span> <span class="nf">parse_peaks_file</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		filepath_or_file_object (string or FILE): A filepath or file object (conventionally the result of a call to `open(filepath, &#39;r&#39;)`)</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: peaks dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="c1"># if peaks file format is BED</span>
+
+	<span class="n">peaks_fieldnames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span><span class="s2">&quot;chromStart&quot;</span><span class="p">,</span><span class="s2">&quot;chromEnd&quot;</span><span class="p">,</span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="s2">&quot;score&quot;</span><span class="p">,</span><span class="s2">&quot;strand&quot;</span><span class="p">,</span><span class="s2">&quot;thickStart&quot;</span><span class="p">,</span><span class="s2">&quot;thickEnd&quot;</span><span class="p">,</span><span class="s2">&quot;itemRgb&quot;</span><span class="p">,</span><span class="s2">&quot;blockCount&quot;</span><span class="p">,</span><span class="s2">&quot;blockSizes&quot;</span><span class="p">,</span><span class="s2">&quot;blockStarts&quot;</span><span class="p">]</span>
+
+	<span class="n">peaks_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">peaks_fieldnames</span><span class="p">)</span>
+
+	<span class="n">peaks_dataframe</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;chromStart&quot;</span><span class="p">:</span><span class="s2">&quot;peakStart&quot;</span><span class="p">,</span> <span class="s2">&quot;chromEnd&quot;</span><span class="p">:</span><span class="s2">&quot;peakEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span><span class="s2">&quot;peakName&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span><span class="s2">&quot;peakScore&quot;</span><span class="p">,</span> <span class="s2">&quot;strand&quot;</span><span class="p">:</span><span class="s2">&quot;peakStrand&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+	<span class="c1"># if peaks file format is MACS</span>
+
+	<span class="c1"># peaks_fieldnames = [&quot;chr&quot;, &quot;start&quot;, &quot;end&quot;, &quot;length&quot;, &quot;summit&quot;, &quot;tags&quot;, &quot;-10*log10(pvalue)&quot;, &quot;fold_enrichment FDR(%)&quot;]</span>
+
+	<span class="c1"># if peaks file format is GEM</span>
+
+	<span class="c1"># peaks_fieldnames = [&quot;Location&quot;, &quot;IP binding strength&quot;, &quot;Control binding strength&quot;, &quot;Fold&quot;, &quot;Expected binding strength&quot;, &quot;Q_-lg10&quot;, &quot;P_-lg10&quot;, &quot;P_poiss&quot;, &quot;IPvsEMP&quot;, &quot;Noise&quot;, &quot;KmerGroup&quot;, &quot;KG_hgp&quot;, &quot;Strand&quot;]</span>
+
+	<span class="k">return</span> <span class="n">peaks_dataframe</span>
+
+
+<span class="k">def</span> <span class="nf">parse_kgXref_file</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		filepath_or_file_object (string or FILE): A filepath or file object (conventionally the result of a call to `open(filepath, &#39;r&#39;)`)</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: additional known genes information as a dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">kgXref_fieldnames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kgID&quot;</span><span class="p">,</span><span class="s2">&quot;mRNA&quot;</span><span class="p">,</span><span class="s2">&quot;spID&quot;</span><span class="p">,</span><span class="s2">&quot;spDisplayID&quot;</span><span class="p">,</span><span class="s2">&quot;geneSymbol&quot;</span><span class="p">,</span><span class="s2">&quot;refseq&quot;</span><span class="p">,</span><span class="s2">&quot;protAcc&quot;</span><span class="p">,</span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+
+	<span class="n">kgXref_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">kgXref_fieldnames</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">kgXref_dataframe</span>
+
+
+<span class="k">def</span> <span class="nf">parse_motifs_file</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		filepath_or_file_object (string or FILE): A filepath or file object (conventionally the result of a call to `open(filepath, &#39;r&#39;)`)</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: motif dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">motif_fieldnames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ZScore&quot;</span><span class="p">,</span><span class="s2">&quot;FDR_lower&quot;</span><span class="p">,</span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="s2">&quot;orientation&quot;</span><span class="p">,</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span><span class="s2">&quot;LOD&quot;</span><span class="p">,</span><span class="s2">&quot;strand&quot;</span><span class="p">,</span><span class="s2">&quot;start&quot;</span><span class="p">,</span><span class="s2">&quot;realhits&quot;</span><span class="p">,</span><span class="s2">&quot;cid&quot;</span><span class="p">,</span><span class="s2">&quot;FDR&quot;</span><span class="p">,</span><span class="s2">&quot;NLOD&quot;</span><span class="p">,</span><span class="s2">&quot;BBLS&quot;</span><span class="p">,</span><span class="s2">&quot;stop&quot;</span><span class="p">,</span><span class="s2">&quot;medianhits&quot;</span><span class="p">,</span><span class="s2">&quot;accession&quot;</span><span class="p">,</span><span class="s2">&quot;FDR_upper&quot;</span><span class="p">,</span><span class="s2">&quot;BLS&quot;</span><span class="p">,</span><span class="s2">&quot;stdevhits&quot;</span><span class="p">]</span>
+	<span class="c1"># motif_fieldnames = [&quot;chrom&quot;, &quot;start&quot;, &quot;end&quot;, &quot;name&quot;, &quot;score&quot;, &quot;strand&quot;]</span>
+	<span class="c1"># motif_fieldnames = [&quot;motifName&quot;, &quot;chrom&quot;, &quot;motifStrand&quot;, &quot;motifScore&quot;, &quot;motifStart&quot;, &quot;motifEnd&quot;]</span>
+
+	<span class="n">motif_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">motif_fieldnames</span><span class="p">)</span>
+
+	<span class="c1"># motif_dataframe[&#39;motifID&#39;], motif_dataframe[&#39;motifName&#39;] = motif_dataframe[&#39;name&#39;].str.split(&#39;=&#39;, 1).str</span>
+
+	<span class="c1"># motif_dataframe.rename(index=str, columns={&quot;start&quot;:&quot;motifStart&quot;, &quot;end&quot;:&quot;motifEnd&quot;, &quot;score&quot;:&quot;motifScore&quot;, &quot;strand&quot;:&quot;motifStrand&quot;}, inplace=True)</span>
+	<span class="n">motif_dataframe</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;start&quot;</span><span class="p">:</span><span class="s2">&quot;motifStart&quot;</span><span class="p">,</span> <span class="s2">&quot;stop&quot;</span><span class="p">:</span><span class="s2">&quot;motifEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;FDR&quot;</span><span class="p">:</span><span class="s2">&quot;motifScore&quot;</span><span class="p">,</span> <span class="s2">&quot;strand&quot;</span><span class="p">:</span><span class="s2">&quot;motifStrand&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span><span class="s2">&quot;motifName&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">motif_dataframe</span>
+
+
+<span class="k">def</span> <span class="nf">parse_expression_file</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		filepath_or_file_object (string or FILE): A filepath or file object (conventionally the result of a call to `open(filepath, &#39;r&#39;)`)</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: expression dataframe</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filepath_or_file_object</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;expression&quot;</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">save_as_pickled_object</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	This is a defensive way to write pickle.write, allowing for very large files on all platforms</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">max_bytes</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span>
+	<span class="n">bytes_out</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+	<span class="n">n_bytes</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">getsizeof</span><span class="p">(</span><span class="n">bytes_out</span><span class="p">)</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_out</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_bytes</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">):</span>
+			<span class="n">f_out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">bytes_out</span><span class="p">[</span><span class="n">idx</span><span class="p">:</span><span class="n">idx</span><span class="o">+</span><span class="n">max_bytes</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">try_to_load_as_pickled_object_or_None</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	This is a defensive way to write pickle.load, allowing for very large files on all platforms</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">max_bytes</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span>
+	<span class="k">try</span><span class="p">:</span>
+		<span class="n">input_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+		<span class="n">bytes_in</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_in</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">input_size</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">):</span>
+				<span class="n">bytes_in</span> <span class="o">+=</span> <span class="n">f_in</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">max_bytes</span><span class="p">)</span>
+		<span class="n">obj</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">bytes_in</span><span class="p">)</span>
+	<span class="k">except</span><span class="p">:</span>
+		<span class="k">return</span> <span class="kc">None</span>
+	<span class="k">return</span> <span class="n">obj</span>
+
+
+<span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="n">dataframe</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		dataframe (dataframe): the principal result of the analysis we want to write out as a csv.</span>
+<span class="sd">		output_dir (str): the fullpath of a directory we will write our output to.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Writing output file &#39;</span><span class="o">+</span><span class="n">filename</span><span class="p">)</span>
+
+	<span class="n">dataframe</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">),</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="c1">######################################### Public Functions #########################################</span>
+
+<div class="viewcode-block" id="map_known_genes_and_motifs_to_peaks"><a class="viewcode-back" href="../index.html#garnet.map_known_genes_and_motifs_to_peaks">[docs]</a><span class="k">def</span> <span class="nf">map_known_genes_and_motifs_to_peaks</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">motifs_file</span><span class="p">,</span> <span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Find motifs and associated genes local to peaks.</span>
+
+<span class="sd">	This function searches for motifs &quot;under&quot; peaks from an epigenomics dataset and &quot;around&quot; peaks for genes.</span>
+<span class="sd">	It then returns all pairs of motifs and genes which were found local to peaks.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		peaks_file (str or FILE): filepath or file object for the peaks file.</span>
+<span class="sd">		known_genes_file (str or FILE): filepath or file object for the known_genes file</span>
+<span class="sd">		motifs_file (str or FILE): filepath or file object for the motifs file</span>
+<span class="sd">		options (dict): {&quot;upstream_window&quot;: int, &quot;downstream_window&quot;: int, &quot;tss&quot;: bool, &quot;output_dir&quot;: string (optional)})</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: a dataframe with rows of transcription factor binding motifs and nearby genes</span>
+<span class="sd">			with the restriction that these motifs and genes must have been found near a peak.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_peak_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_reference_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+
+	<span class="n">peaks_with_associated_genes_and_motifs</span> <span class="o">=</span> <span class="n">intersection_of_three_dicts_of_intervaltrees</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">motifs</span><span class="p">)</span>
+
+	<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="p">[{</span><span class="o">**</span><span class="n">motif</span><span class="p">,</span> <span class="o">**</span><span class="n">gene</span><span class="p">,</span> <span class="o">**</span><span class="n">peak</span><span class="p">}</span> <span class="k">for</span> <span class="n">peak</span><span class="p">,</span> <span class="n">genes</span><span class="p">,</span> <span class="n">motifs</span> <span class="ow">in</span> <span class="n">peaks_with_associated_genes_and_motifs</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">genes</span> <span class="k">for</span> <span class="n">motif</span> <span class="ow">in</span> <span class="n">motifs</span><span class="p">]</span>
+
+	<span class="n">columns_to_output</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;motifStart&quot;</span><span class="p">,</span> <span class="s2">&quot;motifEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;motifID&quot;</span><span class="p">,</span> <span class="s2">&quot;motifName&quot;</span><span class="p">,</span> <span class="s2">&quot;motifScore&quot;</span><span class="p">,</span> <span class="s2">&quot;geneName&quot;</span><span class="p">,</span> <span class="s2">&quot;geneSymbol&quot;</span><span class="p">,</span> <span class="s2">&quot;geneStart&quot;</span><span class="p">,</span> <span class="s2">&quot;geneEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;peakName&quot;</span><span class="p">]</span>
+	<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">motifs_and_genes</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns_to_output</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">motifs_and_genes</span></div>
+
+
+<div class="viewcode-block" id="map_known_genes_to_peaks"><a class="viewcode-back" href="../index.html#garnet.map_known_genes_to_peaks">[docs]</a><span class="k">def</span> <span class="nf">map_known_genes_to_peaks</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Find all genes nearby to peaks.</span>
+
+<span class="sd">	This function searches in the neighborhood of peaks for genes and returns each peak / gene pair</span>
+<span class="sd">	which were found to be local to one another.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		peaks_file (str or FILE): filepath or file object for the peaks file.</span>
+<span class="sd">		known_genes_file (str or FILE): filepath or file object for the known_genes file</span>
+<span class="sd">		options (dict): {&quot;upstream_window&quot;: int, &quot;downstream_window&quot;: int, &quot;tss&quot;: bool, &quot;output_dir&quot;: string (optional)})</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: A dataframe listing peaks and nearby genes</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_peak_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_reference_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+
+	<span class="n">peaks_with_associated_genes</span> <span class="o">=</span> <span class="n">intersection_of_dict_of_intervaltree</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">reference</span><span class="p">)</span>
+
+	<span class="n">peaks_and_genes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">([{</span><span class="o">**</span><span class="n">peak</span><span class="p">,</span> <span class="o">**</span><span class="n">gene</span><span class="p">}</span> <span class="k">for</span> <span class="n">peak</span><span class="p">,</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">peaks_with_associated_genes</span><span class="p">])</span>
+
+	<span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;distance&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;peakStart&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;peakEnd&#39;</span><span class="p">])</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;geneStart&#39;</span><span class="p">])</span>
+	<span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">peaks_and_genes</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">type_of_peak</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># upstream/promoter/downstream/intergenic</span>
+
+	<span class="n">columns_to_output</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;peakStart&quot;</span><span class="p">,</span> <span class="s2">&quot;peakEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;peakName&quot;</span><span class="p">,</span> <span class="s2">&quot;peakScore&quot;</span><span class="p">,</span> <span class="s2">&quot;geneName&quot;</span><span class="p">,</span> <span class="s2">&quot;geneStart&quot;</span><span class="p">,</span> <span class="s2">&quot;geneEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;distance&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">]</span>
+
+	<span class="k">return</span> <span class="n">peaks_and_genes</span><span class="p">[</span><span class="n">columns_to_output</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="map_motifs_to_peaks"><a class="viewcode-back" href="../index.html#garnet.map_motifs_to_peaks">[docs]</a><span class="k">def</span> <span class="nf">map_motifs_to_peaks</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Find known transcription factor binding motifs motifs &quot;below&quot; input epigenetic peaks.</span>
+
+<span class="sd">	This function searches for overlap of motifs and peaks, and returns peak / motif pairs.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		peaks_file (str or FILE): filepath or file object for the peaks file.</span>
+<span class="sd">		motifs_file (str or FILE): filepath or file object for the motifs file</span>
+<span class="sd">		options (dict): {&quot;output_dir&quot;: string (optional)})</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: A dataframe listing peaks and nearby transcription factor binding motifs</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_peak_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+
+	<span class="n">peaks_with_associated_motifs</span> <span class="o">=</span> <span class="n">intersection_of_dict_of_intervaltree</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">motifs</span><span class="p">)</span>
+
+	<span class="n">peaks_and_motifs</span> <span class="o">=</span> <span class="p">[{</span><span class="o">**</span><span class="n">peak</span><span class="p">,</span> <span class="o">**</span><span class="n">motif</span><span class="p">}</span> <span class="k">for</span> <span class="n">peak</span><span class="p">,</span> <span class="n">motif</span> <span class="ow">in</span> <span class="n">peaks_with_associated_motifs</span><span class="p">]</span>
+
+	<span class="n">columns_to_output</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;peakStart&quot;</span><span class="p">,</span> <span class="s2">&quot;peakEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;peakName&quot;</span><span class="p">,</span> <span class="s2">&quot;peakScore&quot;</span><span class="p">,</span> <span class="s2">&quot;motifID&quot;</span><span class="p">,</span> <span class="s2">&quot;motifName&quot;</span><span class="p">,</span> <span class="s2">&quot;motifStart&quot;</span><span class="p">,</span> <span class="s2">&quot;motifEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;motifScore&quot;</span><span class="p">]</span>
+	<span class="n">peaks_and_motifs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">peaks_and_motifs</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns_to_output</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">peaks_and_motifs</span></div>
+
+
+<div class="viewcode-block" id="map_known_genes_to_motifs"><a class="viewcode-back" href="../index.html#garnet.map_known_genes_to_motifs">[docs]</a><span class="k">def</span> <span class="nf">map_known_genes_to_motifs</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Associate genes local to motifs with those motifs, without peak information.</span>
+
+<span class="sd">	This function searches for overlap of motifs and genes, and returns motif / gene pairs.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		known_genes_file (str or FILE): filepath or file object for the known_genes file</span>
+<span class="sd">		motifs_file (str or FILE): filepath or file object for the motifs file</span>
+<span class="sd">		options (dict): {&quot;upstream_window&quot;: int, &quot;downstream_window&quot;: int, &quot;tss&quot;: bool, &quot;output_dir&quot;: string (optional)})</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: A dataframe listing transcription factor binding motifs and nearby genes.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_reference_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+
+	<span class="n">motifs_with_associated_genes</span> <span class="o">=</span> <span class="n">intersection_of_dict_of_intervaltree</span><span class="p">(</span><span class="n">motifs</span><span class="p">,</span> <span class="n">reference</span><span class="p">)</span>
+
+	<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="p">[{</span><span class="o">**</span><span class="n">motif</span><span class="p">,</span> <span class="o">**</span><span class="n">gene</span><span class="p">}</span> <span class="k">for</span> <span class="n">motif</span><span class="p">,</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">motifs_with_associated_genes</span><span class="p">]</span>
+
+	<span class="n">columns_to_output</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;motifStart&quot;</span><span class="p">,</span> <span class="s2">&quot;motifEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;motifID&quot;</span><span class="p">,</span> <span class="s2">&quot;motifName&quot;</span><span class="p">,</span> <span class="s2">&quot;motifScore&quot;</span><span class="p">,</span> <span class="s2">&quot;geneName&quot;</span><span class="p">,</span> <span class="s2">&quot;geneStart&quot;</span><span class="p">,</span> <span class="s2">&quot;geneEnd&quot;</span><span class="p">]</span>
+	<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">motifs_and_genes</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns_to_output</span><span class="p">)</span>
+
+	<span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;distance&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;motifStart&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">peaks_and_genes</span><span class="p">[</span><span class="s1">&#39;geneStart&#39;</span><span class="p">]</span>
+
+	<span class="k">return</span> <span class="n">motifs_and_genes</span></div>
+
+
+<div class="viewcode-block" id="TF_regression"><a class="viewcode-back" href="../index.html#garnet.TF_regression">[docs]</a><span class="k">def</span> <span class="nf">TF_regression</span><span class="p">(</span><span class="n">motifs_and_genes_dataframe</span><span class="p">,</span> <span class="n">expression_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Do linear regression of the expression of genes versus the strength of the assiciated transcription factor binding motifs and report results.</span>
+
+<span class="sd">	This function parses an expression file of two columns: gene symbol and expression value, and</span>
+<span class="sd">	merges the expression profile into the motifs and genes file, resulting in information about</span>
+<span class="sd">	transcription factor binding motifs local to genes, and those genes&#39; expressions. We do linear</span>
+<span class="sd">	regression, and if an output directory is provided, we output a plot for each TF and an html</span>
+<span class="sd">	summary of the regressions.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		motifs_and_genes_dataframe (dataframe): the outcome of map_known_genes_and_motifs_to_peaks</span>
+<span class="sd">		expression_file (str or FILE): a tsv file of expression data, with geneSymbol, score columns</span>
+<span class="sd">		options (dict): {&quot;output_dir&quot;: string (optional)})</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dataframe: slope and pval of linear regfression for each transcription factor.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">expression_dataframe</span> <span class="o">=</span> <span class="n">parse_expression_file</span><span class="p">(</span><span class="n">expression_file</span><span class="p">)</span>
+
+	<span class="n">motifs_genes_and_expression_levels</span> <span class="o">=</span> <span class="n">motifs_and_genes_dataframe</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">expression_dataframe</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s1">&#39;geneSymbol&#39;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;inner&#39;</span><span class="p">)</span>
+
+	<span class="c1"># the same geneSymbol might have different names but since the expression is geneSymbol-wise</span>
+	<span class="c1"># these additional names cause bogus regression p-values. Get rid of them here.</span>
+	<span class="n">motifs_genes_and_expression_levels</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;geneSymbol&#39;</span><span class="p">,</span> <span class="s1">&#39;motifID&#39;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">motifs_genes_and_expression_levels</span><span class="p">[</span><span class="s1">&#39;motifScore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motifs_genes_and_expression_levels</span><span class="p">[</span><span class="s1">&#39;motifScore&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+
+	<span class="n">TFs_and_associated_expression_profiles</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">motifs_genes_and_expression_levels</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;motifName&#39;</span><span class="p">))</span>
+	<span class="n">imputed_TF_features</span> <span class="o">=</span> <span class="p">[]</span>
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing linear regression on &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">TFs_and_associated_expression_profiles</span><span class="p">))</span><span class="o">+</span><span class="s2">&quot; transcription factor expression profiles...&quot;</span><span class="p">)</span>
+
+	<span class="k">for</span> <span class="n">TF_name</span><span class="p">,</span> <span class="n">expression_profile</span> <span class="ow">in</span> <span class="n">TFs_and_associated_expression_profiles</span><span class="p">:</span>
+
+		<span class="c1"># Occasionally there&#39;s only one gene associated with a TF, which we can&#39;t fit a line to.</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expression_profile</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span> <span class="k">continue</span>
+
+		<span class="c1"># Ordinary Least Squares linear regression</span>
+		<span class="n">result</span> <span class="o">=</span> <span class="n">linear_regression</span><span class="p">(</span><span class="n">formula</span><span class="o">=</span><span class="s2">&quot;expression ~ motifScore&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">expression_profile</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+
+		<span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">):</span>
+			<span class="n">plot</span> <span class="o">=</span> <span class="n">plot_regression</span><span class="p">(</span><span class="n">model_results</span><span class="o">=</span><span class="n">result</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">expression_profile</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;motifScore&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;expression&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;scatter&quot;</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;regression_plots/&#39;</span><span class="p">):</span> <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;regression_plots/&#39;</span><span class="p">)</span>
+			<span class="n">plot</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;regression_plots/&#39;</span> <span class="o">+</span> <span class="n">TF_name</span> <span class="o">+</span> <span class="s1">&#39;.png&#39;</span><span class="p">)</span>
+
+		<span class="n">imputed_TF_features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">TF_name</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;motifScore&#39;</span><span class="p">],</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalues</span><span class="p">[</span><span class="s1">&#39;motifScore&#39;</span><span class="p">]))</span>
+
+	<span class="n">imputed_TF_features_dataframe</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">imputed_TF_features</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Transcription Factor&quot;</span><span class="p">,</span> <span class="s2">&quot;Slope&quot;</span><span class="p">,</span> <span class="s2">&quot;P-Value&quot;</span><span class="p">])</span>
+
+	<span class="c1"># If we&#39;re supplied with an output_dir, we&#39;ll put a summary html file in there as well.</span>
+	<span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">):</span>
+		<span class="n">html_output</span> <span class="o">=</span> <span class="n">templateEnv</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="s2">&quot;summary.jinja&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">images_dir</span><span class="o">=</span><span class="n">options</span><span class="p">[</span><span class="s1">&#39;output_dir&#39;</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;regression_plots/&#39;</span><span class="p">,</span> <span class="n">TFs</span><span class="o">=</span><span class="nb">sorted</span><span class="p">(</span><span class="n">imputed_TF_features</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">options</span><span class="p">[</span><span class="s1">&#39;output_dir&#39;</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;summary.html&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">summary_output_file</span><span class="p">:</span>
+			<span class="n">summary_output_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">html_output</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">imputed_TF_features_dataframes</span></div>
+
+
+<div class="viewcode-block" id="batch_scan_epigenomics_files"><a class="viewcode-back" href="../index.html#garnet.batch_scan_epigenomics_files">[docs]</a><span class="k">def</span> <span class="nf">batch_scan_epigenomics_files</span><span class="p">(</span><span class="n">list_of_peaks_files</span><span class="p">,</span> <span class="n">known_genes_file</span><span class="p">,</span> <span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Scan each peak file for nearby motifs and genes, in the same manner as map_known_genes_and_motifs_to_peaks</span>
+
+<span class="sd">	This function principally removes the overhead of loading and unloading and re-loading</span>
+<span class="sd">	motifs intervaltrees and reference intervaltrees from memory, which is the most time-intensive</span>
+<span class="sd">	operation in this package. Each of the other functions in this package is targeted towards</span>
+<span class="sd">	individual samples, but if you receive many peaks files at once, it makes sense to analyze them</span>
+<span class="sd">	all in one fell swoop.</span>
+<span class="sd">	This function cannot be called from the CLI defined by the ArgParser above.</span>
+<span class="sd">	This function writes resulting files to the specified output_dir.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		list_of_peaks_files (list): a list of filepaths associated with epigenomics files</span>
+<span class="sd">		known_genes_file (str or FILE): filepath or file object for the known_genes file</span>
+<span class="sd">		motifs_file (str or FILE): filepath or file object for the motifs file</span>
+<span class="sd">		options (dict): {&quot;upstream_window&quot;: int, &quot;downstream_window&quot;: int, &quot;tss&quot;: bool, &quot;output_dir&quot;: string (optional)})</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_reference_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">))</span>
+
+	<span class="k">for</span> <span class="n">peaks_file</span> <span class="ow">in</span> <span class="n">list_of_peaks_files</span><span class="p">:</span>
+
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">)</span>
+		<span class="n">peaks</span> <span class="o">=</span> <span class="n">dict_of_IntervalTree_from_peak_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+		<span class="n">peaks_with_associated_genes_and_motifs</span> <span class="o">=</span> <span class="n">intersection_of_three_dicts_of_intervaltrees</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">motifs</span><span class="p">)</span>
+
+		<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="p">[{</span><span class="o">**</span><span class="n">motif</span><span class="p">,</span> <span class="o">**</span><span class="n">gene</span><span class="p">,</span> <span class="o">**</span><span class="n">peak</span><span class="p">}</span> <span class="k">for</span> <span class="n">peak</span><span class="p">,</span> <span class="n">genes</span><span class="p">,</span> <span class="n">motifs</span> <span class="ow">in</span> <span class="n">peaks_with_associated_genes_and_motifs</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">genes</span> <span class="k">for</span> <span class="n">motif</span> <span class="ow">in</span> <span class="n">motifs</span><span class="p">]</span>
+
+		<span class="n">columns_to_output</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;motifStart&quot;</span><span class="p">,</span> <span class="s2">&quot;motifEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;motifID&quot;</span><span class="p">,</span> <span class="s2">&quot;motifName&quot;</span><span class="p">,</span> <span class="s2">&quot;motifScore&quot;</span><span class="p">,</span> <span class="s2">&quot;geneName&quot;</span><span class="p">,</span> <span class="s2">&quot;geneSymbol&quot;</span><span class="p">,</span> <span class="s2">&quot;geneStart&quot;</span><span class="p">,</span> <span class="s2">&quot;geneEnd&quot;</span><span class="p">,</span> <span class="s2">&quot;peakName&quot;</span><span class="p">]</span>
+		<span class="n">motifs_and_genes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">motifs_and_genes</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns_to_output</span><span class="p">)</span>
+
+		<span class="n">output</span><span class="p">(</span><span class="n">motifs_and_genes</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dir&#39;</span><span class="p">),</span> <span class="n">peaks_file</span> <span class="o">+</span> <span class="s1">&#39;.garnet&#39;</span><span class="p">)</span></div>
+
+
+<span class="c1">######################################## Private Functions ########################################</span>
+
+<span class="k">def</span> <span class="nf">dict_of_IntervalTree_from_peak_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		peaks_file (str or FILE): filepath or file object for the peaks file</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: dictionary of intervals in known genes to intervals in peaks.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if peaks file was generated by pickle and trying to load it...&quot;</span><span class="p">)</span>
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">try_to_load_as_pickled_object_or_None</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">peaks</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Peaks file seems to have been generated by pickle, assuming IntervalTree format and proceeding...&#39;</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">peaks</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Peaks file does not seem to have been generated by pickle, proceeding to parse...&#39;</span><span class="p">)</span>
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">parse_peaks_file</span><span class="p">(</span><span class="n">peaks_file</span><span class="p">)</span>
+	<span class="n">peaks</span> <span class="o">=</span> <span class="n">group_by_chromosome</span><span class="p">(</span><span class="n">peaks</span><span class="p">)</span>
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Parse complete, constructing IntervalTrees...&#39;</span><span class="p">)</span>
+	<span class="n">peaks</span> <span class="o">=</span> <span class="p">{</span><span class="n">chrom</span><span class="p">:</span> <span class="n">IntervalTree_from_peaks</span><span class="p">(</span><span class="n">chromosome_peaks</span><span class="p">)</span> <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">chromosome_peaks</span> <span class="ow">in</span> <span class="n">peaks</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+	<span class="k">if</span> <span class="n">output_dir</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - IntervalTree construction complete, saving pickle file for next time.&#39;</span><span class="p">)</span>
+		<span class="n">save_as_pickled_object</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">+</span> <span class="s1">&#39;peaks_IntervalTree_dictionary.pickle&#39;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">peaks</span>
+
+
+<span class="k">def</span> <span class="nf">dict_of_IntervalTree_from_reference_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		known_genes_file (str or FILE): filepath or file object for the known_genes file</span>
+<span class="sd">		options (dict): options which may come from the argument parser.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: dictionary of chromosome to IntervalTree of known genes</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if known genes file was generated by pickle...&quot;</span><span class="p">)</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">try_to_load_as_pickled_object_or_None</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">reference</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Known Genes file seems to have been generated by pickle, assuming IntervalTree format and proceeding...&#39;</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">reference</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Known Genes file does not seem to have been generated by pickle, proceeding to parse...&#39;</span><span class="p">)</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">parse_known_genes_file</span><span class="p">(</span><span class="n">known_genes_file</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;kgXref_file&#39;</span><span class="p">))</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="n">group_by_chromosome</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span>
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Parse complete, constructing IntervalTrees...&#39;</span><span class="p">)</span>
+	<span class="n">reference</span> <span class="o">=</span> <span class="p">{</span><span class="n">chrom</span><span class="p">:</span> <span class="n">IntervalTree_from_reference</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span> <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">genes</span> <span class="ow">in</span> <span class="n">reference</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+	<span class="k">if</span> <span class="n">output_dir</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - IntervalTree construction complete, saving pickle file for next time.&#39;</span><span class="p">)</span>
+		<span class="n">save_as_pickled_object</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">+</span> <span class="s1">&#39;reference_IntervalTree_dictionary.pickle&#39;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">reference</span>
+
+
+<span class="k">def</span> <span class="nf">dict_of_IntervalTree_from_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		motifs_file (str or FILE): filepath or file object for the motifs file</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: dictionary of chromosome to IntervalTree of TF binding motifs</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if motifs file was generated by pickle...&quot;</span><span class="p">)</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">try_to_load_as_pickled_object_or_None</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">motifs</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Motifs file seems to have been generated by pickle, assuming IntervalTree format and proceeding...&#39;</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">motifs</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Motifs file does not seem to have been generated by pickle, proceeding to parse...&#39;</span><span class="p">)</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">parse_motifs_file</span><span class="p">(</span><span class="n">motifs_file</span><span class="p">)</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="n">group_by_chromosome</span><span class="p">(</span><span class="n">motifs</span><span class="p">)</span>
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - Parse complete, constructing IntervalTrees...&#39;</span><span class="p">)</span>
+	<span class="n">motifs</span> <span class="o">=</span> <span class="p">{</span><span class="n">chrom</span><span class="p">:</span> <span class="n">IntervalTree_from_motifs</span><span class="p">(</span><span class="n">chromosome_motifs</span><span class="p">)</span> <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">chromosome_motifs</span> <span class="ow">in</span> <span class="n">motifs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+	<span class="k">if</span> <span class="n">output_dir</span><span class="p">:</span>
+		<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;  - IntervalTree construction complete, saving pickle file for next time.&#39;</span><span class="p">)</span>
+		<span class="n">save_as_pickled_object</span><span class="p">(</span><span class="n">motifs</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">+</span> <span class="s1">&#39;motifs_IntervalTree_dictionary.pickle&#39;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">motifs</span>
+
+
+<span class="k">def</span> <span class="nf">group_by_chromosome</span><span class="p">(</span><span class="n">dataframe</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		dataframe (dataframe): Must be a dataframe with a chrom column</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: dictionary of chromosome names (e.g. &#39;chr1&#39;) to dataframes</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">dataframe</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;chrom&#39;</span><span class="p">)))</span>
+
+
+<span class="k">def</span> <span class="nf">type_of_peak</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		row (pd.Series): A row of data from a dataframe with peak and gene information</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		str: a name for the relationship between the peak and the gene:</span>
+<span class="sd">				- upstream if the start of the peak is more than 2kb above the start of the gene</span>
+<span class="sd">				- promoter if the start of the peak is above the start of the gene</span>
+<span class="sd">				- downstream if the start of the peak is below the start of the gene</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneStrand&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;+&#39;</span><span class="p">:</span>
+		<span class="k">if</span> <span class="o">-</span><span class="mi">2000</span> <span class="o">&gt;=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakStart&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneStart&#39;</span><span class="p">]:</span> 	<span class="k">return</span> <span class="s1">&#39;upstream&#39;</span>
+		<span class="k">if</span> <span class="o">-</span><span class="mi">2000</span> <span class="o">&lt;</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakStart&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneStart&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="s1">&#39;promoter&#39;</span>
+		<span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakStart&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneStart&#39;</span><span class="p">]:</span> 		<span class="k">return</span> <span class="s1">&#39;downstream&#39;</span>  <span class="c1"># a.k.a. row[&#39;peakStart&#39;] &lt; row[&#39;geneStart&#39;]</span>
+		<span class="k">return</span> <span class="s1">&#39;intergenic&#39;</span>
+	<span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneStrand&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span>
+		<span class="k">if</span> <span class="mi">2000</span> <span class="o">&lt;=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakEnd&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneEnd&#39;</span><span class="p">]:</span> 	<span class="k">return</span> <span class="s1">&#39;upstream&#39;</span>
+		<span class="k">if</span> <span class="mi">2000</span> <span class="o">&gt;</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakEnd&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneEnd&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> 	<span class="k">return</span> <span class="s1">&#39;promoter&#39;</span>
+		<span class="k">if</span> <span class="mi">0</span> <span class="o">&gt;=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;peakEnd&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;geneEnd&#39;</span><span class="p">]:</span> 		<span class="k">return</span> <span class="s1">&#39;downstream&#39;</span>  <span class="c1"># a.k.a. row[&#39;peakEnd&#39;] &lt; row[&#39;geneEnd&#39;]</span>
+		<span class="k">return</span> <span class="s1">&#39;intergenic&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">IntervalTree_from_peaks</span><span class="p">(</span><span class="n">peaks</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		peaks (dataframe): Must be a dataframe with peakStart and peakEnd columns</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		IntervalTree: of peaks</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">intervals</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">peaks</span><span class="o">.</span><span class="n">peakStart</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">peaks</span><span class="o">.</span><span class="n">peakEnd</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">peaks</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;records&#39;</span><span class="p">))</span>
+
+	<span class="n">tree</span> <span class="o">=</span> <span class="n">IntervalTree</span><span class="o">.</span><span class="n">from_tuples</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">tree</span>
+
+
+<span class="k">def</span> <span class="nf">IntervalTree_from_reference</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		reference (dataframe): Must be a dataframe with `strand`, `geneStart`, and `geneEnd` columns</span>
+<span class="sd">		options (dict): {&quot;upstream_window&quot;: int, &quot;downstream_window&quot;: int, &quot;tss&quot;: bool}</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		IntervalTree: of genes from the reference</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">upstream_window</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;upstream_window&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">2000</span>
+	<span class="n">downstream_window</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;downstream_window&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">2000</span>
+	<span class="n">window_ends_downstream_from_transcription_start_site_instead_of_transcription_end_site</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tss&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">False</span>
+
+	<span class="k">if</span> <span class="n">window_ends_downstream_from_transcription_start_site_instead_of_transcription_end_site</span><span class="p">:</span>
+		<span class="n">starts</span> <span class="o">=</span> <span class="n">reference</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">geneStart</span> <span class="o">-</span> <span class="n">upstream_window</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">strand</span> <span class="o">==</span> <span class="s1">&#39;+&#39;</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">geneEnd</span> <span class="o">-</span> <span class="n">upstream_window</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">ends</span> <span class="o">=</span> <span class="n">reference</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">geneStart</span> <span class="o">+</span> <span class="n">downstream_window</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">strand</span> <span class="o">==</span> <span class="s1">&#39;+&#39;</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">geneEnd</span> <span class="o">+</span> <span class="n">downstream_window</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">starts</span> <span class="o">=</span> <span class="n">reference</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">geneStart</span> <span class="o">-</span> <span class="n">upstream_window</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">ends</span> <span class="o">=</span> <span class="n">reference</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">geneEnd</span> <span class="o">+</span> <span class="n">downstream_window</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+	<span class="n">intervals</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">ends</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">reference</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;records&#39;</span><span class="p">))</span>
+
+	<span class="n">tree</span> <span class="o">=</span> <span class="n">IntervalTree</span><span class="o">.</span><span class="n">from_tuples</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">tree</span>
+
+
+<span class="k">def</span> <span class="nf">IntervalTree_from_motifs</span><span class="p">(</span><span class="n">motifs</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		motifs (dataframe): Must be a dataframe with motifStart and motifEnd columns</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		IntervalTree: of motifs</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">intervals</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">motifs</span><span class="o">.</span><span class="n">motifStart</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">motifs</span><span class="o">.</span><span class="n">motifEnd</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">motifs</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;records&#39;</span><span class="p">))</span>
+
+	<span class="n">tree</span> <span class="o">=</span> <span class="n">IntervalTree</span><span class="o">.</span><span class="n">from_tuples</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">tree</span>
+
+
+<span class="k">def</span> <span class="nf">intersection_of_dict_of_intervaltree</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		A (dict): is a dictionary of {chrom (str): IntervalTree}</span>
+<span class="sd">		B (dict): is a dictionary of {chrom (str): IntervalTree}</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: {keys shared between A and B: {intervals in A: [list of overlapping intervals in B]} }</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computing intersection operation of IntervalTrees for each chromosome...&#39;</span><span class="p">)</span>
+
+	<span class="c1"># Keys are chromosomes. We only want to look through chromosomes where there is potential for overlap</span>
+	<span class="n">common_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span> <span class="nb">set</span><span class="p">(</span><span class="n">B</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="p">)</span>
+
+	<span class="c1"># In general, the below operation isn&#39;t perfectly elegant, due to the double-for:</span>
+	<span class="c1">#   `for key in common_keys for a in A[key]`</span>
+	<span class="c1"># The reason we use a double-for here is because we want to do one level of &quot;flattening&quot;</span>
+	<span class="c1"># but we don&#39;t want to do it as a pre-processing or post-processing step. Specifically,</span>
+	<span class="c1"># we&#39;re passed dictionaries of chrom: IntervalTree, and we&#39;d like to return a single data</span>
+	<span class="c1"># structure for the entire genome, not one per chromosome. The below can be read as:</span>
+	<span class="c1">#</span>
+	<span class="c1">#	for chromosome in chromosomes_found_in_both_datastructures:</span>
+	<span class="c1">#		for a_interval in A[chromosome]</span>
+	<span class="c1">#			for b_interval in B[chromosome].search(A_interval)</span>
+	<span class="c1">#				Map a_interval to b_interval</span>
+	<span class="c1">#</span>
+	<span class="c1"># which can be expressed concisely in the following line of code (which is also maximally efficient)</span>
+	<span class="n">intersection</span> <span class="o">=</span> <span class="p">[(</span><span class="n">a</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">common_keys</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">A</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">B</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">a</span><span class="p">)]</span>
+
+	<span class="k">return</span> <span class="n">intersection</span>
+
+
+<span class="k">def</span> <span class="nf">intersection_of_three_dicts_of_intervaltrees</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Arguments:</span>
+<span class="sd">		A (dict): is a dictionary of {chrom (str): IntervalTree}</span>
+<span class="sd">		B (dict): is a dictionary of {chrom (str): IntervalTree}</span>
+<span class="sd">		C (dict): is a dictionary of {chrom (str): IntervalTree}</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		dict: {keys shared between A, B and C: {intervals in A: [[list of overlapping intervals in B], [list of overlapping intervals in C]]} }</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computing intersection operation of three IntervalTrees for each chromosome...&#39;</span><span class="p">)</span>
+
+	<span class="c1"># See `intersection_of_dict_of_intervaltree` (above) for programmer&#39;s notes. This function is nearly identical.</span>
+	<span class="n">common_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span> <span class="nb">set</span><span class="p">(</span><span class="n">B</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span> <span class="nb">set</span><span class="p">(</span><span class="n">C</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="p">)</span>
+
+	<span class="n">intersection</span> <span class="o">=</span> <span class="p">[(</span><span class="n">a</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">B</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">a</span><span class="p">)],</span>
+							 <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">C</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">a</span><span class="p">)]</span> <span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">common_keys</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">A</span><span class="p">[</span><span class="n">key</span><span class="p">]]</span>
+
+	<span class="k">return</span> <span class="n">intersection</span>
+
+
+</pre></div>
+
+          </div>
+        </div>
+          </div><div class="span1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container container-navbar-bottom">
+      <div class="spc-navbar">
+        
+      </div>
+    </div>
+    <div class="container">
+    <div class="footer">
+    <div class="row-fluid">
+    <ul class="inline pull-left">
+      <li>
+        &copy; Copyright 2017, Alexander LeNail.
+      </li>
+      <li>
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.5.2.
+      </li>
+    </ul>
+    </div>
+    </div>
+    </div>
+  </body>
+</html>

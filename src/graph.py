@@ -436,7 +436,9 @@ class Graph:
 			parameter_permutations (list): list of dictionaries of parameters
 
 		Returns:
-			list: [(vertex_indices, edge_indices),...] from PCSF runs.
+			networkx.Graph: forest
+			networkx.Graph: augmented_forest
+			pd.DataFrame: parameters and node membership lists
 		"""
 
 		prizes, terminals, terminal_attributes = self.prepare_prizes(prize_file)
