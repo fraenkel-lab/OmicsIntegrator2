@@ -18,6 +18,7 @@ copy /B "%SCRIPT_DIR%/graph_head.txt" + "%FOREST_OUTPUT_DIR%/graph_json.json" "%
 :: Copy the style_master to the visualize_results_rundir/
 ::
 copy "%SCRIPT_DIR%/style_master.js" "%USER_RESULT_DIR%/style.js"
+copy "%SCRIPT_DIR%/FileSaver.js" "%USER_RESULT_DIR%/FileSaver.js"
 ::
 ::
 :: Run Python code to extract min and max values from graph_json.json, to create the style.js code, 
