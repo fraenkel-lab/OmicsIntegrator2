@@ -69,10 +69,7 @@ body{
   outline: none;
   color: #9DBFAF;
 }
-
-.searchTerm:focus{
-  color: #00B4CC;
-}
+.searchTerm:focus{  color: #00B4CC;}
 
 .searchButton { 
   right: -50px;
@@ -108,13 +105,13 @@ input[type=button]:active {background-color: #908F90;}
     </td>
     <td style="vertical-align:top" width=190px>
       <div class="search">
-        <input type="text" class="searchTerm" placeholder="Search for Node">
-        <button type="submit" class="searchButton"><i class="fa fa-search"></i></button>
+          <input type="text" class="searchTerm" id='search_text' placeholder="Search for Node"> <!--onKeyUp="alert('keyup')"-->
+        <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><i class="fa fa-search"></i></button>
       </div>
     </td>
     <td style="vertical-align:top">
       <form name="formJSON"> 
-        <input type="button" onClick="saveJSON();" value="Save JSON">
+          <input type="button" onClick="saveJSON();" value="Save JSON">
       </form>
     </td>
     </tr>
@@ -183,6 +180,12 @@ input[type=button]:active {background-color: #908F90;}
     var jsonBlob = new Blob([JSON.stringify( cy.json() )], { type: 'application/javascript;charset=utf-8' });
     saveAs(jsonBlob, "graph_json.json");
     } 
+
+    function searchGraph() {
+    txt = document.getElementById('search_text').value;
+    node = cy.filter( 'node[name="'.concat(txt,'"]') );
+    node.select();
+    }
   </script>
 </body>
 </html>
