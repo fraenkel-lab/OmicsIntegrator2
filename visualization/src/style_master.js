@@ -158,47 +158,17 @@ var style = [ {
       "background-color" : "green"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][ProteinChange < 0]",
+    "selector" : "node[ProteinChange < 0]",
     "css" : {
       "background-color" : "blue"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][ProteinChange > 0]",
+    "selector" : "node[ProteinChange > 0]",
     "css" : {
       "background-color" : "red"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][ProteinChange = 0]",
-    "css" : {
-      "background-color" : "rgb(221,255,255)"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][ProteinChange < 0]",
-    "css" : {
-      "background-color" : "blue"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][ProteinChange > 0]",
-    "css" : {
-      "background-color" : "red"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][ProteinChange = 0]",
-    "css" : {
-      "background-color" : "rgb(221,255,255)"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'Metabolite'][ProteinChange < 0]",
-    "css" : {
-      "background-color" : "blue"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'Metabolite'][ProteinChange > 0]",
-    "css" : {
-      "background-color" : "red"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'Metabolite'][ProteinChange = 0]",
+    "selector" : "node[ProteinChange = 0]",
     "css" : {
       "background-color" : "rgb(221,255,255)"
     }
@@ -213,55 +183,19 @@ var style = [ {
       "border-width" : "2"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][GeneChange > 0]",
+    "selector" : "node[GeneChange > 0]",
     "css" : {
       "border-color" : "rgb(255,153,0)",
       "border-width" : "7"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][GeneChange < 0]",
+    "selector" : "node[GeneChange < 0]",
     "css" : {
       "border-color" : "purple",
       "border-width" : "7"
     }
   }, {
-    "selector" : "node[TerminalType = 'Proteomic'][GeneChange = 0]",
-    "css" : {
-      "border-color" : "gray",
-      "border-width" : "2"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'mRNA'][GeneChange > 0]",
-    "css" : {
-      "border-color" : "rgb(255,153,0)",
-      "border-width" : "7"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'mRNA'][GeneChange < 0]",
-    "css" : {
-      "border-color" : "purple",
-      "border-width" : "7"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'mRNA'][GeneChange = 0]",
-    "css" : {
-      "border-color" : "gray",
-      "border-width" : "2"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][GeneChange > 0]",
-    "css" : {
-      "border-color" : "rgb(255,153,0)",
-      "border-width" : "7"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][GeneChange < 0]",
-    "css" : {
-      "border-color" : "purple",
-      "border-width" : "7"
-    }
-  }, {
-    "selector" : "node[TerminalType = 'TF'][GeneChange = 0]",
+    "selector" : "node[GeneChange = 0]",
     "css" : {
       "border-color" : "gray",
       "border-width" : "2"
