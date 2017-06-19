@@ -18,11 +18,8 @@ import json
 import numpy as np
 import pandas as pd
 import networkx as nx
-<<<<<<< HEAD
 from py2cytoscape import util as cy
-=======
 import yaml
->>>>>>> master
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -87,12 +84,7 @@ class Graph:
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
-
-<<<<<<< HEAD
 		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['Weight'].astype(float).values)
-=======
-		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
->>>>>>> master
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -118,8 +110,6 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
-
-<<<<<<< HEAD
 		self.costs = (self.costs + self.edge_penalties)
 
 
@@ -127,11 +117,6 @@ class Graph:
 		flip_costs = 1 - native_costs_array
 		pos_costs = flip_costs[flip_costs<0] = 0
 		return pos_costs
-	# def _determine_costs_from_interactome_file(self, native_costs_array): return native_costs_array
-=======
-		self.costs = (self.edge_costs + self.edge_penalties)
->>>>>>> master
-
 
 	def prepare_prizes(self, prize_file):
 		"""
@@ -437,25 +422,10 @@ class Graph:
 			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict().items())
 			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict().items())
 		if random_terminals_reps > 0:
-<<<<<<< HEAD
-			nx.set_node_attributes(forest, 'specificity', {node: specificity for node, specificity in vertices['specificity'].to_dict().items() if node in forest_nodes})
-
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest_nodes})
-			nx.set_node_attributes(forest, attribute, {node:0 for node in forest.nodes() if attribute not in forest.node[node]})
-
-
-        #node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
-        #nx.set_node_attributes(forest, 'degree',  {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
-
-		augmented_forest = nx.compose(self.interactome_graph.subgraph(vertices.index.tolist()), forest)
-=======
 			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict().items())
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict().items())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
->>>>>>> master
-
 		return forest, augmented_forest
 
 
@@ -480,17 +450,6 @@ class Graph:
 		bare_prizes = prizes / self.params.b
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
 
-<<<<<<< HEAD
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=['Weight'])
-
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
-			nx.set_node_attributes(forest, attribute, {node:0 for node in forest.nodes() if attribute not in forest.node[node]})
-
-		#node_degree_dict = pd.DataFrame(list(zip(self.nodes, self.node_degrees)), columns=['name','degree']).set_index('name').to_dict()['degree']
-		#nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
-=======
-
 		def run(params):
 			self._set_hyperparameters(params)
 			prizes = bare_prizes * float(params['b'])
@@ -498,7 +457,6 @@ class Graph:
 			return (paramstring, self.pcsf(prizes))
 
 		results = list(map(run, parameter_permutations))
->>>>>>> master
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
@@ -530,12 +488,7 @@ def betweenness(nxgraph):
 	betweenness = nx.betweenness_centrality(nxgraph)
 	nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
 
-<<<<<<< HEAD
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'Weight').values()) + (self.params.w * nx.number_connected_components(forest))
-=======
 	return nxgraph
->>>>>>> master
-
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
