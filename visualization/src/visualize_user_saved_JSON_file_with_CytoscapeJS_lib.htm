@@ -76,7 +76,6 @@ body{
 }
 
 .searchButton { 
-  right: -50px;
   width: 40px;
   height: 36px;
   border: 1px solid #00B4CC;
@@ -108,12 +107,12 @@ select option { background: #F2F1F2; }
 
 <!-- Body with JSON button, search bar, legend, & network-->
 <body>
-  <table width="100%" border="0">
+  <table border="0">
     <tr>
-    <td width=110px style="padding: 0; margin: 0;">
+    <td style="padding: 0; margin: 0;">
       <img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/omicsI_logo.png" height=85px>
     </td>
-    <td style="vertical-align:top" width=190px>
+    <td style="vertical-align:top">
       <div class="search">
         <input type="text" class="searchTerm" id='search_text' placeholder="Search for Node" onKeyUp='javascript:searchType(event)'> 
           <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><i class="fa fa-search"></i></button>
@@ -123,6 +122,11 @@ select option { background: #F2F1F2; }
     <td style="vertical-align:top">
       <form name="formJSON"> 
         <input type="button" onClick="saveJSON();" value="Save JSON">
+      </form>
+    </td>
+    <td style="vertical-align:top">
+      <form name="formJPEG"> 
+          <input type="button" onClick="saveJPEG();" value="Save Image">
       </form>
     </td>
     </tr>
@@ -167,18 +171,6 @@ select option { background: #F2F1F2; }
     x: 0,
     y: 45
   });
-
-    /* 
-     * saveJSON() function:
-     *
-     * Save current network to a JSON file on the local machine.
-     */
-
-    function saveJSON() 
-    { 
-      var jsonBlob = new Blob([JSON.stringify( cy.json() )], { type: 'application/javascript;charset=utf-8' });
-      saveAs(jsonBlob, "graph_json.json");
-    } 
 
     /*
      * searchGraph() function:
@@ -233,6 +225,52 @@ select option { background: #F2F1F2; }
       var value = dropDownList.value;
       document.getElementById('search_text').value = value
       searchGraph();
+    }
+
+    /* 
+     * saveJSON() function:
+     *
+     * Save current network to a JSON file on the local machine.
+     */
+
+    function saveJSON() { 
+      var jsonBlob = new Blob([JSON.stringify( cy.json() )], { type: 'application/javascript;charset=utf-8' });
+      saveAs(jsonBlob, "graph_json.json");
+    } 
+
+    /*
+     * saveJPEG() function:
+     *
+     * save current network as an image to local machine.
+     */
+
+    function saveJPEG() {
+      var b64key = 'base64,';
+      var b64 = cy.png().substring( cy.png().indexOf(b64key) + b64key.length );
+      var imgBlob = b64toBlob( b64, 'image/png' );
+      saveAs( imgBlob, 'graph.png' ); 
+    }
+
+    /*
+     * b64toBlob function from https://stackoverflow.com/questions/16245767
+     */
+
+    function b64toBlob(b64Data, contentType, sliceSize) {
+      contentType = contentType || '';
+      sliceSize = sliceSize || 512;
+      var byteCharacters = atob(b64Data);
+      var byteArrays = [];
+      for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        var slice = byteCharacters.slice(offset, offset + sliceSize);
+        var byteNumbers = new Array(slice.length);
+        for (var i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        var byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      var blob = new Blob(byteArrays, {type: contentType});
+      return blob;
     }
 
   </script>
