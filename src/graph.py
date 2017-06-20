@@ -134,6 +134,7 @@ class Graph:
 			pandas.DataFrame: terminal_attributes
 		"""
 
+		### THIS IS BUGGY, FIRST ROW ENDS UP BEING IGNORED
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
 		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
 
@@ -159,6 +160,29 @@ class Graph:
 		prizes = prizes_dataframe['prize'].values * self.params.b
 
 		return prizes, terminals, terminal_attributes
+
+
+	def prepare_node_attributes(self, node_attributes):
+		"""
+		Desc
+		"""
+
+		# Some files have duplicated genes with different prizes (i.e. a TF is detected via Garnet and proteomics). Keep max prize. 
+		logger.info("Duplicated gene symbols in node attributes dataframe (we'll keep the max prize):")
+		node_attributes_df = node_attributes.groupby('name').max().reset_index()
+
+		# Here we're indexing the terminal nodes and associated prizes by the indices we used for nodes
+		node_attributes_df.set_index(self.nodes.get_indexer(node_attributes_df['name']), inplace=True)
+
+		# There will be some nodes in the node attributes dataframe which we don't have in our interactome
+		node_attributes_df.drop(-1, inplace=True)
+
+		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
+		node_attributes_df = pd.DataFrame(self.nodes, columns=["name"]).merge(node_attributes_df, on="name", how="left")
+		node_attributes_df["prize"].fillna(0, inplace=True)
+		node_attributes_df["prize_scaled"] = node_attributes_df["prize"] * self.params.b
+
+		self.node_attributes = node_attributes_df
 
 
 	def _add_dummy_node(self, connected_to=[]):
@@ -232,7 +256,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def output_forest_as_networkx(self, vertex_indices, edge_indices, terminal_attributes):
+	def output_forest_as_networkx(self, vertex_indices, edge_indices):
 		"""
 
 		Arguments:
@@ -247,8 +271,8 @@ class Graph:
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
 
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		for attribute in self.node_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
 		# Add the degree as an attribute
 		node_degree_dict = nx.degree(self.interactome_graph)
@@ -345,7 +369,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
+	def randomizations(self, prizes, terminals, noisy_edges_reps, random_terminals_reps):
 		"""
 		Macro function which performs randomizations and merges the results
 
@@ -355,7 +379,6 @@ class Graph:
 		Arguments:
 			prizes (numpy.array): prizes, properly indexed (e.g. from `prepare_prizes`)
 			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from `prepare_prizes`)
-			terminal_attributes (pandas.DataFrame): additional attributes on the terminals (from `prepare_prizes`)
 			noisy_edges_reps (int): Number of "Noisy Edges" type randomizations to perform
 			random_terminals_reps (int): Number of "Random Terminals" type randomizations to perform
 
@@ -409,7 +432,7 @@ class Graph:
 
 		###########
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
@@ -425,7 +448,7 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def grid_search(self, prize_file, As, Bs, Ws):
+	def grid_search(self, node_attributes, As, Bs, Ws):
 		"""
 		Macro function which performs grid search and merges the results.
 
@@ -441,9 +464,8 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		prizes, terminals, terminal_attributes = self.prepare_prizes(prize_file)
-
-		bare_prizes = prizes / self.params.b
+		self.prepare_node_attributes(node_attributes)
+		bare_prizes = self.node_attributes["prize"]
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
 
 
@@ -458,7 +480,7 @@ class Graph:
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
