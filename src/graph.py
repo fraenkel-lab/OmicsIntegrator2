@@ -523,41 +523,38 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
+def merge_prize_files(prize_files, prize_types):
 	"""
 	Arguments:
-		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_file_1_node_type (str): a node type name to associate with the nodes from prize_file_1
-		prize_file_2_node_type (str): a node type name to associate with the nodes from prize_file_2
+		prize_files (list of str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_types (list of str): a node type name to associate with the nodes from each prize_file
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
-	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
-	if prize_file_1_node_type: prize_df1['type'] = prize_file_1_node_type
+	dataframes = []
 
-	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
-	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
-	if prize_file_2_node_type: prize_df2['type'] = prize_file_2_node_type
+	for prize_file, prize_type in zip(prize_files, prize_types):
 
-	return merge_two_prize_dataframes(prize_df1, prize_df2)
+		prize_df = pd.read_csv(prize_file, sep='\t')
+		prize_df.columns = ['name', 'prize'] + prize_df.columns[2:].tolist()
+		prize_df['type'] = prize_type
+		dataframes.append(prize_df)
+
+	return merge_prize_dataframes(dataframes)
 
 
-def merge_two_prize_dataframes(prize_df1, prize_df2):
+def merge_prize_dataframes(prize_dataframes):
 	"""
-
 	Arguments:
-		prize_df1 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
-		prize_df2 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
+		prize_dataframes (list of pandas.DataFrame): a list of dataframes, each of which must at least have columns 'name' and 'prize'
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prizes_dataframe = pd.concat((prize_df1, prize_df2))
+	prizes_dataframe = pd.concat(prizes_dataframes)
 	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
 
 	return prizes_dataframe
