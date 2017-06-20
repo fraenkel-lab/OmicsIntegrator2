@@ -12,7 +12,8 @@ SET SCRIPT_DIR=%~dp0
 ::
 :: Concatenate the graph_head with the graph_json.json (which is the user saved JSON file).
 ::
-copy /B "%SCRIPT_DIR%/graph_head.txt" + "%USER_SAVED_JSON_DIR%/graph_json.json" "%USER_RESULT_DIR%/graph.js"
+echo var graph = >> %USER_RESULT_DIR%/graph.js
+echo %FOREST_OUTPUT_DIR%/graph_json.json >> %USER_RESULT_DIR%/graph.js
 ::
 ::
 :: Copy the style_master to the visualize_results_rundir/
