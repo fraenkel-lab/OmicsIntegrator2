@@ -76,46 +76,46 @@ def create_style_code_cytoscape(min_max, style_filename):
 
         # Proteomic
         if max_value > 0:
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange > " + max_string + "]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : 0.5\n")
-            style_file.write("    }\n")
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange = " + max_string + "]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : 0.5\n")
-            style_file.write("    }\n")
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange > 0][ProteinChange < " + max_string + "]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : \"mapData(ProteinChange, 0, " + max_string + ", -0.9, 0.5)\"\n")
-            style_file.write("    }\n")
+            style_file.write("  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange > " + max_string + "]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : 0.5\n"
+                             "    }\n"
+                             "  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange = " + max_string + "]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : 0.5\n"
+                             "    }\n"
+                             "  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange > 0][ProteinChange < " + max_string + "]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : \"mapData(ProteinChange, 0, " + max_string + ", -0.9, 0.5)\"\n"
+                             "    }\n")
         if min_value < 0:
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange > " + min_string + "][ProteinChange < 0]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : \"mapData(ProteinChange, " + min_string + ", 0, 0.5, -0.9)\"\n")
-            style_file.write("    }\n")
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange = " + min_string + "]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : 0.5\n")
-            style_file.write("    }\n")
-            style_file.write("  }, {\n")
-            style_file.write("    \"selector\" : \"node[ProteinChange < " + min_string + "]\",\n")
-            style_file.write("    \"css\" : {\n")
-            style_file.write("      \"background-blacken\" : 0.5\n")
-            style_file.write("    }\n")
+            style_file.write("  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange > " + min_string + "][ProteinChange < 0]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : \"mapData(ProteinChange, " + min_string + ", 0, 0.5, -0.9)\"\n"
+                             "    }\n"
+                             "  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange = " + min_string + "]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : 0.5\n"
+                             "    }\n"
+                             "  }, {\n"
+                             "    \"selector\" : \"node[ProteinChange < " + min_string + "]\",\n"
+                             "    \"css\" : {\n"
+                             "      \"background-blacken\" : 0.5\n"
+                             "    }\n")
 
         # Ending part
-        style_file.write("  }, {\n")
-        style_file.write("    \"selector\" : \"node:selected\",\n")
-        style_file.write("    \"css\" : {\n")
-        style_file.write("      \"background-color\" : \"rgb(255,255,0)\"\n")
-        style_file.write("    }\n")
-        style_file.write("  } ]\n")
-        style_file.write("} ];")
+        style_file.write("  }, {\n"
+                         "    \"selector\" : \"node:selected\",\n"
+                         "    \"css\" : {\n"
+                         "      \"background-color\" : \"rgb(255,255,0)\"\n"
+                         "    }\n"
+                         "  } ]\n"
+                         "} ];")
 
         
         style_file.close()        
