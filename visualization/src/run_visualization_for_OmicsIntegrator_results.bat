@@ -29,6 +29,6 @@ py %SCRIPT_DIR%/create_style_code_for_visualization.py %USER_RESULT_DIR% %FOREST
 :: Make the HTML file that contains JavaScript code using the cytoscape.js library to be user-specific in that directory,
 :: so the HTML can be linked to a domain name and the user can access the weblink for their result
 ::
-copy %SCRIPT_DIR%/visualize_OmicsIntegrator_results_with_CytoscapeJS_lib.htm %USER_RESULT_DIR%/visualize_OmicsIntegrator_results_with_CytoscapeJS_lib_%USER_SAMPLE%.htm
+copy %SCRIPT_DIR%/visualize_OmicsIntegrator_results_with_CytoscapeJS_lib.html %USER_RESULT_DIR%/visualize_OmicsIntegrator_results_with_CytoscapeJS_lib_%USER_SAMPLE%.html
 ::
 ::

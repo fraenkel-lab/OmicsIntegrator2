@@ -18,7 +18,7 @@
     This JavaScript code programs the visual styles that are common to all network samples.
 
 
-(3) visualize_OmicsIntegrator_results_with_CytoscapeJS_lib.htm
+(3) visualize_OmicsIntegrator_results_with_CytoscapeJS_lib.html
 
     This HTML code contains the JavaScript code that programs the network visualization of the OmicsIntegrator results 
     using the cytoscape.js library.
@@ -27,7 +27,7 @@
     It also implements a legend for the node colors & border colors to be displayed with the network.
 
 
-(4) visualize_user_saved_JSON_file_with_CytoscapeJS_lib.htm
+(4) visualize_user_saved_JSON_file_with_CytoscapeJS_lib.html
 
     This HTML code contains the JavaScript code that programs the network visualization of the user saved JSON file 
     using the cytoscape.js library.
