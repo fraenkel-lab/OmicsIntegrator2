@@ -137,15 +137,15 @@ class Graph:
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
 		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
 
-		# Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.
+		# Some files have duplicated genes with different prizes (i.e. a TF is detected via Garnet and proteomics). Keep max prize. 
 		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
 		logger.info(prizes_dataframe[prizes_dataframe.set_index('name').index.duplicated()]['name'].tolist())
 		prizes_dataframe = prizes_dataframe.groupby('name').max().reset_index()
 
-		# Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
+		# Here we're indexing the terminal nodes and associated prizes by the indices we used for nodes
 		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
 
-		# there will be some nodes in the prize file which we don't have in our interactome
+		# There will be some nodes in the prize file which we don't have in our interactome
 		logger.info("Members of the prize file not present in the interactome:")
 		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True)
