@@ -134,7 +134,6 @@ class Graph:
 			pandas.DataFrame: terminal_attributes
 		"""
 
-		### THIS IS BUGGY, FIRST ROW ENDS UP BEING IGNORED
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
 		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
 
@@ -164,7 +163,15 @@ class Graph:
 
 	def prepare_node_attributes(self, node_attributes):
 		"""
-		Desc
+		CLeans up node attributes dataframe by removing duplicate rows and overlapping with interactome, and assigns to class attributes. 
+
+		The dataframe passed to this function must have at least two columns with headers: node name and prize.
+		
+		Arguments: 
+			node_attributes (dataframe): a dataframe object with node name and prize columns **with headers**.
+
+		Returns: 
+			null
 		"""
 
 		# Some files have duplicated genes with different prizes (i.e. a TF is detected via Garnet and proteomics). Keep max prize. 
