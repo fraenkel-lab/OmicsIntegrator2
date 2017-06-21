@@ -200,9 +200,9 @@ select option { background: #F2F1F2; }
       var charCode = (typeof e.which === "number") ? e.which : e.keyCode;
       if (charCode == 13) { searchGraph(); }
       else {
-        var drop = document.getElementById("dropDownList")
-        while (drop.options.length > 0) { drop.remove(0); } /* Clear dropdown - working?? */
-        var txt = document.getElementById('search_text').value;
+        var drop = document.getElementById("dropDownList");
+        while (drop.options.length > 0) { drop.remove(0); } 
+        var txt = document.getElementById('search_text').value.toUpperCase();
         if (txt.length > 0) {
           var nodes = cy.filter( 'node[name^="'.concat(txt,'"]') );
           nodes.forEach(function(ele) {
