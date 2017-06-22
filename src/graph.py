@@ -12,11 +12,13 @@ import random
 from collections import Counter
 from itertools import product
 from copy import copy
+import json
 
 # python external libraries
 import numpy as np
 import pandas as pd
 import networkx as nx
+from py2cytoscape import util as cy
 import yaml
 
 # Lab modules
@@ -64,7 +66,7 @@ class Graph:
 		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
 
 		Arguments:
-			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tWeight"
+			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
 			params (dict): params with which to run the program
 
 		"""
@@ -82,7 +84,6 @@ class Graph:
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
-
 		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
@@ -109,9 +110,7 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
-
 		self.costs = (self.edge_costs + self.edge_penalties)
-
 
 	def prepare_prizes(self, prize_file):
 		"""
@@ -421,7 +420,6 @@ class Graph:
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict().items())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
-
 		return forest, augmented_forest
 
 
@@ -445,7 +443,6 @@ class Graph:
 
 		bare_prizes = prizes / self.params.b
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
-
 
 		def run(params):
 			self._set_hyperparameters(params)
@@ -487,7 +484,6 @@ def betweenness(nxgraph):
 
 	return nxgraph
 
-
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
@@ -498,6 +494,18 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
 
+
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_json.json)
+	"""
+	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+	njs = cy.from_networkx(nxgraph)
+	with open(path,'w') as outf:
+		outf.write(json.dumps(njs, indent=4))
+	
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
