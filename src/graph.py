@@ -66,14 +66,14 @@ class Graph:
 		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
 
 		Arguments:
-			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tWeight"
+			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
 			params (dict): params with which to run the program
 
 		"""
 
-		interactome_fieldnames = ["source","target","Weight"]
+		interactome_fieldnames = ["source","target","cost"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
-		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['Weight'])
+		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.
@@ -84,7 +84,7 @@ class Graph:
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
-        self.edge_costs = self.interactome_dataframe['Weight'].astype(float).values
+		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.

@@ -66,32 +66,7 @@ var style = [ {
       "target-arrow-color" : "rgb(152,233,7)",
       "source-arrow-color" : "rgb(152,233,7)"
     }
-  }, {
-    "selector" : "edge[Weight > 0.99]",
-    "css" : {
-      "width" : 1.0
-    }
-  }, {
-    "selector" : "edge[Weight = 0.99]",
-    "css" : {
-      "width" : 9.905529347861686
-    }
-  }, {
-    "selector" : "edge[Weight > 0][Weight < 0.99]",
-    "css" : {
-      "width" : "mapData(Weight,0,0.99,2.2764227642276422,9.905529347861686)"
-    }
-  }, {
-    "selector" : "edge[Weight = 0]",
-    "css" : {
-      "width" : 2.2764227642276422
-    }
-  }, {
-    "selector" : "edge[Weight < 0]",
-    "css" : {
-      "width" : 1.0
-    }
-  }, {
+  },{
     "selector" : "edge:selected",
     "css" : {
       "line-color" : "rgb(255,0,0)"

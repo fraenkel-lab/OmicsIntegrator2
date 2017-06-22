@@ -17,21 +17,33 @@ def extract_min_max(json_file):
 	
         node_list = network_data["elements"]["nodes"]
 	
-        min_value = 0
-        max_value = 0
+        min_pc = 0
+        max_pc = 0
         for node in node_list:
             if "ProteinChange" in node["data"]:
                 current_value = node["data"]["ProteinChange"]
             else:
                 continue
-            if current_value > max_value:
-                max_value = current_value
-            if current_value < min_value:
-                min_value = current_value
+            if current_value > max_pc:
+                max_pc = current_value
+            if current_value < min_pc:
+                min_pc = current_value
+
+        edge_list = network_data["elements"]["edges"]
+
+        min_edge = 0
+        max_edge = 0
+        for edge in edge_list:
+            current_value = edge["data"]["cost"]
+            if current_value > max_edge:
+                max_edge = current_value
+            if current_value < min_edge:
+                min_edge = current_value
+
 
         json_data.close()
 	
-        return [min_value, max_value]
+        return [min_pc, max_pc, min_edge, max_edge]
 
 
 def process_graph_json(graph_filename):
@@ -64,49 +76,52 @@ def create_style_code_cytoscape(min_max, style_filename):
         Returns:
                 None
         """
-
-        min_value = min_max[0]
-        max_value = min_max[1]
-        min_string = str(min_value)
-        max_string = str(max_value)
+        
+        min_pc, max_pc, min_edge, max_edge = [str(item) for item in min_max]
        
         style_file = open(style_filename, "a")
 
         style_file.write("\n")
 
-        # Proteomic
-        if max_value > 0:
+        # ProteinChange
+        if max_pc > 0:
             style_file.write("  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange > " + max_string + "]\",\n"
+                             "    \"selector\" : \"node[ProteinChange > " + max_pc + "]\",\n"
                              "    \"css\" : {\n"
                              "      \"background-blacken\" : 0.5\n"
                              "    }\n"
                              "  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange = " + max_string + "]\",\n"
+                             "    \"selector\" : \"node[ProteinChange = " + max_pc + "]\",\n"
                              "    \"css\" : {\n"
                              "      \"background-blacken\" : 0.5\n"
                              "    }\n"
                              "  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange > 0][ProteinChange < " + max_string + "]\",\n"
+                             "    \"selector\" : \"node[ProteinChange > 0][ProteinChange < " + max_pc + "]\",\n"
                              "    \"css\" : {\n"
-                             "      \"background-blacken\" : \"mapData(ProteinChange, 0, " + max_string + ", -0.9, 0.5)\"\n"
+                             "      \"background-blacken\" : \"mapData(ProteinChange, 0, " + max_pc + ", -0.9, 0.5)\"\n"
                              "    }\n")
-        if min_value < 0:
+        if min_pc < 0:
             style_file.write("  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange > " + min_string + "][ProteinChange < 0]\",\n"
+                             "    \"selector\" : \"node[ProteinChange > " + min_pc + "][ProteinChange < 0]\",\n"
                              "    \"css\" : {\n"
-                             "      \"background-blacken\" : \"mapData(ProteinChange, " + min_string + ", 0, 0.5, -0.9)\"\n"
+                             "      \"background-blacken\" : \"mapData(ProteinChange, " + min_pc + ", 0, 0.5, -0.9)\"\n"
                              "    }\n"
                              "  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange = " + min_string + "]\",\n"
+                             "    \"selector\" : \"node[ProteinChange = " + min_pc + "]\",\n"
                              "    \"css\" : {\n"
                              "      \"background-blacken\" : 0.5\n"
                              "    }\n"
                              "  }, {\n"
-                             "    \"selector\" : \"node[ProteinChange < " + min_string + "]\",\n"
+                             "    \"selector\" : \"node[ProteinChange < " + min_pc + "]\",\n"
                              "    \"css\" : {\n"
                              "      \"background-blacken\" : 0.5\n"
                              "    }\n")
+        # Edge Width
+        style_file.write("  }, {\n"
+                             "    \"selector\" : \"edge\",\n"
+                             "  \"css\" : {\n"
+                             "    \"width\" : \"mapData(cost," + max_edge + "," + min_edge + ",1,10)\"\n"
+                             "  }\n")
 
         # Ending part
         style_file.write("  }, {\n"
