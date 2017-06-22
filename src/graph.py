@@ -84,7 +84,7 @@ class Graph:
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
-		self.costs = self._determine_costs_from_interactome_file(self.interactome_dataframe['Weight'].astype(float).values)
+        self.edge_costs = self.interactome_dataframe['Weight'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -110,13 +110,7 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
-		self.costs = (self.costs + self.edge_penalties)
-
-
-	def _determine_costs_from_interactome_file(self, native_costs_array): 
-		flip_costs = 1 - native_costs_array
-		pos_costs = flip_costs[flip_costs<0] = 0
-		return pos_costs
+		self.costs = (self.edge_costs + self.edge_penalties)
 
 	def prepare_prizes(self, prize_file):
 		"""
