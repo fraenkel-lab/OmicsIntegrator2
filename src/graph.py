@@ -28,7 +28,8 @@ from pcst_fast import pcst_fast
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
-			"merge_two_prize_files",
+			"output_networkx_graph_as_json_for_cytoscapejs",
+			"merge_prize_files",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -43,6 +44,8 @@ logger.addHandler(handler)
 
 # Some arbitrary helpers I believe should exist in the language anyhow
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
+
+def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
 
 class Options(object):
 	def __init__(self, options):
@@ -227,7 +230,9 @@ class Graph:
 
 		# Remove the dummy node and dummy edges for convenience
 		vertex_indices = vertex_indices[vertex_indices != root]
-		edge_indices = edge_indices[np.in1d(edge_indices, dummy_edges, invert=True)]
+		edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
+
+		print('hello world')
 
 		return vertex_indices, edge_indices
 
@@ -474,13 +479,19 @@ def betweenness(nxgraph):
 
 
 def louvain_clustering(nxgraph):
+	"""
+	"""
 	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
 
-def edge_betweenness_clustering(nxgraph):
-	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', nx.girvan_newman(nxgraph)) # this returns node IDs in lists, need to convert.
+# def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
+# 	"""
+# 	"""
+# 	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', invert(nx.girvan_newman(nxgraph)))
 
-def k_clique_clustering(nxgraph):
-	nx.set_node_attributes(nxgraph, 'k_clique_clusters', nx.k_clique_communities(nxgraph))  # this returns node IDs in lists, need to convert.
+def k_clique_clustering(nxgraph, k):
+	"""
+	"""
+	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
