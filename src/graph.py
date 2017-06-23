@@ -232,8 +232,6 @@ class Graph:
 		vertex_indices = vertex_indices[vertex_indices != root]
 		edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
 
-		print('hello world')
-
 		return vertex_indices, edge_indices
 
 
