@@ -259,6 +259,9 @@ class Graph:
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
+		# Post-processing
+		louvain_clustering(augmented_forest)
+
 		return forest, augmented_forest
 
 
