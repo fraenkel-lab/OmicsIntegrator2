@@ -18,6 +18,7 @@ import json
 import numpy as np
 import pandas as pd
 import networkx as nx
+import community    # pip install python-louvain
 from py2cytoscape import util as cy
 import yaml
 
@@ -27,7 +28,8 @@ from pcst_fast import pcst_fast
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
-			"merge_two_prize_files",
+			"output_networkx_graph_as_json_for_cytoscapejs",
+			"merge_prize_files",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -42,6 +44,8 @@ logger.addHandler(handler)
 
 # Some arbitrary helpers I believe should exist in the language anyhow
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
+
+def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
 
 class Options(object):
 	def __init__(self, options):
@@ -226,7 +230,7 @@ class Graph:
 
 		# Remove the dummy node and dummy edges for convenience
 		vertex_indices = vertex_indices[vertex_indices != root]
-		edge_indices = edge_indices[np.in1d(edge_indices, dummy_edges, invert=True)]
+		edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
 
 		return vertex_indices, edge_indices
 
@@ -254,6 +258,9 @@ class Graph:
 		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
+
+		# Post-processing
+		louvain_clustering(augmented_forest)
 
 		return forest, augmented_forest
 
@@ -469,20 +476,23 @@ class Graph:
 
 
 def betweenness(nxgraph):
+	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
+
+
+def louvain_clustering(nxgraph):
 	"""
-	Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
-
-	Arguments:
-		nxgraph (networkx.Graph): a networkx graph object
-
-	Returns:
-		networkx.Graph: a networkx graph object
 	"""
+	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
 
-	betweenness = nx.betweenness_centrality(nxgraph)
-	nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+# def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
+# 	"""
+# 	"""
+# 	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', invert(nx.girvan_newman(nxgraph)))
 
-	return nxgraph
+def k_clique_clustering(nxgraph, k):
+	"""
+	"""
+	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
@@ -505,7 +515,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
 	njs = cy.from_networkx(nxgraph)
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
-	
+
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
@@ -534,41 +544,38 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
+def merge_prize_files(prize_files, prize_types):
 	"""
 	Arguments:
-		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_file_1_node_type (str): a node type name to associate with the nodes from prize_file_1
-		prize_file_2_node_type (str): a node type name to associate with the nodes from prize_file_2
+		prize_files (list of str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_types (list of str): a node type name to associate with the nodes from each prize_file
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
-	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
-	if prize_file_1_node_type: prize_df1['type'] = prize_file_1_node_type
+	dataframes = []
 
-	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
-	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
-	if prize_file_2_node_type: prize_df2['type'] = prize_file_2_node_type
+	for prize_file, prize_type in zip(prize_files, prize_types):
 
-	return merge_two_prize_dataframes(prize_df1, prize_df2)
+		prize_df = pd.read_csv(prize_file, sep='\t')
+		prize_df.columns = ['name', 'prize'] + prize_df.columns[2:].tolist()
+		prize_df['type'] = prize_type
+		dataframes.append(prize_df)
+
+	return merge_prize_dataframes(dataframes)
 
 
-def merge_two_prize_dataframes(prize_df1, prize_df2):
+def merge_prize_dataframes(prize_dataframes):
 	"""
-
 	Arguments:
-		prize_df1 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
-		prize_df2 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
+		prize_dataframes (list of pandas.DataFrame): a list of dataframes, each of which must at least have columns 'name' and 'prize'
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prizes_dataframe = pd.concat((prize_df1, prize_df2))
+	prizes_dataframe = pd.concat(prizes_dataframes)
 	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
 
 	return prizes_dataframe
