@@ -190,6 +190,7 @@ class Graph:
 		node_attributes_df["prize_scaled"] = node_attributes_df["prize"] * self.params.b
 
 		self.node_attributes = node_attributes_df
+		self.prizes = self.node_attributes["prize_scaled"]
 
 
 	def _add_dummy_node(self, connected_to=[]):
@@ -209,7 +210,7 @@ class Graph:
 		pass
 
 
-	def pcsf(self, prizes, pruning="strong", verbosity_level=0):
+	def pcsf(self, pruning="strong", verbosity_level=0):
 		"""
 		Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.
 
@@ -228,7 +229,7 @@ class Graph:
 			numpy.array: indices of the selected edges
 		"""
 
-		terminals = pd.Series(prizes).nonzero()[0].tolist()
+		terminals = pd.Series(self.prizes).nonzero()[0].tolist()
 		others = list(set(range(len(self.nodes))) - set(terminals))
 		all = list(range(len(self.nodes)))
 
@@ -290,7 +291,7 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def pcsf_objective_value(self, prizes, forest):
+	def pcsf_objective_value(self, forest):
 		"""
 		Calculate PCSF objective function
 
@@ -302,7 +303,7 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
 
 
 	def _noisy_edges(self):
@@ -318,7 +319,7 @@ class Graph:
 		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
 
 
-	def _random_terminals(self, prizes, terminals):
+	def _random_terminals(self, terminals):
 		"""
 		Switches the terminams with random nodes with a similar degree distribution.
 
@@ -338,7 +339,7 @@ class Graph:
 		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
 		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
 
-		new_prizes = copy(prizes)
+		new_prizes = copy(self.prizes)
 
 		for old_terminal, new_terminal in zip(terminals, new_terminals):
 			new_prizes[old_terminal] = 0
@@ -376,7 +377,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def randomizations(self, prizes, terminals, noisy_edges_reps, random_terminals_reps):
+	def randomizations(self, terminals, noisy_edges_reps, random_terminals_reps):
 		"""
 		Macro function which performs randomizations and merges the results
 
@@ -407,7 +408,7 @@ class Graph:
 
 			for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
 				self.costs = noisy_edge_costs
-				results.append(self.pcsf(prizes))
+				results.append(self.pcsf(self.prizes))
 			# Reset the true edges
 			self.costs = true_edge_costs
 
@@ -418,7 +419,7 @@ class Graph:
 
 			results = []
 
-			for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
+			for random_prizes, terminals in [self._random_terminals(self.prizes, terminals) for rep in range(random_terminals_reps)]:
 				results.append(self.pcsf(random_prizes))
 
 			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
