@@ -245,7 +245,7 @@ class Graph:
 		# `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
 		edges = np.concatenate((self.edges, dummy_edges))
 		# `prizes`: the node prizes as a 1D float64 array.
-		prizes = np.concatenate((prizes, dummy_prize))
+		prizes = np.concatenate((self.prizes, dummy_prize))
 		# `costs`: the edge costs as a 1D float64 array.
 		costs = np.concatenate((self.costs, dummy_costs))
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
@@ -262,6 +262,56 @@ class Graph:
 		edge_indices = edge_indices[np.in1d(edge_indices, dummy_edges, invert=True)]
 
 		return vertex_indices, edge_indices
+
+
+	def pcsf_exact(self):
+		"""
+		Exact PCSF solver: https://github.com/mluipersbeck/dapcstp
+		"""
+		def stp_template(prizes, edges, costs, f_name):
+			# Note: Nodes need to be 1-indexed
+			header = "33D32945 STP File, STP Format Version 1.0\n"
+
+			graph = "SECTION Graph\nNodes %d\nEdges %d\n" %(len(prizes), len(edges))
+			graph += ''.join(["E %d %d %0.4f\n" %(edge[0]+1, edge[1]+1, cost) for edge,cost in zip(edges,costs)])
+			graph += "END\n"
+
+			terminals = "SECTION Terminals\nTerminals %d\n" %sum(prizes>0)
+			terminals += ''.join(["TP %d %0.4f\n" %(i+1, prize) for i,prize in enumerate(prizes) if prize > 0])
+			terminals += "END\n"
+
+			footer = "EOF\n"
+
+			complete_file = "\n".join([header, graph, terminals, footer])
+
+			with open(f_name, 'w') as f:
+				f.write(complete_file)
+
+		def read_dapcstp_solution(f_name):
+			lines = [line.rstrip() for line in list(open(f_name, 'r'))]
+
+			vertices = [int(line.split()[1])-1 for line in lines if line.startswith("V ")]
+			edges = [[int(line.split()[1])-1, int(line.split()[2])-1] for line in lines if line.startswith("E ")]
+
+			return vertices, edges
+
+
+		temporary_file = "tmp.pcst"
+		solution_file = "exact.sol"
+		stp_template(self.prizes, self.edges, self.costs, temporary_file)
+
+		cmd = "/Users/jonathanli/Documents/research/packages/dapcstp/solver/dapcstp %s --type pcstp -o %s" %(temporary_file, solution_file)
+		print(cmd)
+		os.system(cmd)
+
+		vertices, edges = read_dapcstp_solution(solution_file)
+
+		# sum_prizes = sum(self.prizes[vertices])
+		# sum_edges = sum([self.interactome_graph[self.nodes[u]][self.nodes[v]]["cost"] for u,v in edges])
+
+		# print(sum_prizes-sum_edges)
+
+		return vertices, edges
 
 
 	def output_forest_as_networkx(self, vertex_indices, edge_indices):
