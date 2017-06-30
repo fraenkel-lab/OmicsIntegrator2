@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Omics Integrator Result</title>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.0.0/cytoscape.js"></script>
+ <script src="https://use.fontawesome.com/a681668be3.js"></script>
+ <script src="https://cdn.rawgit.com/eligrey/FileSaver.js/e9d941381475b5df8b7d7691013401e171014e89/FileSaver.min.js"></script>
+ <script src="graph.js"></script>
+ <script src="style.js"></script>
+
+</head>
+<style>
+    #cy {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 48px;
+        left: 250px;
+        }
+</style>
+<style>
+@import url(https://fonts.googleapis.com/css?family=Open+Sans);
+body{
+  font-family: 'Open Sans', sans-serif;
+}
+
+/* create a legend */
+.legend { list-style: none; padding:0; margin:0; }
+.legend span { border: 1px solid #ccc; float: left; width: 12px; height: 12px; margin: 2px; }
+
+/* legend for node colors (protein-level changes) */
+.legend .positiveprotein {width: 6px; height: 13px; background: red; position: relative; border: 0px solid white; margin: 3px; margin-right: 8px;}
+.legend .positiveprotein:before { content: ""; position: absolute; left: -6px; top: 0; background: #be0101; width: 6px; height: 13px; border: 0px solid white;}
+.legend .positiveprotein:after { content: ""; position: absolute; right: -6px; top: 0; background: #ff9999; width: 6px; height: 13px; border: 0px solid white;}
+.legend .zeroprotein { background-color: #ccffff; }
+.legend .negativeprotein {width: 6px; height: 13px; background: blue; position: relative; border: 0px solid white; margin: 3px; margin-right: 8px;}
+.legend .negativeprotein:before { content: ""; position: absolute; left: -6px; top: 0; background: #000066; width: 6px; height: 13px; border: 0px solid white;}
+.legend .negativeprotein:after { content: ""; position: absolute; right: -6px; top: 0; background: #9999ff; width: 6px; height: 13px; border: 0px solid white;}
+
+/* legend for node border colors (gene-level changes) */
+.legend .positivegene { background-color: white; border-color: orange; border: 4px solid orange; width: 8px; height: 8px;}
+.legend .zerogene { background-color: white; border-color: gray;}
+.legend .negativegene { background-color: white; border-color: #990099; border: 4px solid #990099; width: 8px; height: 8px;}
+
+/* legend for edge colors (interaction types) */
+.legend .ppedge { background-color: #999999; border-color: white; border: 6px solid white; width: 30px; height: 4px; margin-right: 1px;}
+.legend .tpedge { background-color: #98E907; position: relative; border-color: white; border: 6px solid white; width: 30px; height: 4px; margin-right: 3px;}
+.legend .tpedge:after { content: ""; position: absolute; right: -6px; top: -3px; width: 0; height: 0; border-top: 5.5px solid transparent; border-left: 6px solid #98E907; border-bottom: 5.5px solid transparent; }
+.legend .pdedge { background-color: #339900; position: relative; border-color: white; border: 6px solid white; width: 30px; height: 4px; margin-right: 3px;}
+.legend .pdedge:after { content: ""; position: absolute; right: -6px; top: -3px; width: 0; height: 0; border-top: 5.5px solid transparent; border-left: 6px solid #339900; border-bottom: 5.5px solid transparent; }
+
+/* legend for node shapes (node types) */
+.legend .rectangle { width: 18px; height: 10px; background: black; border-color: white; margin: 3px;}
+.legend .oval { width: 18px; height: 9px; background: black; -moz-border-radius: 10px / 5px; -webkit-border-radius: 10px / 5px; border-radius: 10px / 5px; border-color: black; margin: 4px;}
+.legend .triangle { width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 12px solid black; border-top: 1px solid transparent;}
+.legend .diamond { width: 0; height: 0; border: 11px solid transparent; border-bottom: 6.5px solid #40bf40; position: relative; top: -11px;} 
+.legend .diamond:after { content: ''; position: absolute; left: -11px; top: 6.5px; width: 0; height: 0; border: 11px solid transparent; border-top: 6.5px solid #40bf40; }
+.legend .hexagon { width: 12px; height: 11px; background: black; position: relative; border-color: white; margin: 3px; margin-right: 6px;}
+.legend .hexagon:before { content: ""; position: absolute; left: -6px; top: 0; width: 0; height: 0; border-top: 5.5px solid transparent; border-right: 6px solid black; border-bottom: 5.5px solid transparent; }
+.legend .hexagon:after { content: ""; position: absolute; right: -6px; top: 0; width: 0; height: 0; border-top: 5.5px solid transparent; border-left: 6px solid black; border-bottom: 5.5px solid transparent; }
+
+/* Search bar */
+.searchTerm {
+  float: left;
+  border: 3px solid #00B4CC;
+  padding: 5px;
+  height: 20px;
+  width: 130px;
+  border-radius: 5px;
+  outline: none;
+  color: #9DBFAF;
+}
+.searchTerm:focus{  color: #00B4CC;}
+
+.searchButton { 
+  width: 40px;
+  height: 36px;
+  border: 1px solid #00B4CC;
+  background: #00B4CC;
+  text-align: center;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+input[type=button] {
+  border: 3px solid #00B4CC;
+  height: 36px;
+  border-radius: 5px;
+  outline: none;
+  background-color: white;
+}
+input[type=button]:hover {background-color: #F2F1F2;}
+input[type=button]:active {background-color: #908F90;}
+
+select {
+  background: transparent;
+  border: 0;
+}
+select option { background: #F2F1F2; }
+
+</style>
+
+<!-- Body with JSON button, search bar, legend, & network-->
+<body>
+  <table border="0">
+    <tr>
+    <td style="padding: 0; margin: 0;">
+      <img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/omicsI_logo.png" height=85px>
+    </td>
+    <td style="vertical-align:top">
+      <div class="search">
+          <input type="text" class="searchTerm" id='search_text' placeholder="Search for Node" onKeyUp='javascript:searchType(event)'> 
+          <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><i class="fa fa-search"></i></button>
+          <br/>
+          <select name="dropDown" id="dropDownList" size="5" onchange='selectDrop(this)'>
+      </div>
+    </td>
+    <td style="vertical-align:top">
+      <form name="formJSON"> 
+          <input type="button" onClick="saveJSON();" value="Save JSON">
+      </form>
+    </td>
+    <td style="vertical-align:top">
+      <form name="formJPEG"> 
+          <input type="button" onClick="saveJPEG();" value="Save Image">
+      </form>
+    </td>
+    </tr>
+  </table>
+  <ul class="legend">
+    <li>Input Data:</li>
+    <li><span class="positiveprotein"></span> Protein-Level Change > 0</li>
+    <li><span class="zeroprotein"></span> Protein-Level Change = 0</li>
+    <li><span class="negativeprotein"></span> Protein-Level Change < 0</li>
+    <li><span class="positivegene"></span> Gene-Level Change > 0</li>
+    <li><span class="zerogene"></span> Gene-Level Change = 0</li>
+    <li><span class="negativegene"></span> Gene-Level Change < 0</li>
+    <br/>
+    <li>Interaction Types:</li>
+    <li><span class="ppedge"></span> Protein-Protein or <br/> <span style="display:inline-block; width: 40px; border: none;"></span> Protein-Metabolite</li>
+    <li><span class="tpedge"></span> mRNA &rarr; Protein Product</li>
+    <li><span class="pdedge"></span> TF &rarr; mRNA target <br/> <span style="display:inline-block; width: 40px; border: none;"></span> (from Garnet)</li>
+    <br/>
+    <li> Molecule Types:</li>
+    <li><span class="rectangle"></span> Protein</li>
+    <li><span class="oval"></span> Metabolite</li>
+    <li><span class="triangle"></span> TF</li>
+    <li><span class="diamond"></span> mRNA</li>
+    <li><span class="hexagon"></span> Steiner</li>
+  </ul>
+</body>
+<body>
+  <div id="cy"></div>
+  <script>
+  /*
+   * Use the Cytoscape.js library to display the network.
+   * Use the cose layout algorithm for layout placement. 
+   */
+
+  var cy = cytoscape({
+    container: document.getElementById('cy'),
+    style: style[0].style,
+    layout: {
+        name: 'cose',
+        padding: 45,
+        randomize: true,
+        componentSpacing: 250,
+        nodeRepulsion: function( node ){ return 400000; },
+        nodeOverlap: 10,
+        idealEdgeLength: function( edge ){ return 10; },
+        edgeElasticity: function( edge ){ return 100; },
+        nestingFactor: 5,
+        gravity: 80,
+        numIter: 1000,
+        initialTemp: 200,
+        coolingFactor: 0.95,
+        minTemp: 1.0,
+        useMultitasking: true
+    },
+    elements: graph.elements
+    });
+
+    
+    /*
+     * searchGraph() function:
+     *
+     * Get node matching input name and highlights and zooms to that node
+     * Otherwise alerts user that node does not exist
+     */
+
+    function searchGraph() {
+      var txt = document.getElementById('search_text').value;
+      var node = cy.filter( 'node[name="'.concat(txt,'"]') );
+      if(node.isNode()) { 
+        node.select();
+        cy.animate({ zoom: 0.8, center: {eles: node} },{duration:500});
+      }
+      else { alert("Node ".concat(txt, " does not exist.")); }
+    }
+
+    /*
+     * searchType() function:
+     *
+     * While typing in search bar, if type "Enter" then searchGraph
+     * Otherwise create dropdown menu of existing nodes starting with text
+     */
+
+    function searchType(e) {
+      var charCode = (typeof e.which === "number") ? e.which : e.keyCode;
+      if (charCode == 13) { searchGraph(); }
+      else {
+        var drop = document.getElementById("dropDownList");
+        while (drop.options.length > 0) { drop.remove(0); }
+        var txt = document.getElementById('search_text').value.toUpperCase();
+        if (txt.length > 0) {
+          var nodes = cy.filter( 'node[name^="'.concat(txt,'"]') );
+          nodes.forEach(function(ele) {
+            var option = document.createElement("OPTION");
+            option.text = ele.data('name');
+            option.value = ele.data('name');
+            drop.options.add(option);
+          })
+        }
+      }
+    }
+
+    /*
+     * selectDrop() function:
+     *
+     * Search when user selects from drop-down list of selected nodes
+     */
+
+    function selectDrop(dropDownList) {
+      var value = dropDownList.value;
+      document.getElementById('search_text').value = value
+      searchGraph();
+    }
+
+    /* 
+     * saveJSON() function:
+     *
+     * Save current network to a JSON file on the local machine.
+     */
+
+    function saveJSON() { 
+      var jsonBlob = new Blob([JSON.stringify( cy.json() )], { type: 'application/javascript;charset=utf-8' });
+      saveAs(jsonBlob, "graph_json.json");
+    } 
+
+    /*
+     * saveJPEG() function:
+     *
+     * save current network as an image to local machine.
+     */
+
+    function saveJPEG() {
+      var b64key = 'base64,';
+      var b64 = cy.png().substring( cy.png().indexOf(b64key) + b64key.length );
+      var imgBlob = b64toBlob( b64, 'image/png' );
+      saveAs( imgBlob, 'graph.png' ); 
+    }
+
+    /*
+     * b64toBlob function from https://stackoverflow.com/questions/16245767
+     */
+
+    function b64toBlob(b64Data, contentType, sliceSize) {
+      contentType = contentType || '';
+      sliceSize = sliceSize || 512;
+      var byteCharacters = atob(b64Data);
+      var byteArrays = [];
+      for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        var slice = byteCharacters.slice(offset, offset + sliceSize);
+        var byteNumbers = new Array(slice.length);
+        for (var i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        var byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      var blob = new Blob(byteArrays, {type: contentType});
+      return blob;
+    }
+
+  </script>
+</body>
+</html>
