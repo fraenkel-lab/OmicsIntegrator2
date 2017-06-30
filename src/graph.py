@@ -12,14 +12,11 @@ import random
 from collections import Counter
 from itertools import product
 from copy import copy
-import json
 
 # python external libraries
 import numpy as np
 import pandas as pd
 import networkx as nx
-import community    # pip install python-louvain
-from py2cytoscape import util as cy
 import yaml
 
 # Lab modules
@@ -28,8 +25,7 @@ from pcst_fast import pcst_fast
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
-			"output_networkx_graph_as_json_for_cytoscapejs",
-			"merge_prize_files",
+			"merge_two_prize_files",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -44,8 +40,6 @@ logger.addHandler(handler)
 
 # Some arbitrary helpers I believe should exist in the language anyhow
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
-
-def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
 
 class Options(object):
 	def __init__(self, options):
@@ -70,7 +64,7 @@ class Graph:
 		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
 
 		Arguments:
-			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
+			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tWeight"
 			params (dict): params with which to run the program
 
 		"""
@@ -88,6 +82,7 @@ class Graph:
 
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
+
 		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
@@ -95,6 +90,7 @@ class Graph:
 		self.node_degrees = np.bincount(self.edges.flatten())
 
 		self._set_hyperparameters(params)
+
 
 
 	def _set_hyperparameters(self, params):
@@ -114,62 +110,62 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
+
 		self.costs = (self.edge_costs + self.edge_penalties)
 
-	def prepare_prizes(self, prize_file):
+
+	def prepare_node_attributes(self, node_attributes):
 		"""
-		Parses a prize file and returns an array of prizes, a list of terminal indices.
+		CLeans up node attributes dataframe by removing duplicate rows and overlapping with interactome, and assigns to class attributes. 
 
-		This function logs duplicate assignments in the prize file and memebers of the prize file
-		not found in the interactome.
+		The dataframe passed to this function must have at least two columns with headers: node name and prize.
+		
+		Arguments: 
+			node_attributes (dataframe): a dataframe object with node name and prize columns **with headers**.
 
-		This file passed to this function must have at least two columns: node name and prize.
-		Any additional columns will be assumed to be node attributes. However, in order to know
-		the names of those attributes, this function now requires the input file contain headers,
-		i.e. the first row of the tsv must be the names of the columns.
-
-		Arguments:
-			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
-
-		Returns:
-			numpy.array: prizes, properly indexed (ready for input to pcsf function)
-			numpy.array: terminals, their indices
-			pandas.DataFrame: terminal_attributes
+		Returns: 
+			null
 		"""
 
-		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
-		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
+		# Some files have duplicated genes with different prizes (i.e. a TF is detected via Garnet and proteomics). Keep max prize. 
+		logger.info("Duplicated gene symbols in node attributes dataframe (we'll keep the max prize):")
+		node_attributes_df = node_attributes.groupby('name').max().reset_index()
 
-		# Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.
-		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
-		logger.info(prizes_dataframe[prizes_dataframe.set_index('name').index.duplicated()]['name'].tolist())
-		prizes_dataframe = prizes_dataframe.groupby('name').max().reset_index()
+		# Here we're indexing the terminal nodes and associated prizes by the indices we used for nodes
+		node_attributes_df.set_index(self.nodes.get_indexer(node_attributes_df['name']), inplace=True)
 
-		# Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
-		prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
-
-		# there will be some nodes in the prize file which we don't have in our interactome
-		logger.info("Members of the prize file not present in the interactome:")
-		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
-		prizes_dataframe.drop(-1, inplace=True)
-
-		terminals = sorted(prizes_dataframe.index.values)
-		terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
+		# There will be some nodes in the node attributes dataframe which we don't have in our interactome
+		try: node_attributes_df.drop(-1, inplace=True)
+		except: pass
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
-		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
-		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
-		prizes = prizes_dataframe['prize'].values * self.params.b
+		node_attributes_df = pd.DataFrame(self.nodes, columns=["name"]).merge(node_attributes_df, on="name", how="left")
+		node_attributes_df["prize"].fillna(0, inplace=True)
+		node_attributes_df["prize_scaled"] = node_attributes_df["prize"] * self.params.b
 
-		return prizes, terminals, terminal_attributes
+		self.node_attributes = node_attributes_df
+		self.prizes = self.node_attributes["prize_scaled"]
 
 
-	def _add_dummy_node(self, connected_to=[]):
+	def _add_dummy_node(self):
+
+		terminals = pd.Series(self.prizes).nonzero()[0].tolist()
+		others = list(set(range(len(self.nodes))) - set(terminals))
+		all = list(range(len(self.nodes)))
+
+		if self.params.dummy_mode == 'terminals': endpoints = terminals
+		elif self.params.dummy_mode == 'other': endpoints = others
+		elif self.params.dummy_mode == 'all': endpoints = all
+		else: sys.exit("Invalid dummy mode")
 
 		dummy_id = len(self.nodes)
 		dummy_prize = np.array([0])
-		dummy_edges = np.array([(dummy_id, node_id) for node_id in connected_to])
+		dummy_edges = np.array([(dummy_id, node_id) for node_id in endpoints])
 		dummy_costs = np.array([self.params.w] * len(dummy_edges))
+
+		self.edges_with_dummy = np.concatenate((self.edges, dummy_edges))
+		self.prizes_with_dummy = np.concatenate((self.prizes, dummy_prize))
+		self.costs_with_dummy = np.concatenate((self.costs, dummy_costs))
 
 		return dummy_edges, dummy_costs, dummy_id, dummy_prize
 
@@ -181,7 +177,7 @@ class Graph:
 		pass
 
 
-	def pcsf(self, prizes, pruning="strong", verbosity_level=0):
+	def pcsf(self, pruning="strong", verbosity_level=0):
 		"""
 		Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.
 
@@ -199,43 +195,76 @@ class Graph:
 			numpy.array: indices of the selected vertices
 			numpy.array: indices of the selected edges
 		"""
-
-		terminals = pd.Series(prizes).nonzero()[0].tolist()
-		others = list(set(range(len(self.nodes))) - set(terminals))
-		all = list(range(len(self.nodes)))
-
-		if self.params.dummy_mode == 'terminals': endpoints = terminals
-		elif self.params.dummy_mode == 'other': endpoints = others
-		elif self.params.dummy_mode == 'all': endpoints = all
-		else: sys.exit("Invalid dummy mode")
-
-		dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
+		dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node()
 
 		self._check_validity_of_instance()
 
-		# `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
-		edges = np.concatenate((self.edges, dummy_edges))
-		# `prizes`: the node prizes as a 1D float64 array.
-		prizes = np.concatenate((prizes, dummy_prize))
-		# `costs`: the edge costs as a 1D float64 array.
-		costs = np.concatenate((self.costs, dummy_costs))
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
 		# `num_clusters`: the number of connected components in the output.
 		num_clusters = 1
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
-		vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
+		vertices_sol, edges_sol = pcst_fast(self.edges_with_dummy, self.prizes_with_dummy, self.costs_with_dummy, root, num_clusters, pruning, verbosity_level)
 		# `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.
 		# `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
-		# Remove the dummy node and dummy edges for convenience
-		vertex_indices = vertex_indices[vertex_indices != root]
-		edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
+		edges_sol = self.edges_with_dummy[edges_sol]
 
-		return vertex_indices, edge_indices
+		return vertices_sol, edges_sol
 
 
-	def output_forest_as_networkx(self, vertex_indices, edge_indices, terminal_attributes):
+	def pcsf_exact(self):
+		"""
+		Exact PCSF solver: https://github.com/mluipersbeck/dapcstp
+		"""
+		def stp_template(prizes, edges, costs, f_name):
+			# Note: Nodes need to be 1-indexed
+			header = "33D32945 STP File, STP Format Version 1.0\n"
+
+			graph = "SECTION Graph\nNodes %d\nEdges %d\n" %(len(prizes), len(edges))
+			graph += ''.join(["E %d %d %0.4f\n" %(edge[0]+1, edge[1]+1, cost) for edge,cost in zip(edges,costs)])
+			graph += "END\n"
+
+			terminals = "SECTION Terminals\nTerminals %d\n" %sum(prizes>0)
+			terminals += ''.join(["TP %d %0.4f\n" %(i+1, prize) for i,prize in enumerate(prizes) if prize > 0])
+			terminals += "END\n"
+
+			footer = "EOF\n"
+
+			complete_file = "\n".join([header, graph, terminals, footer])
+
+			with open(f_name, 'w') as f:
+				f.write(complete_file)
+
+		def read_dapcstp_solution(f_name):
+			lines = [line.rstrip() for line in list(open(f_name, 'r'))]
+
+			vertices = [int(line.split()[1])-1 for line in lines if line.startswith("V ")]
+			edges = [[int(line.split()[1])-1, int(line.split()[2])-1] for line in lines if line.startswith("E ")]
+
+			return vertices, edges
+
+		self._add_dummy_node()
+
+		temporary_file = "tmp.pcst"
+		solution_file = "exact.sol"
+		stp_template(self.prizes, self.edges, self.costs, temporary_file)
+
+		cmd = "/Users/jonathanli/Documents/research/packages/dapcstp/solver/dapcstp %s --type pcstp -o %s" %(temporary_file, solution_file)
+		print(cmd)
+		os.system(cmd)
+
+		vertices, edges = read_dapcstp_solution(solution_file)
+
+		# sum_prizes = sum(self.prizes[vertices])
+		# sum_edges = sum([self.interactome_graph[self.nodes[u]][self.nodes[v]]["cost"] for u,v in edges])
+
+		# print(sum_prizes-sum_edges)
+
+		return vertices, edges
+
+
+	def output_forest_as_networkx(self, vertex_indices, edge_indices):
 		"""
 
 		Arguments:
@@ -250,8 +279,8 @@ class Graph:
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
 
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		for attribute in self.node_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
 		# Add the degree as an attribute
 		node_degree_dict = nx.degree(self.interactome_graph)
@@ -259,25 +288,29 @@ class Graph:
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
-		# Post-processing
-		louvain_clustering(augmented_forest)
-
 		return forest, augmented_forest
 
 
-	def pcsf_objective_value(self, prizes, forest):
-		"""
-		Calculate PCSF objective function
+	# def pcsf_objective_value(self, forest):
+	# 	"""
+	# 	Calculate PCSF objective function
 
-		Arguments:
-			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
-			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
+	# 	Arguments:
+	# 		prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+	# 		forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
 
-		Returns:
-			float: PCSF objective function score
-		"""
+	# 	Returns:
+	# 		float: PCSF objective function score
+	# 	"""
 
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+	# 	return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+
+
+	def pcsf_objective_value(self, vertices, edges): 
+		sum_prizes = sum(self.prizes_with_dummy[vertices])
+		# This needs to be fixed to include graph that contains dummy node
+		sum_edges = sum([self.interactome_graph[self.nodes[u]][self.nodes[v]]["cost"] for u,v in edges])
+		return sum_prizes - sum_edges
 
 
 	def _noisy_edges(self):
@@ -293,7 +326,7 @@ class Graph:
 		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
 
 
-	def _random_terminals(self, prizes, terminals):
+	def _random_terminals(self, terminals):
 		"""
 		Switches the terminams with random nodes with a similar degree distribution.
 
@@ -313,7 +346,7 @@ class Graph:
 		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
 		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
 
-		new_prizes = copy(prizes)
+		new_prizes = copy(self.prizes)
 
 		for old_terminal, new_terminal in zip(terminals, new_terminals):
 			new_prizes[old_terminal] = 0
@@ -351,7 +384,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
+	def randomizations(self, terminals, noisy_edges_reps, random_terminals_reps):
 		"""
 		Macro function which performs randomizations and merges the results
 
@@ -361,7 +394,6 @@ class Graph:
 		Arguments:
 			prizes (numpy.array): prizes, properly indexed (e.g. from `prepare_prizes`)
 			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from `prepare_prizes`)
-			terminal_attributes (pandas.DataFrame): additional attributes on the terminals (from `prepare_prizes`)
 			noisy_edges_reps (int): Number of "Noisy Edges" type randomizations to perform
 			random_terminals_reps (int): Number of "Random Terminals" type randomizations to perform
 
@@ -383,7 +415,7 @@ class Graph:
 
 			for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
 				self.costs = noisy_edge_costs
-				results.append(self.pcsf(prizes))
+				results.append(self.pcsf(self.prizes))
 			# Reset the true edges
 			self.costs = true_edge_costs
 
@@ -394,7 +426,7 @@ class Graph:
 
 			results = []
 
-			for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
+			for random_prizes, terminals in [self._random_terminals(self.prizes, terminals) for rep in range(random_terminals_reps)]:
 				results.append(self.pcsf(random_prizes))
 
 			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
@@ -415,7 +447,7 @@ class Graph:
 
 		###########
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
@@ -427,10 +459,11 @@ class Graph:
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict().items())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
+
 		return forest, augmented_forest
 
 
-	def grid_search(self, prize_file, As, Bs, Ws):
+	def grid_search(self, node_attributes, As, Bs, Ws):
 		"""
 		Macro function which performs grid search and merges the results.
 
@@ -446,10 +479,10 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		prizes, terminals, terminal_attributes = self.prepare_prizes(prize_file)
-
-		bare_prizes = prizes / self.params.b
+		self.prepare_node_attributes(node_attributes)
+		bare_prizes = self.node_attributes["prize"]
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
+
 
 		def run(params):
 			self._set_hyperparameters(params)
@@ -462,7 +495,7 @@ class Graph:
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
@@ -476,23 +509,21 @@ class Graph:
 
 
 def betweenness(nxgraph):
-	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
-
-
-def louvain_clustering(nxgraph):
 	"""
-	"""
-	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
+	Calculate betweenness centrality for all nodes in forest. The forest *should* be augmented
 
-# def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
-# 	"""
-# 	"""
-# 	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', invert(nx.girvan_newman(nxgraph)))
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph object
 
-def k_clique_clustering(nxgraph, k):
+	Returns:
+		networkx.Graph: a networkx graph object
 	"""
-	"""
-	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
+
+	betweenness = nx.betweenness_centrality(nxgraph)
+	nx.set_node_attributes(nxgraph, 'betweenness', betweenness)
+
+	return nxgraph
+
 
 def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
@@ -503,18 +534,6 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
-
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the file (named graph_json.json)
-	"""
-	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
-	njs = cy.from_networkx(nxgraph)
-	with open(path,'w') as outf:
-		outf.write(json.dumps(njs, indent=4))
 
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
@@ -544,38 +563,41 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def merge_prize_files(prize_files, prize_types):
+def merge_two_prize_files(prize_file_1, prize_file_2, prize_file_1_node_type=None, prize_file_2_node_type=None):
 	"""
 	Arguments:
-		prize_files (list of str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_types (list of str): a node type name to associate with the nodes from each prize_file
+		prize_file_1 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_file_2 (str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
+		prize_file_1_node_type (str): a node type name to associate with the nodes from prize_file_1
+		prize_file_2_node_type (str): a node type name to associate with the nodes from prize_file_2
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	dataframes = []
+	prize_df1 = pd.read_csv(prize_file_1, sep='\t')
+	prize_df1.columns = ['name', 'prize'] + prize_df1.columns[2:].tolist()
+	if prize_file_1_node_type: prize_df1['type'] = prize_file_1_node_type
 
-	for prize_file, prize_type in zip(prize_files, prize_types):
+	prize_df2 = pd.read_csv(prize_file_2, sep='\t')
+	prize_df2.columns = ['name', 'prize'] + prize_df2.columns[2:].tolist()
+	if prize_file_2_node_type: prize_df2['type'] = prize_file_2_node_type
 
-		prize_df = pd.read_csv(prize_file, sep='\t')
-		prize_df.columns = ['name', 'prize'] + prize_df.columns[2:].tolist()
-		prize_df['type'] = prize_type
-		dataframes.append(prize_df)
-
-	return merge_prize_dataframes(dataframes)
+	return merge_two_prize_dataframes(prize_df1, prize_df2)
 
 
-def merge_prize_dataframes(prize_dataframes):
+def merge_two_prize_dataframes(prize_df1, prize_df2):
 	"""
+
 	Arguments:
-		prize_dataframes (list of pandas.DataFrame): a list of dataframes, each of which must at least have columns 'name' and 'prize'
+		prize_df1 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
+		prize_df2 (pandas.DataFrame): a dataframe with at least columns 'name' and 'prize'
 
 	Returns:
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prizes_dataframe = pd.concat(prizes_dataframes)
+	prizes_dataframe = pd.concat((prize_df1, prize_df2))
 	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
 
 	return prizes_dataframe
