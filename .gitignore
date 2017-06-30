@@ -1,7 +1,7 @@
 data/*
 output/*
 PCSF_compare/*
-src/*.ipynb
+src/testing_*.ipynb
 
 # sftp-configs
 sftp-config.json
