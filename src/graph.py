@@ -114,7 +114,9 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
+
 		self.costs = (self.edge_costs + self.edge_penalties)
+
 
 	def prepare_prizes(self, prize_file):
 		"""
@@ -132,13 +134,18 @@ class Graph:
 			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
 
 		Returns:
-			numpy.array: prizes, properly indexed (ready for input to pcsf function)
+			numpy.array: prizes, properly indexed
 			numpy.array: terminals, their indices
-			pandas.DataFrame: terminal_attributes
+			pandas.DataFrame: terminal attributes
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
-		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
+		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
+
+		return _prepare_prizes(prizes_dataframe)
+
+
+	def _prepare_prizes(self, prizes_dataframe):
 
 		# Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.
 		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
