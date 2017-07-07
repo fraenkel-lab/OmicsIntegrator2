@@ -28,8 +28,6 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"merge_prize_files",
-			"merge_prize_dataframes",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -501,28 +499,6 @@ def k_clique_clustering(nxgraph, k):
 	"""
 	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the graph. Must already exist.
-		filename (str): Filenames ending in .gz or .bz2 will be compressed.
-	"""
-	path = os.path.join(os.path.abspath(output_dir), filename)
-	nx.write_gml(nxgraph, path)
-
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the file (named graph_json.json)
-	"""
-	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
-	njs = cy.from_networkx(nxgraph)
-	with open(path,'w') as outf:
-		outf.write(json.dumps(njs, indent=4))
-
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
@@ -551,11 +527,25 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def output_dataframe_to_tsv(dataframe, output_dir, filename):
+def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
-	Output the dataframe to a csv
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the graph. Must already exist.
+		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=True)
+	nx.write_gml(nxgraph, path)
 
+
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_json.json)
+	"""
+	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+	njs = cy.from_networkx(nxgraph)
+	with open(path,'w') as outf:
+		outf.write(json.dumps(njs, indent=4))
 
