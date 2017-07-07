@@ -20,7 +20,6 @@ import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
 from py2cytoscape import util as cy
-import yaml
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -29,7 +28,6 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"merge_prize_files",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -38,7 +36,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter('%(asctime)s - Forest: %(levelname)s - %(message)s', "%I:%M:%S"))
+handler.setFormatter(logging.Formatter('%(asctime)s - Graph: %(levelname)s - %(message)s', "%I:%M:%S"))
 logger.addHandler(handler)
 
 
@@ -114,7 +112,9 @@ class Graph:
 		N = len(self.nodes)
 		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
+
 		self.costs = (self.edge_costs + self.edge_penalties)
+
 
 	def prepare_prizes(self, prize_file):
 		"""
@@ -132,13 +132,18 @@ class Graph:
 			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
 
 		Returns:
-			numpy.array: prizes, properly indexed (ready for input to pcsf function)
+			numpy.array: prizes, properly indexed
 			numpy.array: terminals, their indices
-			pandas.DataFrame: terminal_attributes
+			pandas.DataFrame: terminal attributes
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
-		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
+		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
+
+		return self._prepare_prizes(prizes_dataframe)
+
+
+	def _prepare_prizes(self, prizes_dataframe):
 
 		# Strangely some files have duplicated genes, sometimes with different prizes. Keep the max prize.
 		logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
@@ -494,28 +499,6 @@ def k_clique_clustering(nxgraph, k):
 	"""
 	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the graph. Must already exist.
-		filename (str): Filenames ending in .gz or .bz2 will be compressed.
-	"""
-	path = os.path.join(os.path.abspath(output_dir), filename)
-	nx.write_gml(nxgraph, path)
-
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the file (named graph_json.json)
-	"""
-	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
-	njs = cy.from_networkx(nxgraph)
-	with open(path,'w') as outf:
-		outf.write(json.dumps(njs, indent=4))
-
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
@@ -544,48 +527,25 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def merge_prize_files(prize_files, prize_types):
+def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
-		prize_files (list of str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_types (list of str): a node type name to associate with the nodes from each prize_file
-
-	Returns:
-		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
-	"""
-
-	dataframes = []
-
-	for prize_file, prize_type in zip(prize_files, prize_types):
-
-		prize_df = pd.read_csv(prize_file, sep='\t')
-		prize_df.columns = ['name', 'prize'] + prize_df.columns[2:].tolist()
-		prize_df['type'] = prize_type
-		dataframes.append(prize_df)
-
-	return merge_prize_dataframes(dataframes)
-
-
-def merge_prize_dataframes(prize_dataframes):
-	"""
-	Arguments:
-		prize_dataframes (list of pandas.DataFrame): a list of dataframes, each of which must at least have columns 'name' and 'prize'
-
-	Returns:
-		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
-	"""
-
-	prizes_dataframe = pd.concat(prizes_dataframes)
-	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
-
-	return prizes_dataframe
-
-
-def output_dataframe_to_tsv(dataframe, output_dir, filename):
-	"""
-	Output the dataframe to a csv
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the graph. Must already exist.
+		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=True)
+	nx.write_gml(nxgraph, path)
 
+
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_json.json)
+	"""
+	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+	njs = cy.from_networkx(nxgraph)
+	with open(path,'w') as outf:
+		outf.write(json.dumps(njs, indent=4))
 
