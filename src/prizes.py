@@ -5,6 +5,23 @@ import sys, os
 
 # Peripheral python modules
 import argparse
+import logging
+
+# python external libraries
+import numpy as np
+import pandas as pd
+
+# list of classes and methods we'd like to export:
+__all__ = [ "merge_prize_files", "merge_prize_dataframes" ]
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter('%(asctime)s - Prizes: %(levelname)s - %(message)s', "%I:%M:%S"))
+logger.addHandler(handler)
+
 
 parser = argparse.ArgumentParser(description="""
 	Create one prize file as expected by graph.py from multiple user input data types""")
@@ -32,6 +49,13 @@ parser.add_argument("-r", "--rna", dest='rna_file', type=argparse.FileType('r'),
 
 parser.add_argument("-m", "--metabolites", dest='metabolite_file', type=argparse.FileType('r'), required=False,
 	help='Metabolomics data file with two columns: MetaboliteID\tlogFC of metabolite. Make sure that your interactome includes metabolite interactions, the default does not.')
+
+
+def output_dataframe_to_tsv(dataframe, output_file):
+	"""
+	Output the dataframe to a csv
+	"""
+	dataframe.to_csv(output_file, sep='\t', header=True, index=False)
 
 
 def merge_prize_files(prize_files, prize_types):
@@ -65,19 +89,19 @@ def merge_prize_dataframes(prize_dataframes):
 		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
 	"""
 
-	prizes_dataframe = pd.concat(prizes_dataframes)
+	prizes_dataframe = pd.concat(prize_dataframes)
 	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
 
 	return prizes_dataframe
-
 
 
 def main():
 
 	args = parser.parse_args()
 
-	prizes = merge_prize_files(args.protein_file, args.garnet_file, rargs.rna_file, args.metabolite_file, ['protein', 'garnet', 'rna', 'metabolites'])
+	prizes_dataframe = merge_prize_files(args.protein_file, args.garnet_file, args.metabolite_file, ['protein', 'garnet', 'metabolites'])
 
+	output_dataframe_to_tsv(prizes_dataframe, args.output_file)
 
 
 

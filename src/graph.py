@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter('%(asctime)s - Forest: %(levelname)s - %(message)s', "%I:%M:%S"))
+handler.setFormatter(logging.Formatter('%(asctime)s - Graph: %(levelname)s - %(message)s', "%I:%M:%S"))
 logger.addHandler(handler)
 
 
@@ -140,7 +140,7 @@ class Graph:
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
 		prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
 
-		return _prepare_prizes(prizes_dataframe)
+		return self._prepare_prizes(prizes_dataframe)
 
 
 	def _prepare_prizes(self, prizes_dataframe):
