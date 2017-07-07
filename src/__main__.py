@@ -7,7 +7,8 @@ import sys, os
 import argparse
 
 # import this module
-from . import Graph, merge_two_prize_files, get_networkx_graph_as_dataframe_of_nodes, get_networkx_graph_as_dataframe_of_edges, output_networkx_graph_as_gml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+from . import Graph, output_networkx_graph_as_gml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+# from graph import Graph, output_networkx_graph_as_gml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
 
 parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using
@@ -59,6 +60,13 @@ params.add_argument("--excludeTerminals", action='store_true', dest='exclude_ter
 params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
 
+
+def output_dataframe_to_tsv(dataframe, output_dir, filename):
+	"""
+	Output the dataframe to a csv
+	"""
+	path = os.path.join(os.path.abspath(output_dir), filename)
+	dataframe.to_csv(path, sep='\t', header=True, index=True)
 
 
 def main():
