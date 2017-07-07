@@ -1,5 +1,6 @@
 data/*
 output/*
+src/testing**.ipynb
 
 # sftp-configs
 sftp-config.json
