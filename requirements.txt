@@ -4,5 +4,4 @@ garnet==0.4.0
 networkx==1.11
 pcst_fast==1.0.6
 py2cytoscape==0.6.2
-pyyaml==3.12
 python-louvain==0.8

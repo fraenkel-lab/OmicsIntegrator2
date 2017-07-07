@@ -20,7 +20,6 @@ import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
 from py2cytoscape import util as cy
-import yaml
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -30,6 +29,7 @@ __all__ = [ "Graph",
 			"output_networkx_graph_as_gml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
 			"merge_prize_files",
+			"merge_prize_dataframes",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
@@ -549,43 +549,6 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
 	# TODO: in the future, get the other attributes out into columns
 	return intermediate[['protein1', 'protein2']]
-
-
-def merge_prize_files(prize_files, prize_types):
-	"""
-	Arguments:
-		prize_files (list of str or FILE): a filepath or FILE object with a tsv of name(\t)prize(\t)more...
-		prize_types (list of str): a node type name to associate with the nodes from each prize_file
-
-	Returns:
-		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
-	"""
-
-	dataframes = []
-
-	for prize_file, prize_type in zip(prize_files, prize_types):
-
-		prize_df = pd.read_csv(prize_file, sep='\t')
-		prize_df.columns = ['name', 'prize'] + prize_df.columns[2:].tolist()
-		prize_df['type'] = prize_type
-		dataframes.append(prize_df)
-
-	return merge_prize_dataframes(dataframes)
-
-
-def merge_prize_dataframes(prize_dataframes):
-	"""
-	Arguments:
-		prize_dataframes (list of pandas.DataFrame): a list of dataframes, each of which must at least have columns 'name' and 'prize'
-
-	Returns:
-		pandas.DataFrame: a DataFrame of prizes with duplicates removed (first entry kept)
-	"""
-
-	prizes_dataframe = pd.concat(prizes_dataframes)
-	prizes_dataframe.drop_duplicates(subset=['name'], inplace=True) # Unclear if we should do this?
-
-	return prizes_dataframe
 
 
 def output_dataframe_to_tsv(dataframe, output_dir, filename):
