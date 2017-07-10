@@ -477,7 +477,7 @@ class Graph:
 		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
 
 		### GET THE OUTPUT NEEDED BY JOHNNY'S VISUALIZATION ###
-		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results})
+		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
 
 		return forest, augmented_forest, params_by_nodes
 
