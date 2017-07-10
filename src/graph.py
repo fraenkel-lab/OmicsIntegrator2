@@ -48,6 +48,8 @@ def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_list
 class Options(object):
 	def __init__(self, options):
 		self.__dict__.update(options)
+	def __repr__(self):
+		return dict(self.__dict__)
 
 
 class Graph:
