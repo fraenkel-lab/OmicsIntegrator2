@@ -156,7 +156,7 @@ class Graph:
 		# there will be some nodes in the prize file which we don't have in our interactome
 		logger.info("Members of the prize file not present in the interactome:")
 		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
-		prizes_dataframe.drop(-1, inplace=True)
+		prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
 		terminals = sorted(prizes_dataframe.index.values)
 		terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
