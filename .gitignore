@@ -1,6 +1,8 @@
+# Ingore JL local files
 data/*
 output/*
 src/testing**.ipynb
+PCSF_compare/*
 
 # sftp-configs
 sftp-config.json
