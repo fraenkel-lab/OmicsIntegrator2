@@ -445,8 +445,10 @@ class Graph:
 		This function is under construction and subject to change.
 
 		Arguments:
-			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
-			parameter_permutations (list): list of dictionaries of parameters
+			prize_file (str): filepath
+			As (list): As
+			Bs (list): Bs
+			Ws (list): Ws
 
 		Returns:
 			networkx.Graph: forest
