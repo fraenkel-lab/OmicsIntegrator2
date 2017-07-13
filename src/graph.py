@@ -399,7 +399,7 @@ class Graph:
 			for random_prizes, terminals in [self._random_terminals() for rep in range(random_terminals_reps)]:
 				self.prizes = random_prizes
 				self.terminals = terminals
-				results.append(self.pcsf(random_prizes))
+				results.append(self.pcsf())
 
 			self.prizes = true_prizes
 			self.terminals = true_terminals
@@ -460,7 +460,7 @@ class Graph:
 		def run(params):
 			self._set_hyperparameters(params)
 			paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-			return (paramstring, self.pcsf(prizes))
+			return (paramstring, self.pcsf())
 
 		results = list(map(run, parameter_permutations))
 
