@@ -437,11 +437,20 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def grid_search(self, prize_file, As, Bs, Ws):
+	def _eval_pcsf(self, bare_prizes, params):
 		"""
-		Macro function which performs grid search and merges the results.
+		"""
 
-		This function is under construction and subject to change.
+		self._set_hyperparameters(params)
+		prizes = bare_prizes * float(params['b'])
+		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		return (paramstring, self.pcsf(prizes))
+
+
+	def _grid_pcsf(self, prize_file, As, Bs, Ws):
+		"""
+		Internal function which executes pcsf at every point in a parameter grid.
+		Subroutine of `grid_search`.
 
 		Arguments:
 			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
@@ -458,13 +467,28 @@ class Graph:
 		bare_prizes = prizes / self.params.b
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
 
-		def run(params):
-			self._set_hyperparameters(params)
-			prizes = bare_prizes * float(params['b'])
-			paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-			return (paramstring, self.pcsf(prizes))
+		results = list(map(self._eval_pcsf, parameter_permutations))
 
-		results = list(map(run, parameter_permutations))
+		return results
+
+
+	def grid_search(self, prize_file, As, Bs, Ws):
+		"""
+		Macro function which performs grid search and merges the results.
+
+		This function is under construction and subject to change.
+
+		Arguments:
+			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
+			parameter_permutations (list): list of dictionaries of parameters
+
+		Returns:
+			networkx.Graph: forest
+			networkx.Graph: augmented_forest
+			pd.DataFrame: parameters and node membership lists
+		"""
+
+		results = _grid_pcsf(prize_file, As, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
@@ -476,7 +500,7 @@ class Graph:
 		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict().items())
 		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
 
-		### GET THE OUTPUT NEEDED BY JOHNNY'S VISUALIZATION ###
+		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
 
 		return forest, augmented_forest, params_by_nodes
