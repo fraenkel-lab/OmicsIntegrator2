@@ -163,7 +163,6 @@ class Graph:
 		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-		self.terminals = sorted(prizes_dataframe.index.values)
 		self.terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
@@ -171,6 +170,8 @@ class Graph:
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
 		self.bare_prizes = prizes_dataframe['prize'].values
 		self.prizes = self.bare_prizes * self.params.b
+		
+		self.terminals = pd.Series(self.prizes).nonzero()[0].tolist()
 
 
 	def _add_dummy_node(self, connected_to=[]):
