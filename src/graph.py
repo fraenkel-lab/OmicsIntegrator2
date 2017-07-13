@@ -40,7 +40,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s - Graph: %(levelname)s - %(m
 logger.addHandler(handler)
 
 
-# Some arbitrary helpers I believe should exist in the language anyhow
+# Helpers
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
 def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
@@ -62,17 +62,16 @@ class Graph:
 		Builds a representation of a graph from an interactome file.
 
 		From the interactome_file, populates
-		- `self.interactome_dataframe` (pandas.DataFrame)
-		- `self.interactome_graph` (networkx.Graph)
-		- `self.nodes` (pandas.Index),
-		- `self.edges` (list of pairs),
-		- `self.costs` and `self.edge_penalties` (lists, such that the ordering is the same as in self.edges),
-		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
+		- `graph.interactome_dataframe` (pandas.DataFrame)
+		- `graph.interactome_graph` (networkx.Graph)
+		- `graph.nodes` (pandas.Index),
+		- `graph.edges` (list of pairs),
+		- `graph.costs` and `graph.edge_penalties` (lists, such that the ordering is the same as in graph.edges),
+		- `graph.node_degrees` and `graph.negprizes` (lists, such that the ordering is the same as in graph.nodes).
 
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
 			params (dict): params with which to run the program
-
 		"""
 
 		interactome_fieldnames = ["source","target","cost"]
@@ -117,6 +116,10 @@ class Graph:
 
 		self.costs = (self.edge_costs + self.edge_penalties)
 
+		# if this instance of graph has bare_prizes set, then presumably resetting the
+		# hyperparameters should also reset the scaled prizes
+		if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
+
 
 	def prepare_prizes(self, prize_file):
 		"""
@@ -130,13 +133,13 @@ class Graph:
 		the names of those attributes, this function now requires the input file contain headers,
 		i.e. the first row of the tsv must be the names of the columns.
 
+		Sets the graph attributes
+		- `graph.prizes` (numpy.array): properly indexed
+		- `graph.terminals` (numpy.array): their indices
+		- `graph.terminal_attributes` (pandas.DataFrame)
+
 		Arguments:
 			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
-
-		Returns:
-			numpy.array: prizes, properly indexed
-			numpy.array: terminals, their indices
-			pandas.DataFrame: terminal attributes
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
@@ -160,15 +163,14 @@ class Graph:
 		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-		terminals = sorted(prizes_dataframe.index.values)
-		terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
+		self.terminals = sorted(prizes_dataframe.index.values)
+		self.terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
-		prizes = prizes_dataframe['prize'].values * self.params.b
-
-		return prizes, terminals, terminal_attributes
+		self.bare_prizes = prizes_dataframe['prize'].values
+		self.prizes = self.bare_prizes * self.params.b
 
 
 	def _add_dummy_node(self, connected_to=[]):
@@ -181,14 +183,14 @@ class Graph:
 		return dummy_edges, dummy_costs, dummy_id, dummy_prize
 
 
-	def _check_validity_of_instance(self):
+	def _check_validity_of_instance(self, edges, prizes, costs):
 		"""
 		Assert that the parammeters and files passed to this program are valid, log useful error messages otherwise.
 		"""
 		pass
 
 
-	def pcsf(self, prizes, pruning="strong", verbosity_level=0):
+	def pcsf(self, pruning="strong", verbosity_level=0):
 		"""
 		Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.
 
@@ -200,30 +202,28 @@ class Graph:
 		the results of this function.
 
 		Arguments:
-			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
+			pruning (str): TODO
+			verbosity_level (int): TODO
 
 		Returns:
 			numpy.array: indices of the selected vertices
 			numpy.array: indices of the selected edges
 		"""
 
-		terminals = pd.Series(prizes).nonzero()[0].tolist()
-		others = list(set(range(len(self.nodes))) - set(terminals))
 		all = list(range(len(self.nodes)))
+		others = list(set(all) - set(self.terminals))
 
-		if self.params.dummy_mode == 'terminals': endpoints = terminals
+		if self.params.dummy_mode == 'terminals': endpoints = self.terminals
 		elif self.params.dummy_mode == 'other': endpoints = others
 		elif self.params.dummy_mode == 'all': endpoints = all
 		else: sys.exit("Invalid dummy mode")
 
 		dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
 
-		self._check_validity_of_instance()
-
 		# `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
 		edges = np.concatenate((self.edges, dummy_edges))
 		# `prizes`: the node prizes as a 1D float64 array.
-		prizes = np.concatenate((prizes, dummy_prize))
+		prizes = np.concatenate((self.prizes, dummy_prize))
 		# `costs`: the edge costs as a 1D float64 array.
 		costs = np.concatenate((self.costs, dummy_costs))
 		# `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
@@ -231,6 +231,9 @@ class Graph:
 		num_clusters = 1
 		# `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
 		# `verbosity_level`: an integer indicating how much debug output the function should produce.
+
+		self._check_validity_of_instance(edges, prizes, costs)
+
 		vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
 		# `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.
 		# `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
@@ -242,7 +245,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def output_forest_as_networkx(self, vertex_indices, edge_indices, terminal_attributes):
+	def output_forest_as_networkx(self, vertex_indices, edge_indices):
 		"""
 
 		Arguments:
@@ -257,8 +260,8 @@ class Graph:
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
 
-		for attribute in terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		for attribute in self.terminal_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
 		# Add the degree as an attribute
 		node_degree_dict = nx.degree(self.interactome_graph)
@@ -272,19 +275,18 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def pcsf_objective_value(self, prizes, forest):
+	def pcsf_objective_value(self, forest):
 		"""
 		Calculate PCSF objective function
 
 		Arguments:
-			prizes (list): a list of prizes like the one returned by the prepare_prizes method.
 			forest (networkx.Graph): a forest like the one returned by output_forest_as_networkx -- Not an augmented forest!
 
 		Returns:
 			float: PCSF objective function score
 		"""
 
-		return (sum(prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
 
 
 	def _noisy_edges(self):
@@ -300,13 +302,9 @@ class Graph:
 		return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
 
 
-	def _random_terminals(self, prizes, terminals):
+	def _random_terminals(self):
 		"""
 		Switches the terminams with random nodes with a similar degree distribution.
-
-		Arguments:
-			prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
-			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above)
 
 		Returns:
 			numpy.array: new prizes
@@ -316,15 +314,15 @@ class Graph:
 		if len(self.edges) < 50: sys.exit("Cannot use random_terminals with such a small interactome.")
 
 		nodes_sorted_by_degree = pd.Series(self.node_degrees).sort_values().index
-		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in terminals])
+		terminal_degree_rankings = np.array([nodes_sorted_by_degree.get_loc(terminal) for terminal in self.terminals])
 		new_terminal_degree_rankings = np.clip(np.rint(np.random.normal(terminal_degree_rankings, 10)), 0, len(self.nodes)-1).astype(int)
 		new_terminals = pd.Series(nodes_sorted_by_degree)[new_terminal_degree_rankings].values
 
-		new_prizes = copy(prizes)
+		new_prizes = copy(self.prizes)
 
-		for old_terminal, new_terminal in zip(terminals, new_terminals):
+		for old_terminal, new_terminal in zip(self.terminals, new_terminals):
 			new_prizes[old_terminal] = 0
-			new_prizes[new_terminal] = prizes[old_terminal]
+			new_prizes[new_terminal] = self.prizes[old_terminal]
 
 		return new_prizes, np.unique(new_terminals)
 
@@ -358,7 +356,7 @@ class Graph:
 		return vertex_indices, edge_indices
 
 
-	def randomizations(self, prizes, terminals, terminal_attributes, noisy_edges_reps, random_terminals_reps):
+	def randomizations(self, noisy_edges_reps, random_terminals_reps):
 		"""
 		Macro function which performs randomizations and merges the results
 
@@ -366,9 +364,6 @@ class Graph:
 		`noisy_edges_reps` = 5 and `random_terminals_reps` = 5 makes 10 PCSF runs, not 25.
 
 		Arguments:
-			prizes (numpy.array): prizes, properly indexed (e.g. from `prepare_prizes`)
-			terminals (numpy.array): of indices of terminals (indices of nonzero prizes above, also from `prepare_prizes`)
-			terminal_attributes (pandas.DataFrame): additional attributes on the terminals (from `prepare_prizes`)
 			noisy_edges_reps (int): Number of "Noisy Edges" type randomizations to perform
 			random_terminals_reps (int): Number of "Random Terminals" type randomizations to perform
 
@@ -384,14 +379,12 @@ class Graph:
 
 			results = []
 
-			# This is inelegant, but since the pcsf method relies on self.edges, we need to set self.edges
-			# with randomized edges before each pcsf run. So we need to copy the true edges to reset later
 			true_edge_costs = copy(self.costs)
 
 			for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
 				self.costs = noisy_edge_costs
-				results.append(self.pcsf(prizes))
-			# Reset the true edges
+				results.append(self.pcsf())
+
 			self.costs = true_edge_costs
 
 			robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
@@ -401,8 +394,16 @@ class Graph:
 
 			results = []
 
-			for random_prizes, terminals in [self._random_terminals(prizes, terminals) for rep in range(random_terminals_reps)]:
-				results.append(self.pcsf(random_prizes))
+			true_prizes = self.prizes
+			true_terminals = self.terminals
+
+			for random_prizes, terminals in [self._random_terminals() for rep in range(random_terminals_reps)]:
+				self.prizes = random_prizes
+				self.terminals = terminals
+				results.append(self.pcsf())
+
+			self.prizes = true_prizes
+			self.terminals = true_terminals
 
 			specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
 
@@ -442,7 +443,6 @@ class Graph:
 		"""
 
 		self._set_hyperparameters(params)
-		prizes = bare_prizes * float(params['b'])
 		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
 		return (paramstring, self.pcsf(prizes))
 
@@ -453,8 +453,10 @@ class Graph:
 		Subroutine of `grid_search`.
 
 		Arguments:
-			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
-			parameter_permutations (list): list of dictionaries of parameters
+			prize_file (str): filepath
+			As (list): As
+			Bs (list): Bs
+			Ws (list): Ws
 
 		Returns:
 			networkx.Graph: forest
@@ -462,9 +464,8 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		prizes, terminals, terminal_attributes = self.prepare_prizes(prize_file)
+		self.prepare_prizes(prize_file)
 
-		bare_prizes = prizes / self.params.b
 		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
 
 		results = list(map(self._eval_pcsf, parameter_permutations))
@@ -479,8 +480,10 @@ class Graph:
 		This function is under construction and subject to change.
 
 		Arguments:
-			bare_prizes (numpy.array): prizes, properly indexed (e.g. from prepare_prizes)
-			parameter_permutations (list): list of dictionaries of parameters
+			prize_file (str): filepath
+			As (list): As
+			Bs (list): Bs
+			Ws (list): Ws
 
 		Returns:
 			networkx.Graph: forest
