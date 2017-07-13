@@ -62,17 +62,16 @@ class Graph:
 		Builds a representation of a graph from an interactome file.
 
 		From the interactome_file, populates
-		- `self.interactome_dataframe` (pandas.DataFrame)
-		- `self.interactome_graph` (networkx.Graph)
-		- `self.nodes` (pandas.Index),
-		- `self.edges` (list of pairs),
-		- `self.costs` and `self.edge_penalties` (lists, such that the ordering is the same as in self.edges),
-		- `self.node_degrees` and `self.negprizes` (lists, such that the ordering is the same as in self.nodes).
+		- `graph.interactome_dataframe` (pandas.DataFrame)
+		- `graph.interactome_graph` (networkx.Graph)
+		- `graph.nodes` (pandas.Index),
+		- `graph.edges` (list of pairs),
+		- `graph.costs` and `graph.edge_penalties` (lists, such that the ordering is the same as in graph.edges),
+		- `graph.node_degrees` and `graph.negprizes` (lists, such that the ordering is the same as in graph.nodes).
 
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
 			params (dict): params with which to run the program
-
 		"""
 
 		interactome_fieldnames = ["source","target","cost"]
@@ -135,9 +134,9 @@ class Graph:
 		i.e. the first row of the tsv must be the names of the columns.
 
 		Sets the graph attributes
-			- graph.prizes (numpy.array): properly indexed
-			- graph.terminals (numpy.array): their indices
-			- graph.terminal_attributes (pandas.DataFrame)
+		- `graph.prizes` (numpy.array): properly indexed
+		- `graph.terminals` (numpy.array): their indices
+		- `graph.terminal_attributes` (pandas.DataFrame)
 
 		Arguments:
 			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
