@@ -78,15 +78,14 @@ def main():
 	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
 	graph = Graph(args.edge_file, params)
-
-	prizes, terminals, terminal_attributes = graph.prepare_prizes(args.prize_file)
+	graph.prepare_prizes(args.prize_file)
 
 	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-		forest, augmented_forest = graph.randomizations(prizes, terminals, terminal_attributes, args.noisy_edges_repetitions, args.random_terminals_repetitions)
+		forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
 	else:
-		vertices, edges = graph.pcsf(prizes)
-		forest, augmented_forest = graph.output_forest_as_networkx(vertices, edges, terminal_attributes)
+		vertex_indices, edge_indices = graph.pcsf()
+		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
 	#output_networkx_graph_as_gml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
 	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
