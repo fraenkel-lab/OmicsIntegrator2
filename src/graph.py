@@ -117,7 +117,9 @@ class Graph:
 
 		self.costs = (self.edge_costs + self.edge_penalties)
 
-		if self.bare_prizes: self.prizes = self.bare_prizes * self.params.b  # TODO this condition won't work
+		# if this instance of graph has bare_prizes set, then presumably resetting the
+		# hyperparameters should also reset the scaled prizes
+		if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
 
 
 	def prepare_prizes(self, prize_file):
@@ -169,7 +171,7 @@ class Graph:
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
 		self.bare_prizes = prizes_dataframe['prize'].values
-		self.prizes = prizes * self.params.b
+		self.prizes = self.bare_prizes * self.params.b
 
 
 	def _add_dummy_node(self, connected_to=[]):
@@ -210,7 +212,7 @@ class Graph:
 		"""
 
 		all = list(range(len(self.nodes)))
-		others = list(set(all) - set(terminals))
+		others = list(set(all) - set(self.terminals))
 
 		if self.params.dummy_mode == 'terminals': endpoints = self.terminals
 		elif self.params.dummy_mode == 'other': endpoints = others
