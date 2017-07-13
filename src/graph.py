@@ -163,14 +163,14 @@ class Graph:
 		logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
 		prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-		self.terminal_attributes = prizes_dataframe.set_index('name').rename_axis(None)
+		self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None)
 
 		# Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
 		prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
 		# Our return value is a 1D array, where each entry is a node's prize, indexed as above
 		self.bare_prizes = prizes_dataframe['prize'].values
 		self.prizes = self.bare_prizes * self.params.b
-		
+
 		self.terminals = pd.Series(self.prizes).nonzero()[0].tolist()
 
 
@@ -261,8 +261,8 @@ class Graph:
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
 
-		for attribute in self.terminal_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.terminal_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		for attribute in self.node_attributes.columns.values:
+			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
 
 		# Add the degree as an attribute
 		node_degree_dict = nx.degree(self.interactome_graph)
