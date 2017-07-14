@@ -6,7 +6,6 @@ import os
 
 # Peripheral python modules
 import argparse
-import pickle
 import logging
 import random
 from collections import Counter
@@ -439,6 +438,40 @@ class Graph:
 		return forest, augmented_forest
 
 
+	def _eval_pcsf(self, params):
+		"""
+		Convenience methods which sets parameters and performs PCSF
+		"""
+
+		self._set_hyperparameters(params)
+		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		return (paramstring, self.pcsf())
+
+
+	def _grid_pcsf(self, prize_file, As, Bs, Ws):
+		"""
+		Internal function which executes pcsf at every point in a parameter grid.
+		Subroutine of `grid_search`.
+
+		Arguments:
+			prize_file (str): filepath
+			As (list): Values of alpha
+			Bs (list): Values of beta
+			Ws (list): Values of omega
+
+		Returns:
+			list: list of tuples of vertex indices and edge indices
+		"""
+
+		self.prepare_prizes(prize_file)
+
+		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
+
+		results = list(map(self._eval_pcsf, parameter_permutations))
+
+		return results
+
+
 	def grid_search(self, prize_file, As, Bs, Ws):
 		"""
 		Macro function which performs grid search and merges the results.
@@ -447,9 +480,9 @@ class Graph:
 
 		Arguments:
 			prize_file (str): filepath
-			As (list): As
-			Bs (list): Bs
-			Ws (list): Ws
+			As (list): Values of alpha
+			Bs (list): Values of beta
+			Ws (list): Values of omega
 
 		Returns:
 			networkx.Graph: forest
@@ -457,16 +490,7 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		self.prepare_prizes(prize_file)
-
-		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
-
-		def run(params):
-			self._set_hyperparameters(params)
-			paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-			return (paramstring, self.pcsf())
-
-		results = list(map(run, parameter_permutations))
+		results = _grid_pcsf(prize_file, As, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
@@ -478,7 +502,7 @@ class Graph:
 		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict().items())
 		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
 
-		### GET THE OUTPUT NEEDED BY JOHNNY'S VISUALIZATION ###
+		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
 
 		return forest, augmented_forest, params_by_nodes
@@ -535,9 +559,10 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the graph. Must already exist.
+		output_dir (str): the directory in which to output the graph.
 		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
 
