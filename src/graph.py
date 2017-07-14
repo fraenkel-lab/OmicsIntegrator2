@@ -13,7 +13,6 @@ from collections import Counter
 from itertools import product
 from copy import copy
 import json
-import tempfile
 
 # python external libraries
 import numpy as np
@@ -77,6 +76,7 @@ class Graph:
 
 		interactome_fieldnames = ["source","target","cost"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
+		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
 		# We then unstack them, which, unintuitively, stacks them into one column, allowing us to use factorize.
@@ -88,10 +88,6 @@ class Graph:
 		# Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
 		self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
 		self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
-
-		# Add cost and index attributes to interactome graph
-		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
-		nx.set_edge_attributes(self.interactome_graph, "index", {tuple(self.nodes[edge]): index for index,edge in enumerate(self.edges)})
 
 		# Numpy has a convenient counting function. However we're assuming here that each edge only appears once.
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
@@ -246,53 +242,6 @@ class Graph:
 		# Remove the dummy node and dummy edges for convenience
 		vertex_indices = vertex_indices[vertex_indices != root]
 		edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
-
-		return vertex_indices, edge_indices
-
-
-	def pcst_exact(self, solver_path="/Users/jonathanli/Documents/research/packages/dapcstp/solver/dapcstp"):
-		"""
-		Exact PCSF solver: https://github.com/mluipersbeck/dapcstp
-		"""
-		def stp_template(prizes, edges, costs):
-			# Note: Nodes need to be 1-indexed
-			header = "33D32945 STP File, STP Format Version 1.0\n"
-
-			graph = "SECTION Graph\nNodes %d\nEdges %d\n" %(len(prizes), len(edges))
-			graph += ''.join(["E %d %d %0.4f\n" %(edge[0]+1, edge[1]+1, cost) for edge,cost in zip(edges,costs)])
-			graph += "END\n"
-
-			terminals = "SECTION Terminals\nTerminals %d\n" %sum(prizes>0)
-			terminals += ''.join(["TP %d %0.4f\n" %(i+1, prize) for i,prize in enumerate(prizes) if prize > 0])
-			terminals += "END\n"
-
-			footer = "EOF\n"
-
-			complete_file = "\n".join([header, graph, terminals, footer])
-
-			tf = tempfile.NamedTemporaryFile(delete=False)
-			tf.write(complete_file.encode())
-			tf.seek(0)
-
-			return tf.name
-
-		def read_dapcstp_solution(f_name):
-			lines = [line.rstrip() for line in list(open(f_name, 'r'))]
-
-			vertices = [int(line.split()[1])-1 for line in lines if line.startswith("V ")]
-			edges = [[int(line.split()[1])-1, int(line.split()[2])-1] for line in lines if line.startswith("E ")]
-
-			edges = [self.interactome_graph[self.nodes[a]][self.nodes[b]]["index"] for a,b in edges]
-
-			return vertices, edges
-
-		tmp_file = stp_template(self.prizes, self.edges, self.costs)
-		sol_file = tempfile.NamedTemporaryFile(delete=False).name
-
-		cmd = "%s %s --type pcstp -o %s" %(solver_path, tmp_file, sol_file)
-		os.system(cmd)
-
-		vertex_indices, edge_indices = read_dapcstp_solution(sol_file)
 
 		return vertex_indices, edge_indices
 
