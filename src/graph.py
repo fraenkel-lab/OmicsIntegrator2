@@ -135,7 +135,7 @@ class Graph:
 		Sets the graph attributes
 		- `graph.prizes` (numpy.array): properly indexed
 		- `graph.terminals` (numpy.array): their indices
-		- `graph.terminal_attributes` (pandas.DataFrame)
+		- `graph.node_attributes` (pandas.DataFrame)
 
 		Arguments:
 			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
@@ -423,7 +423,7 @@ class Graph:
 
 		###########
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
@@ -495,7 +495,7 @@ class Graph:
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
 
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values, terminal_attributes)
+		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
