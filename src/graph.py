@@ -438,13 +438,14 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def _eval_pcsf(self, bare_prizes, params):
+	def _eval_pcsf(self, params):
 		"""
+		Convenience methods which sets parameters and performs PCSF
 		"""
 
 		self._set_hyperparameters(params)
 		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-		return (paramstring, self.pcsf(prizes))
+		return (paramstring, self.pcsf())
 
 
 	def _grid_pcsf(self, prize_file, As, Bs, Ws):
@@ -454,14 +455,12 @@ class Graph:
 
 		Arguments:
 			prize_file (str): filepath
-			As (list): As
-			Bs (list): Bs
-			Ws (list): Ws
+			As (list): Values of alpha
+			Bs (list): Values of beta
+			Ws (list): Values of omega
 
 		Returns:
-			networkx.Graph: forest
-			networkx.Graph: augmented_forest
-			pd.DataFrame: parameters and node membership lists
+			list: list of tuples of vertex indices and edge indices
 		"""
 
 		self.prepare_prizes(prize_file)
@@ -481,9 +480,9 @@ class Graph:
 
 		Arguments:
 			prize_file (str): filepath
-			As (list): As
-			Bs (list): Bs
-			Ws (list): Ws
+			As (list): Values of alpha
+			Bs (list): Values of beta
+			Ws (list): Values of omega
 
 		Returns:
 			networkx.Graph: forest
