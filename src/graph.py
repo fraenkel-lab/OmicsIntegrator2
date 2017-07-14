@@ -6,7 +6,6 @@ import os
 
 # Peripheral python modules
 import argparse
-import pickle
 import logging
 import random
 from collections import Counter
