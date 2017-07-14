@@ -559,9 +559,10 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
-		output_dir (str): the directory in which to output the graph. Must already exist.
+		output_dir (str): the directory in which to output the graph.
 		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_gml(nxgraph, path)
 
