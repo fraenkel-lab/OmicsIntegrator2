@@ -92,10 +92,10 @@ class Graph:
 		# The indices into this datastructure are the same as those in self.nodes and self.edges.
 		self.node_degrees = np.bincount(self.edges.flatten())
 
-		self._set_hyperparameters(params)
+		self._reset_hyperparameters(params)
 
 
-	def _set_hyperparameters(self, params):
+	def _reset_hyperparameters(self, params):
 		"""
 		Set the parameters on Graph and compute parameter-dependent features.
 
@@ -103,9 +103,11 @@ class Graph:
 			params (dict): params with which to run the program
 		"""
 
-		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "seed": None}
+		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
 
 		self.params = Options({**defaults, **params})
+
+		self._knockout(knockout)
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
@@ -115,9 +117,61 @@ class Graph:
 
 		self.costs = (self.edge_costs + self.edge_penalties)
 
+		# In case specific nodes are penalized, we'd like to update the costs accordingly
+		if hasattr(self, "additional_costs"): self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
+
 		# if this instance of graph has bare_prizes set, then presumably resetting the
 		# hyperparameters should also reset the scaled prizes
 		if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
+
+
+	def _penalize_nodes(self, nodes_to_penalize):
+		"""
+		Penalize a set of nodes by penalizing the edges connected to that node by some coefficient.
+
+		Arguments:
+			nodes_to_penalize (pandas.DataFrame): 2 columns: 'name' and 'penalty' with entries in [0, 1)
+		"""
+
+		# Here's we're indexing the penalized nodes by the indices we used for nodes during initialization
+		nodes_to_penalize.index = graph.nodes.get_indexer(nodes_to_penalize['name'].values)
+
+		# there will be some nodes in the penalty dataframe which we don't have in our interactome
+		logger.info("Members of the penalty dataframe not present in the interactome:")
+		logger.info(nodes_to_penalize[nodes_to_penalize.index == -1]['name'].tolist())
+		nodes_to_penalize.drop(-1, inplace=True, errors='ignore')
+
+		if not nodes_to_penalize['penalty_coefficient'].between(0, 1).all():
+			logger.info("The node penalty coefficients must lie in [0, 1]. Passing..."); return
+
+		nodes_to_knockout = nodes_to_penalize[nodes_to_penalize.penalty_coefficient == 1]
+		logger.info("penalty coefficients of 1 are treated as knockouts. Proteins to remove from interactome:")
+		logger.info(nodes_to_knockout.name.tolist())
+		self._knockout(nodes_to_knockout.name.values)
+
+		self.additional_costs = np.zeros(self.costs.shape)
+
+		# Iterate through the rows of the nodes_to_penalize dataframe
+		for index, name, penalty_coefficient in nodes_to_penalize.itertuples():
+			# For each protein we'd like to penalize, get the indicies of the edges connected to that node
+			edge_indices = self.interactome_dataframe[(self.interactome_dataframe.source == name) | (self.interactome_dataframe.target == name)].index
+			# And compute an additional cost on those edges.
+			self.additional_costs[edge_indices] += self.edge_costs[edge_indices] / (1 - penalty_coefficient)
+		# Apply those additional costs by calling _reset_hyperparameters.
+		self._reset_hyperparameters({})
+
+
+	def _knockout(self, nodes_to_knockout):
+		"""
+		Knock out a set of nodes from the interactome, effectively removing them from results.
+
+		Arguments:
+			nodes_to_knockout (numpy.array): Array of string IDs of nodes to knock out.
+		"""
+		if len(nodes_to_knockout) > 0:
+			logger.info("The knockout function has yet to be implemented, passing...");
+
+		return
 
 
 	def prepare_prizes(self, prize_file):
@@ -443,7 +497,7 @@ class Graph:
 		Convenience methods which sets parameters and performs PCSF
 		"""
 
-		self._set_hyperparameters(params)
+		self._reset_hyperparameters(params)
 		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
 		return (paramstring, self.pcsf())
 
