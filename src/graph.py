@@ -107,7 +107,7 @@ class Graph:
 
 		self.params = Options({**defaults, **params})
 
-		self._knockout(knockout)
+		self._knockout(self.params.knockout)
 
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
