@@ -164,20 +164,36 @@ select option { background: #F2F1F2; }
     style: style[0].style,
     layout: {
         name: 'cose',
+        // Whether to animate while running the layout
+        animate: false,
+        // Padding on fit
         padding: 45,
+        // Randomize the initial positions of the nodes (true) or use existing positions (false)
         randomize: true,
+        // Extra spacing between components in non-compound graphs
         componentSpacing: 250,
+        // Node repulsion (non overlapping) multiplier
         nodeRepulsion: function( node ){ return 400000; },
+        // Node repulsion (overlapping) multiplier
         nodeOverlap: 10,
+        // Ideal edge (non nested) length
         idealEdgeLength: function( edge ){ return 10; },
+        // Divisor to compute edge forces
         edgeElasticity: function( edge ){ return 100; },
+        // Nesting factor (multiplier) to compute ideal edge length for nested edges
         nestingFactor: 5,
+        // Gravity force (constant)
         gravity: 80,
+        // Maximum number of iterations to perform
         numIter: 1000,
+        // Initial temperature (maximum node displacement)
         initialTemp: 200,
+        // Cooling factor (how the temperature is reduced between consecutive iterations
         coolingFactor: 0.95,
+        // Lower temperature threshold (below this point the layout will end)
         minTemp: 1.0,
         useMultitasking: true
+
     },
     elements: graph.elements
     });
