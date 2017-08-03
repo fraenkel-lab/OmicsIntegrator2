@@ -11,10 +11,9 @@ SET SCRIPT_DIR=%~dp0
 ::
 ::
 ::
-:: Copy the javascript to the visualize_results_rundir/
+:: Copy the style_master to the visualize_results_rundir/
 ::
 copy "%SCRIPT_DIR%/style_master.js" "%USER_RESULT_DIR%/style.js"
-copy "%SCRIPT_DIR%/cytoscape-cose-bilkent.js" "%USER_RESULT_DIR%/cytoscape-cose-bilkent.js"
 ::
 ::
 :: Run Python code to extract min and max values from graph_json.json, to create the style.js code, 

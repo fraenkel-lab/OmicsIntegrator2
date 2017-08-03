@@ -10,10 +10,9 @@ mkdir $USER_RESULT_DIR
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #
 #
-# Copy the javascript to the visualize_results_rundir/
+# Copy the style_master to the visualize_results_rundir/
 #
 cp $SCRIPT_DIR/style_master.js $USER_RESULT_DIR/style.js
-cp $SCRIPT_DIR/cytoscape-cose-bilkent.js $USER_RESULT_DIR/cytoscape-cose-bilkent.js
 #
 #
 # Run Python code to extract min and max values from graph_json.json, to create the style.js code, 

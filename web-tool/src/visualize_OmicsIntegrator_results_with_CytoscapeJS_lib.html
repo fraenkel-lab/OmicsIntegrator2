@@ -5,7 +5,6 @@
  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.0.0/cytoscape.js"></script>
  <script src="https://use.fontawesome.com/a681668be3.js"></script>
  <script src="https://cdn.rawgit.com/eligrey/FileSaver.js/e9d941381475b5df8b7d7691013401e171014e89/FileSaver.min.js"></script>
-  <script src="cytoscape-cose-bilkent.js"></script>
  <script src="graph.js"></script>
  <script src="style.js"></script>
 
@@ -164,30 +163,22 @@ select option { background: #F2F1F2; }
     container: document.getElementById('cy'),
     style: style[0].style,
     layout: {
-        name: 'cose-bilkent',
-        // Whether to fit the network view after when done
-        fit: true,
-        // Padding on fit
+        name: 'cose',
         padding: 45,
-        // Whether to enable incremental mode
         randomize: true,
-        // Node repulsion (non overlapping) multiplier
-        nodeRepulsion: 150000,
-        // Ideal (intra-graph) edge length
-        idealEdgeLength: 50,
-        // Divisor to compute edge forces
-        edgeElasticity: 0.45,
-        // Nesting factor (multiplier) to compute ideal edge length for inter-graph edges
-        nestingFactor: 0.8,
-        // Gravity force (constant)
-        gravity: 0.05,
-        // Maximum number of iterations to perform
+        componentSpacing: 250,
+        nodeRepulsion: function( node ){ return 400000; },
+        nodeOverlap: 10,
+        idealEdgeLength: function( edge ){ return 10; },
+        edgeElasticity: function( edge ){ return 100; },
+        nestingFactor: 5,
+        gravity: 80,
         numIter: 1000,
-        // Whether to tile disconnected nodes
-        tile: false,
-        // Type of layout animation. The option set is {'during', 'end', false}
-        animate: false,     
-        },
+        initialTemp: 200,
+        coolingFactor: 0.95,
+        minTemp: 1.0,
+        useMultitasking: true
+    },
     elements: graph.elements
     });
 
