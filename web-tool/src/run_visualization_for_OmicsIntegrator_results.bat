@@ -16,9 +16,10 @@ echo var graph = >> %USER_RESULT_DIR%/graph.js
 echo %FOREST_OUTPUT_DIR%/graph_json.json >> %USER_RESULT_DIR%/graph.js
 ::
 ::
-:: Copy the style_master to the visualize_results_rundir/
+:: Copy the javascript to the visualize_results_rundir/
 ::
 copy "%SCRIPT_DIR%/style_master.js" "%USER_RESULT_DIR%/style.js"
+copy "%SCRIPT_DIR%/cytoscape-cose-bilkent.js" "%USER_RESULT_DIR%/cytoscape-cose-bilkent.js"
 ::
 ::
 :: Run Python code to extract min and max values from graph_json.json, to create the style.js code, 
