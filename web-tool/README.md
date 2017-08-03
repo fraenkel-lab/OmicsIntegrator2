@@ -1,3 +1,7 @@
+# Example command
+
+./run\_visualization\_for\_OmicsIntegrator\_results.sh output\_directory label
+
 # Description of the files in visualization/src
 
 1. create\_style\_code\_for\_visualization.py
