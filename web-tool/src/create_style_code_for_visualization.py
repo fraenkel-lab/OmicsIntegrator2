@@ -1,25 +1,42 @@
 import json
 import sys
 
-def extract_min_max(json_file):
+def process_graph_json(json_file, graph_filename):
         """
-        Extracts min and max values from a network JSON file
+        Formats graph JSON file into javascript code, and extracts min and max values for style
 
         Args:
                 json_file: network JSON filename
+                graph_filename: a new file to write the javascript to
 
         Returns:
                 a tuple containing min and max values
+                
         """
 
+        #Add the beginning to js file
+        graph_file = open(graph_filename, "w")
+        graph_file.write("var graph = \n")
+        
+        #Load JSON file
         json_data = open(json_file)
         network_data = json.load(json_data)
+        json_data.close()
 	
         node_list = network_data["elements"]["nodes"]
-	
+        edge_list = network_data["elements"]["edges"]
+	    
+        #Iterate through nodes and to keep track and min/max
+        #and change clusters to "parent" attribute
         min_pc = 0
         max_pc = 0
-        for node in node_list:
+        clusters = []
+        for i, node in enumerate(node_list):
+            cluster = [value for key, value in node["data"].items() if 'cluster' in key.lower()]
+            if len(cluster) == 1:
+                network_data["elements"]["nodes"][i]["data"]["parent"] = cluster[0]
+                if cluster[0] not in clusters:
+                    clusters.append(cluster[0])
             if "ProteinChange" in node["data"]:
                 current_value = node["data"]["ProteinChange"]
             else:
@@ -28,9 +45,8 @@ def extract_min_max(json_file):
                 max_pc = current_value
             if current_value < min_pc:
                 min_pc = current_value
-
-        edge_list = network_data["elements"]["edges"]
-
+        
+        #Iterate through edges and to keep track and min/max
         min_edge = 0
         max_edge = 0
         for edge in edge_list:
@@ -41,28 +57,20 @@ def extract_min_max(json_file):
                 min_edge = current_value
 
 
-        json_data.close()
-	
-        return [min_pc, max_pc, min_edge, max_edge]
+        #Add parent nodes
+        if len(clusters)>0:
+            for clus_name in clusters:
+                network_data["elements"]["nodes"].append({"data":{"id": clus_name}})
 
+        #Write JSON to js file
+        json.dump(network_data, graph_file, indent=4)
 
-def process_graph_json(graph_filename):
-        """
-        Converts a graph JSON file into a JavaScript code
-
-        Args:
-                graph_filename: graph filename
-
-        Returns:
-                None
-        """
-        
-        graph_file = open(graph_filename, "a")
+        #Add end of js file
         graph_file.write(";")
         graph_file.close()
-                        
-        return None
-        
+
+	
+        return [min_pc, max_pc, min_edge, max_edge]
 
 def create_style_code_cytoscape(min_max, style_filename):
         """
@@ -145,9 +153,7 @@ if __name__ == '__main__':
         outdir = sys.argv[1]
         user_dir = sys.argv[2]
 
-        process_graph_json("%s/graph.js"%outdir)
-
-        min_max_values = extract_min_max("%s/graph_json.json"%user_dir)
+        min_max_values = process_graph_json("%s/graph_json.json"%user_dir, "%s/graph.js"%outdir)
 
         create_style_code_cytoscape(min_max_values, "%s/style.js"%outdir)
 

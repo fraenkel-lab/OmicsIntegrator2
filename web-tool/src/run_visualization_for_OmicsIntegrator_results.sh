@@ -9,10 +9,6 @@ USER_RESULT_DIR="$FOREST_OUTPUT_DIR/visualize_results_$USER_SAMPLE"
 mkdir $USER_RESULT_DIR
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #
-# Concatenate the graph_head with the graph_json.json (which is the output from Forest).
-#
-echo "var graph = " | cat - $FOREST_OUTPUT_DIR/graph_json.json > $USER_RESULT_DIR/graph.js
-#
 #
 # Copy the javascript to the visualize_results_rundir/
 #

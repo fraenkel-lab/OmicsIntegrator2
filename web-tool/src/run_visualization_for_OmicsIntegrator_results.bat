@@ -10,11 +10,6 @@ mkdir %USER_RESULT_DIR%
 SET SCRIPT_DIR=%~dp0
 ::
 ::
-:: Concatenate the graph_head with the graph_json.json (which is the output from Forest).
-::
-echo var graph = >> %USER_RESULT_DIR%/graph.js
-echo %FOREST_OUTPUT_DIR%/graph_json.json >> %USER_RESULT_DIR%/graph.js
-::
 ::
 :: Copy the javascript to the visualize_results_rundir/
 ::

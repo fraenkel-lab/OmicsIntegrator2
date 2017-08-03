@@ -10,11 +10,6 @@ mkdir $USER_RESULT_DIR
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #
 #
-# Concatenate the graph_head with the graph_json.json (which is the user saved JSON file).
-#
-echo "var graph = " | cat - $USER_SAVED_JSON_DIR/graph_json.json > $USER_RESULT_DIR/graph.js
-#
-#
 # Copy the style_master to the visualize_results_rundir/
 #
 cp $SCRIPT_DIR/style_master.js $USER_RESULT_DIR/style.js
