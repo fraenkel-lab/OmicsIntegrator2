@@ -120,7 +120,7 @@ def create_style_code_cytoscape(min_max, style_filename):
         style_file.write("  }, {\n"
                              "    \"selector\" : \"edge\",\n"
                              "  \"css\" : {\n"
-                             "    \"width\" : \"mapData(cost," + max_edge + "," + min_edge + ",1,10)\"\n"
+                             "    \"width\" : \"mapData(cost," + max_edge + "," + min_edge + ",1,5)\"\n"
                              "  }\n")
 
         # Ending part
