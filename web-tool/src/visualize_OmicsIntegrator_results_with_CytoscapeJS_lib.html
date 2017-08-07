@@ -76,11 +76,8 @@ body{
   height: 36px;
   border: 1px solid #00B4CC;
   background: #00B4CC;
-  text-align: center;
-  color: #fff;
   border-radius: 5px;
-  cursor: pointer;
-  font-size: 20px;
+  vertical-align: middle;
 }
 
 input[type=button] {
@@ -111,7 +108,7 @@ select option { background: #F2F1F2; }
     <td style="vertical-align:top">
       <div class="search">
           <input type="text" class="searchTerm" id='search_text' placeholder="Search for Node" onKeyUp='javascript:searchType(event)'> 
-          <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/search-ideogram.png" height=28px></button>
+          <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/search-ideogram.png" height=19px></button>
           <br/>
           <select name="dropDown" id="dropDownList" size="5" onchange='selectDrop(this)'>
       </div>
