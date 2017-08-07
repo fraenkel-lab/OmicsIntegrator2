@@ -3,7 +3,6 @@
 <head>
  <title>Omics Integrator Result</title>
  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.0.0/cytoscape.js"></script>
- <script src="https://use.fontawesome.com/a681668be3.js"></script>
  <script src="https://cdn.rawgit.com/eligrey/FileSaver.js/e9d941381475b5df8b7d7691013401e171014e89/FileSaver.min.js"></script>
  <script src="graph.js"></script>
  <script src="style.js"></script>
@@ -115,7 +114,7 @@ select option { background: #F2F1F2; }
     <td style="vertical-align:top">
       <div class="search">
         <input type="text" class="searchTerm" id='search_text' placeholder="Search for Node" onKeyUp='javascript:searchType(event)'> 
-          <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><i class="fa fa-search"></i></button>
+          <button type="button" class="searchButton" id='search_button' onClick='javascript:searchGraph()'><img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/search-ideogram.png" height=28px></button>
           <br/>
           <select name="dropDown" id="dropDownList" size="5" onchange='selectDrop(this)'>      </div>
     </td>
