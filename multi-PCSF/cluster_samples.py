@@ -2,5 +2,5 @@
 
 #Current proposed methods:
 #   -Hierarchical clustering of omics data
-#   -Clustering of individual PCSF runs
+#   -Clustering of individual PCSF runs dynamically 
 #   -Pre-determined subtyping
