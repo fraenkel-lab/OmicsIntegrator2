@@ -19,7 +19,7 @@ b = np.random.multivariate_normal([0, 20], [[3, 1], [1, 4]], size=[50,])
 X = np.concatenate((a, b),)
 
 Z = linkage(X, 'ward') #returns an array of length n - 1, Z[i] will tell us which clusters were merged in the i-th iteration
-
+# Maybe in this part, we can automatically try different clustering algorithms and select the ones based on goodness of cluster metrics...
 # calculate full dendrogram
 plt.figure(figsize=(25, 10))
 plt.title('Hierarchical Clustering Dendrogram')
