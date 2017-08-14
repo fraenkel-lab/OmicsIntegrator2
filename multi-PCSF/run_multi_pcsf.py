@@ -19,9 +19,11 @@ def run_single_PCSF(edgeFile, paramDict, outdir):
     output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, outdir)
     return forest
 
-def run_param_screen(edgeFile, params, outdir):
-    #For a single clade, run a parameter screen and return the best resulting forest
-    #Did Gitter et al vary parameters per iteration?
+def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
+    #For a single clade & sample, run a parameter screen and return the best resulting forest
+    #Did Gitter et al vary parameters per iteration? - they tested multiple params but mostly kept things unchanging.
+    #TODO Decide how we want to do this
+
 
 def run_multi_PCSF(dendrogram, prizefiles, edgeFile):
     #Iterate through dendrogram, and at each clade, run param screen for each sample, adding artificial prizes
