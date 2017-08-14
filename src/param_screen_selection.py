@@ -2,8 +2,6 @@ import json
 import os
 import sys
 import argparse
-oipath = "/Users/adaigle/OmicsIntegrator2"   #YOU NEED TO CHANGE THIS
-sys.path.insert(0, oipath+'/src')
 from graph import *
 
 #Run parameter screen and then select the "best" parameters
@@ -58,10 +56,7 @@ def run_param_screen(prize_file, edge_file, w_list, b_list, a_list):
                 maxtermindex = i
                 maxterms = params[3]
         bestw, bestb, besta, num = goodparams[maxtermsindex]
-        print ('Of these, the parameter set with maximum terminals is w = %s, b = %s, a = %s. Check this directory for the visualization.'%(bestw, bestb, besta)) 
-
-        #Run visualization for optimal set
-        os.system('%s/web-tool/src/run_visualization_for_OmicsIntegrator_results.sh w%s_b%s_a%s w%s_b%s_a%s'%(oipath,bestw,bestb,besta,bestw,bestb,besta))
+        print ('Of these, the parameter set with maximum terminals is w = %s, b = %s, a = %s. Check this directory for the visualization.'%(bestw, bestb, besta))
 
         
 if __name__ == '__main__':
