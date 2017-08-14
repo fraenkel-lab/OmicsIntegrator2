@@ -4,6 +4,7 @@
 #   -Hierarchical clustering of omics data
 #   -Clustering of individual PCSF runs dynamically 
 #   -Pre-determined subtyping
+#   
 
 
 
@@ -32,3 +33,8 @@ dendrogram(
 plt.show()
 
 return Z
+
+# computing s and d indexs for each clades(I'm adding this):
+
+
+
