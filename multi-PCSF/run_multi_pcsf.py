@@ -11,9 +11,10 @@
 import argparse
 from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
 
-def run_single_PCSF(edgeFile, paramDict, outdir):
+def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     #One straightforward application of PCSF
     graph = Graph(edgeFile, paramDict)
+    graph.prepare_prizes(prizeFile)
     vertex_indices, edge_indices = graph.pcsf()
     forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
     output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, outdir)
@@ -25,8 +26,8 @@ def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
     #TODO Decide how we want to do this
 
 
-def run_multi_PCSF(dendrogram, prizefiles, edgeFile):
-    #Iterate through dendrogram, and at each clade, run param screen for each sample, adding artificial prizes
+def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
+    #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
 
 
 
@@ -38,7 +39,7 @@ def main():
     parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
 	    help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tweight(between 0 and 1)"')
     parser.add_argument("-p", "--prizefiles", dest='prize_files', type=argparse.FileType('r'), required=True, nargs="+"
-	    help='(Required, one or more) Paths to the text files containing the prizes. Should be tab delimited files with lines: "nodeName(tab)prize"')
+	    help='(Required, one or more) Paths to the text files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Should be tab delimited files with lines: "nodeName(tab)prize"')
     parset.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
         help='(Required) object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
     parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
