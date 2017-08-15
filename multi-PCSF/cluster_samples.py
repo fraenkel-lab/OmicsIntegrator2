@@ -38,7 +38,16 @@ return Z
 
 def Process_Dendogram(Z):
     # Scale clades similarity index between 0-1
-    # Assigine dissimilarity score for each clusters
+    # Assigne dissimilarity score for each clusters
     # Store tree structure(Naive approach: we can use dictionary for that)
-    {child:parent}  
+    {child:parent}
+   # Output: 
+    # Tree, Scores 
+## 
+def Travers_Tree(Process_Dendogram(Z)):
+    # Start from leafs and traverse upstream.
+    # preort sample ids and scores in each node
+   
+    
+    
 
