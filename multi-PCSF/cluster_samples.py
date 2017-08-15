@@ -36,5 +36,8 @@ return Z
 
 # computing s and d indexs for each clades(I'm adding this):
 
-
+def Process_Dendogram(Z):
+    # Scale clades similarity index between 0-1
+    # Assigine dissimilarity score for each clusters
+    # Store tree structure
 
