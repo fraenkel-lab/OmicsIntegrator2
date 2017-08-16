@@ -44,7 +44,7 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
-        os.makedirs(outdir = '/iter%i'%i)
+        os.makedirs(outdir + '/iter%i'%i)
         num_samples_in_clade = int(c[3])
         s_c = float(c[2])
         d_c = 1-s_c
@@ -71,6 +71,9 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
                     artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
                 else:
                     artificial_prizes[node] = (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
+            with open(outdir + '/iter%i/artificial_prizes.txt'%i,"w") as f:
+                for item in artificial_prizes.iterkeys():
+                    f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
 
             #submit new artificial prizes + orig prize list to run_single_pcsf
             #update lastF and artificial_prize_dicts
