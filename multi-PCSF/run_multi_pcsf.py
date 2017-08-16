@@ -9,6 +9,7 @@
 #   -Dendrogram representing heirarchical clustering of samples
 
 import argparse
+import sys, os
 from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
 
 def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
@@ -29,7 +30,49 @@ def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
 def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
 
+    N = len(prizefiles)
+    lastF = []*N #list of N lists of nodes in latest version of each sample
+    artificial_prize_dicts = {}*N #list of N dicts of latest artificial prizes in each sample
 
+    #Run the first iteration with unaltered prizes
+    #Store list of potential Steiner nodes for each sample
+    os.makedirs(outdir + '/initial')
+    for i,p in enumerate(prizefiles):
+        unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, outdir + '/initial')  #change this to param screen later?
+        lastF[i] = unadjusted_forest.nodes() #NOTE this currently doesn't include a way to distinguish between what was originally a Steiner node or terminal
+
+    #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
+    for i,c in enumerate(dendrogram):
+        os.makedirs(outdir = '/iter%i'%i)
+        num_samples_in_clade = int(c[3])
+        s_c = float(c[2])
+        d_c = 1-s_c
+        adj1 = int(c[0])
+        adj2 = int(c[1])
+        if adj1 < N:
+            #then this is an initial sample
+        else:
+            #need to recursively find all the initial samples in this clade
+        #repeat for adj2
+
+        #after this calculation, we'll have gotten a list of samples_in_clade
+        if len(samples_in_clade) != num_samples_in_clade: sys.exit()
+        #get frequency of nodes in these networks
+        forestFreq = nodeFrequency([lastF[k] for k in samples_in_clade])
+        for s in samples_in_clade:
+            nodes = lastF[s]
+            artificial_prizes = artificial_prize_dicts[s]
+            for node in forestFreq:
+                if node in artificial_prizes:
+                    artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
+                else:
+                    artificial_prizes[node] = (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
+
+            #submit new artificial prizes + orig prize list to run_single_pcsf
+            #update lastF and artificial_prize_dicts
+        
+def nodeFrequency(list_of_node_lists):
+    #return dict with node:freq of all nodes in these lists
 
 def main():
     parser = argparse.ArgumentParser(description="""
