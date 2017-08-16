@@ -25,7 +25,7 @@ def directory(dirname):
 
 # Input / Output parameters:
 parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
-	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tweight(between 0 and 1)"')
+	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
 parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
 	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "nodeName(tab)prize"')
 parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
