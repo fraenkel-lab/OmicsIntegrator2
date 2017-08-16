@@ -73,6 +73,19 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
         
 def nodeFrequency(list_of_node_lists):
     #return dict with node:freq of all nodes in these lists
+    n = float(len(list_of_node_lists)) #want floating point division
+    countDict = {}
+    for forest in list_of_node_lists:
+        for node in forest:
+            if node in countDict:
+                countDict[node] += 1
+            else:
+                countDict[node] = 1
+    freqDict = {}
+    for node in countDict:
+        freqDict[node] = countDict[node] / n
+    return freqDict
+        
 
 def main():
     parser = argparse.ArgumentParser(description="""
