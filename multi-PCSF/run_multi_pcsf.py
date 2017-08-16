@@ -25,6 +25,7 @@ def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
     #For a single clade & sample, run a parameter screen and return the best resulting forest
     #Did Gitter et al vary parameters per iteration? - they tested multiple params but mostly kept things unchanging.
     #TODO Decide how we want to do this
+    pass
 
 
 def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
@@ -47,13 +48,16 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
         num_samples_in_clade = int(c[3])
         s_c = float(c[2])
         d_c = 1-s_c
-        adj1 = int(c[0])
-        adj2 = int(c[1])
-        if adj1 < N:
-            #then this is an initial sample
-        else:
-            #need to recursively find all the initial samples in this clade
-        #repeat for adj2
+        sample1 = int(c[0])
+        sample2 = int(c[1])
+        samples_in_clade = []
+        for sample in (sample1,sample2):
+            if sample < N:
+                #then this is an initial sample
+                samples_in_clade.append(sample)
+            else:
+                #need to recursively find all the initial samples in this clade
+                pass
 
         #after this calculation, we'll have gotten a list of samples_in_clade
         if len(samples_in_clade) != num_samples_in_clade: sys.exit()
@@ -93,12 +97,12 @@ def main():
     samples result in similar trees.""")
 
     parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
-	    help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tweight(between 0 and 1)"')
-    parser.add_argument("-p", "--prizefiles", dest='prize_files', type=argparse.FileType('r'), required=True, nargs="+"
+	    help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
+    parser.add_argument("-p", "--prizefiles", dest='prize_files', type=argparse.FileType('r'), required=True, nargs="+",
 	    help='(Required, one or more) Paths to the text files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Should be tab delimited files with lines: "nodeName(tab)prize"')
-    parset.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
+    parser.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
         help='(Required) object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
-    parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
+    parser.add_argument('-o', '--output', dest='output_dir', required=True,
 	    help='(Required) Output directory path')
     parser. add_argument("-ws", "--w_list", dest="w_list", nargs="+", default=[5,10], 
         help="A list of integers for the parameter w (number of trees). default='5 10'")
@@ -106,7 +110,7 @@ def main():
         help="A list of integers for the parameter b (size of network). default='5 10'")
     parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
         help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
-    params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
+    parser.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 	    help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
 
     args = parser.parse_args()
