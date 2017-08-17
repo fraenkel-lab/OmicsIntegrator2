@@ -36,14 +36,20 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
     N = len(prizefiles)
     lastF = [[] for _ in range(N)] #list of N lists of nodes in latest version of each sample
     artificial_prize_dicts = [{} for _ in range(N)] #list of N dicts of latest artificial prizes in each sample
+    origP = [[] for _ in range(N)] #keep track of original prizes per sample so we know which are Steiners
 
-    #Run the first iteration with unaltered prizes
+    #Run the first iteration with unaltered prizes and note which nodes are terminals
     os.makedirs(outdir + '/initial')
     for i,p in enumerate(prizefiles):
         i_outdir = outdir + '/initial/sample%i'%i
         os.makedirs(i_outdir)
         unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)  #change this to param screen later?
-        lastF[i] = unadjusted_forest.nodes() #NOTE this currently doesn't include a way to distinguish between what was originally a Steiner node or terminal
+        lastF[i] = unadjusted_forest.nodes()
+        with open(p,'r') as pf:
+            for line in pf:
+                prot = line.split('\t')[0]
+                origP[i].append(prot)
+    #print(origP)
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
@@ -65,10 +71,11 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
             os.makedirs(s_outdir)
             artificial_prizes = artificial_prize_dicts[s]
             for node in forestFreq:
-                if node in artificial_prizes:
-                    artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
-                else:
-                    artificial_prizes[node] = (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
+                if node not in origP[s]:
+                    if node in artificial_prizes:
+                        artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
+                    else:
+                        artificial_prizes[node] = (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
             #write new prizes + original prizes to a file
             with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
                 for item in artificial_prizes:
