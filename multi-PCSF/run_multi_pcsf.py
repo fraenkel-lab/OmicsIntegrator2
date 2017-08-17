@@ -29,7 +29,7 @@ def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
     pass
 
 
-def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
+def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
     
     dendrogram = pickle.load(open(dendrogram,'rb'))
@@ -49,7 +49,6 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
             for line in pf:
                 prot = line.split('\t')[0]
                 origP[i].append(prot)
-    #print(origP)
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
@@ -73,9 +72,9 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
             for node in forestFreq:
                 if node not in origP[s]:
                     if node in artificial_prizes:
-                        artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
+                        artificial_prizes[node] = artificial_prizes[node] + lbda*((s_c*forestFreq[node])**(alpha-d_c)) 
                     else:
-                        artificial_prizes[node] = (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
+                        artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
             #write new prizes + original prizes to a file
             with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
                 for item in artificial_prizes:
@@ -136,14 +135,17 @@ def main():
     parser.add_argument("-b", dest="b", default=5)
     #parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
     #    help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
-    parser.add_argument("-a", dest="a", default=0)
+    parser.add_argument("-n", dest="n", default=0, help="Negative prize on hubs (parameter a in PCSF)")
+    parser.add_argument("-l", "--lambda",dest="lbda", default=1)
+    parser.add_argument("-a", "--alpha",dest="alpha", default=1)
+
     parser.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 	    help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
 
     args = parser.parse_args()
-    paramDict = {'w':args.w, 'b':args.b, 'a':args.a}
+    paramDict = {'w':args.w, 'b':args.b, 'a':args.n}
 
-    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, paramDict, args.output_dir)
+    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, paramDict, args.alpha, args.lbda, args.output_dir)
 
 
 if __name__ == '__main__':
