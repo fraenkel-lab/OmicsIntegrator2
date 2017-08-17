@@ -36,7 +36,6 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
     artificial_prize_dicts = {}*N #list of N dicts of latest artificial prizes in each sample
 
     #Run the first iteration with unaltered prizes
-    #Store list of potential Steiner nodes for each sample
     os.makedirs(outdir + '/initial')
     for i,p in enumerate(prizefiles):
         unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, outdir + '/initial')  #change this to param screen later?
@@ -50,17 +49,9 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
         d_c = 1-s_c
         sample1 = int(c[0])
         sample2 = int(c[1])
-        samples_in_clade = []
-        for sample in (sample1,sample2):
-            if sample < N:
-                #then this is an initial sample
-                samples_in_clade.append(sample)
-            else:
-                #need to recursively find all the initial samples in this clade
-                pass
-
-        #after this calculation, we'll have gotten a list of samples_in_clade
-        if len(samples_in_clade) != num_samples_in_clade: sys.exit()
+        samples_in_clade = calc_original_samples(sample1, N, dendrogram) + calc_original_samples(sample2, N, dendrogram)
+        if len(samples_in_clade) != num_samples_in_clade: sys.exit('Calculation of samples in clade %i went wrong'%i)
+        
         #get frequency of nodes in these networks
         forestFreq = nodeFrequency([lastF[k] for k in samples_in_clade])
         for s in samples_in_clade:
@@ -77,6 +68,15 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
 
             #submit new artificial prizes + orig prize list to run_single_pcsf
             #update lastF and artificial_prize_dicts
+
+def calc_original_samples(sample, N, Z):
+    #recursively find all original samples in this merge
+    #if the sample number is greater than N, this is a clade of several other samples
+    if sample < N:
+        return [sample]
+    else:
+        newIdx = sample-N
+        return calc_original_samples(Z[newIdx][0], N, Z) + calc_original_samples(Z[newIdx][1],N, Z)
         
 def nodeFrequency(list_of_node_lists):
     #return dict with node:freq of all nodes in these lists
