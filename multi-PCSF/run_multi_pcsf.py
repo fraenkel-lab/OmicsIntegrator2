@@ -4,7 +4,7 @@
 #constraining similar samples to result in similar networks
 
 #Inputs: 
-#   -prize file per sample
+#   -prize file per sample (possibly Z score)
 #   -One interactome
 #   -Dendrogram representing heirarchical clustering of samples
 

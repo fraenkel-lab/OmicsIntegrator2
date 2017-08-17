@@ -34,6 +34,8 @@ plt.show()
 
 return Z
 
+# Run diffenet clustering algorithm and find the one with most promissing clusters
+
 # computing s and d indexs for each clades(I'm adding this):
 
 def Process_Dendogram(Z):
