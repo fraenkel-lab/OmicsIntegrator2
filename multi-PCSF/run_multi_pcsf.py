@@ -125,23 +125,21 @@ def main():
 	    help='(Required, one or more) Paths to the text files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Should be tab delimited files with lines: "nodeName(tab)prize"')
     parser.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
         help='(Required) pickled object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
-    parser.add_argument('-o', '--output', dest='output_dir', required=True,
-	    help='(Required) Output directory path')
+    parser.add_argument('-o', '--output', dest='output_dir', default='.',
+	    help='Output directory path. Default current directory')
+
     #parser. add_argument("-ws", "--w_list", dest="w_list", nargs="+", default=[5,10], 
     #    help="A list of integers for the parameter w (number of trees). default='5 10'")
-    parser.add_argument("-w", dest="w", default=5)
+    parser.add_argument("-w", dest="w", default=5, type=float, help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 5]")
     #parser. add_argument("-bs", "--b_list", dest="b_list", nargs="+", default=[5,10], 
     #    help="A list of integers for the parameter b (size of network). default='5 10'")
-    parser.add_argument("-b", dest="b", default=5)
+    parser.add_argument("-b", dest="b", default=5, type=float, help="Beta: scaling factor of prizes [default: 1]")
     #parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
     #    help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
-    parser.add_argument("-n", dest="n", default=0, help="Negative prize on hubs (parameter a in PCSF)")
-    parser.add_argument("-l", "--lambda",dest="lbda", default=1)
-    parser.add_argument("-a", "--alpha",dest="alpha", default=1)
-
-    parser.add_argument("-s", "--seed", dest='seed', type=int, required=False,
-	    help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
-
+    parser.add_argument("-n", dest="n", default=0, type=float, help="Edge penalty on hubs (parameter a in PCSF) [default: 0]")
+    parser.add_argument("-l", "--lambda",dest="lbda", default=1, type=float, help="Lambda: scaling factor on artificial prizes [default: 1]")
+    parser.add_argument("-a", "--alpha",dest="alpha", default=1, type=float, help="Alpha: non-linear scaling on artificial prizes [default: 1]")
+    
     args = parser.parse_args()
     paramDict = {'w':args.w, 'b':args.b, 'a':args.n}
 
