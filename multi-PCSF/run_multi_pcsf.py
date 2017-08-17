@@ -10,6 +10,7 @@
 
 import argparse
 import sys, os
+import pickle
 from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
 
 def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
@@ -30,15 +31,18 @@ def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
 
 def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
-
+    
+    dendrogram = pickle.load(open(dendrogram,'rb'))
     N = len(prizefiles)
-    lastF = []*N #list of N lists of nodes in latest version of each sample
-    artificial_prize_dicts = {}*N #list of N dicts of latest artificial prizes in each sample
+    lastF = [[] for _ in range(N)] #list of N lists of nodes in latest version of each sample
+    artificial_prize_dicts = [{} for _ in range(N)] #list of N dicts of latest artificial prizes in each sample
 
     #Run the first iteration with unaltered prizes
     os.makedirs(outdir + '/initial')
     for i,p in enumerate(prizefiles):
-        unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, outdir + '/initial')  #change this to param screen later?
+        i_outdir = outdir + '/initial/sample%i'%i
+        os.makedirs(i_outdir)
+        unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)  #change this to param screen later?
         lastF[i] = unadjusted_forest.nodes() #NOTE this currently doesn't include a way to distinguish between what was originally a Steiner node or terminal
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
@@ -54,20 +58,30 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, outdir):
         
         #get frequency of nodes in these networks
         forestFreq = nodeFrequency([lastF[k] for k in samples_in_clade])
+
+        #Update forests for each sample
         for s in samples_in_clade:
-            nodes = lastF[s]
+            s_outdir = outdir + '/iter%i/sample%i'%(i,s)
+            os.makedirs(s_outdir)
             artificial_prizes = artificial_prize_dicts[s]
             for node in forestFreq:
                 if node in artificial_prizes:
-                    artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
+                    artificial_prizes[node] = artificial_prizes[node] + (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
                 else:
-                    artificial_prizes[node] = (s_c*forestFreq[node])^-1*d_c #TODO add lambda and alpha
-            with open(outdir + '/iter%i/artificial_prizes.txt'%i,"w") as f:
-                for item in artificial_prizes.iterkeys():
+                    artificial_prizes[node] = (s_c*forestFreq[node])**(0-d_c) #TODO add lambda and alpha
+            #write new prizes + original prizes to a file
+            with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
+                for item in artificial_prizes:
                     f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                with open(prizefiles[s], "r") as p:
+                    f.writelines(p.readlines())
 
             #submit new artificial prizes + orig prize list to run_single_pcsf
+            new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
+
             #update lastF and artificial_prize_dicts
+            lastF[s] = new_forest.nodes()
+            artificial_prize_dicts[s] = artificial_prizes
 
 def calc_original_samples(sample, N, Z):
     #recursively find all original samples in this merge
@@ -76,7 +90,7 @@ def calc_original_samples(sample, N, Z):
         return [sample]
     else:
         newIdx = sample-N
-        return calc_original_samples(Z[newIdx][0], N, Z) + calc_original_samples(Z[newIdx][1],N, Z)
+        return calc_original_samples(int(Z[newIdx][0]), N, Z) + calc_original_samples(int(Z[newIdx][1]), N, Z)
         
 def nodeFrequency(list_of_node_lists):
     #return dict with node:freq of all nodes in these lists
@@ -99,26 +113,30 @@ def main():
 	Run the PCSF algorithm several times on hierarchically clustered samples, refining the tree for each sample so that similar
     samples result in similar trees.""")
 
-    parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
+    parser.add_argument("-e", "--edge", dest='edge_file', required=True,
 	    help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
-    parser.add_argument("-p", "--prizefiles", dest='prize_files', type=argparse.FileType('r'), required=True, nargs="+",
+    parser.add_argument("-p", "--prizefiles", dest='prize_files', required=True, nargs="+",
 	    help='(Required, one or more) Paths to the text files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Should be tab delimited files with lines: "nodeName(tab)prize"')
     parser.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
-        help='(Required) object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
+        help='(Required) pickled object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
     parser.add_argument('-o', '--output', dest='output_dir', required=True,
 	    help='(Required) Output directory path')
-    parser. add_argument("-ws", "--w_list", dest="w_list", nargs="+", default=[5,10], 
-        help="A list of integers for the parameter w (number of trees). default='5 10'")
-    parser. add_argument("-bs", "--b_list", dest="b_list", nargs="+", default=[5,10], 
-        help="A list of integers for the parameter b (size of network). default='5 10'")
-    parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
-        help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
+    #parser. add_argument("-ws", "--w_list", dest="w_list", nargs="+", default=[5,10], 
+    #    help="A list of integers for the parameter w (number of trees). default='5 10'")
+    parser.add_argument("-w", dest="w", default=5)
+    #parser. add_argument("-bs", "--b_list", dest="b_list", nargs="+", default=[5,10], 
+    #    help="A list of integers for the parameter b (size of network). default='5 10'")
+    parser.add_argument("-b", dest="b", default=5)
+    #parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
+    #    help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
+    parser.add_argument("-a", dest="a", default=0)
     parser.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 	    help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
 
     args = parser.parse_args()
+    paramDict = {'w':args.w, 'b':args.b, 'a':args.a}
 
-
+    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, paramDict, args.output_dir)
 
 
 if __name__ == '__main__':
