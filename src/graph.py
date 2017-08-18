@@ -103,7 +103,7 @@ class Graph:
 			params (dict): params with which to run the program
 		"""
 
-		defaults = {"w": 6, "b": 1, "mu": 0, "a": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
+		defaults = {"w": 6, "b": 1, "mu": 0, "g": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
 
 		self.params = Options({**defaults, **params})
 
@@ -112,7 +112,7 @@ class Graph:
 		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
 		N = len(self.nodes)
-		self.edge_penalties = self.params.a * np.array([self.node_degrees[a] * self.node_degrees[b] /
+		self.edge_penalties = self.params.g * np.array([self.node_degrees[a] * self.node_degrees[b] /
 							((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
 
 		self.costs = (self.edge_costs + self.edge_penalties)
@@ -502,14 +502,14 @@ class Graph:
 		return (paramstring, self.pcsf())
 
 
-	def _grid_pcsf(self, prize_file, As, Bs, Ws):
+	def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
 
 		Arguments:
 			prize_file (str): filepath
-			As (list): Values of alpha
+			Gs (list): Values of gamma
 			Bs (list): Values of beta
 			Ws (list): Values of omega
 
@@ -519,14 +519,14 @@ class Graph:
 
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(As, Bs, Ws)]
+		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(Gs, Bs, Ws)]
 
 		results = list(map(self._eval_pcsf, parameter_permutations))
 
 		return results
 
 
-	def grid_search(self, prize_file, As, Bs, Ws):
+	def grid_search(self, prize_file, Gs, Bs, Ws):
 		"""
 		Macro function which performs grid search and merges the results.
 
@@ -534,7 +534,7 @@ class Graph:
 
 		Arguments:
 			prize_file (str): filepath
-			As (list): Values of alpha
+			Gs (list): Values of gamma
 			Bs (list): Values of beta
 			Ws (list): Values of omega
 
@@ -544,7 +544,7 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		results = _grid_pcsf(prize_file, As, Bs, Ws)
+		results = _grid_pcsf(prize_file, Gs, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
