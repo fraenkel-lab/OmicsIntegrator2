@@ -498,7 +498,7 @@ class Graph:
 		"""
 
 		self._reset_hyperparameters(params)
-		paramstring = 'A_'+str(params['a'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
 		return (paramstring, self.pcsf())
 
 
@@ -519,7 +519,7 @@ class Graph:
 
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'a':a,'b':b,'w':w} for (a, b, w) in product(Gs, Bs, Ws)]
+		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
 
 		results = list(map(self._eval_pcsf, parameter_permutations))
 
