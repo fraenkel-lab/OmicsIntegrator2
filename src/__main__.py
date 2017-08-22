@@ -47,8 +47,8 @@ params.add_argument("-b", dest="b", type=float, required=False,
 	help="Beta: scaling factor of prizes [default: 1]")
 params.add_argument("-mu", dest="mu", type=float, required=False,
 	help="Mu: multiplicative node penalty from degree of node [default: 0]")
-params.add_argument("-a", dest="a", type=float, required=False,
-	help="Alpha: multiplicative edge penalty from degree of endpoints [default: 20]")
+params.add_argument("-g", dest="g", type=float, required=False,
+	help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
 params.add_argument("-noise", dest="noise", type=float, required=False,
 	help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
 params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
@@ -73,7 +73,7 @@ def main():
 
 	args = parser.parse_args()
 
-	params = {"w":args.w, "b":args.b, "mu":args.mu, "a":args.a, "noise":args.noise, "dummy_mode":args.dummy_mode, "mu_squared":args.mu_squared, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
+	params = {"w":args.w, "b":args.b, "mu":args.mu, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "mu_squared":args.mu_squared, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
 	params = {param: value for param, value in params.items() if value}
 	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
