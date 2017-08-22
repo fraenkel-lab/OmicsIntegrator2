@@ -134,14 +134,14 @@ def main():
     #parser. add_argument("-bs", "--b_list", dest="b_list", nargs="+", default=[5,10], 
     #    help="A list of integers for the parameter b (size of network). default='5 10'")
     parser.add_argument("-b", dest="b", default=5, type=float, help="Beta: scaling factor of prizes [default: 1]")
-    #parser. add_argument("-as", "--a_list", dest="a_list", nargs="+", default=[0,10000,100000], 
-    #    help="A list of integers for the parameter a (negative prize on hubs). default='0 10000 100000'")
-    parser.add_argument("-n", dest="n", default=0, type=float, help="Edge penalty on hubs (parameter a in PCSF) [default: 0]")
+    #parser. add_argument("-gs", "--g_list", dest="g_list", nargs="+", default=[0,10000,100000], 
+    #    help="A list of integers for the parameter g (penalty on hubs). default='0 10000 100000'")
+    parser.add_argument("-g", dest="g", default=0, type=float, help="Gamma: Edge penalty on hubs [default: 0]")
     parser.add_argument("-l", "--lambda",dest="lbda", default=1, type=float, help="Lambda: scaling factor on artificial prizes [default: 1]")
     parser.add_argument("-a", "--alpha",dest="alpha", default=1, type=float, help="Alpha: non-linear scaling on artificial prizes [default: 1]")
     
     args = parser.parse_args()
-    paramDict = {'w':args.w, 'b':args.b, 'a':args.n}
+    paramDict = {'w':args.w, 'b':args.b, 'g':args.g}
 
     run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, paramDict, args.alpha, args.lbda, args.output_dir)
 
