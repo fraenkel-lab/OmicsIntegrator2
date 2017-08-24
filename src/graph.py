@@ -582,6 +582,34 @@ def k_clique_clustering(nxgraph, k):
 	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 
+def augment_with_all_GO_terms(nxgraph):
+	"""
+	"""
+	augment_with_subcellular_localization(nxgraph)
+	augment_with_biological_process_terms(nxgraph)
+	augment_with_molecular_function_terms(nxgraph)
+
+def augment_with_subcellular_localization(nxgraph):
+	"""
+	"""
+	pass
+
+def augment_with_biological_process_terms(nxgraph):
+	"""
+	"""
+	pass
+
+def augment_with_molecular_function_terms(nxgraph):
+	"""
+	"""
+	pass
+
+def perform_GO_enrichment_on_clusters(nxgraph, clustering):
+	"""
+	"""
+	pass
+
+
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
 	Arguments:

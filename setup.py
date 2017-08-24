@@ -20,7 +20,8 @@ setup(
         "networkx",
         "pcst_fast",
         "python-louvain",
-        "py2cytoscape==0.6.0"
+        "py2cytoscape==0.6.0",
+        "goenrich"
     ],
     entry_points={
         'console_scripts': [

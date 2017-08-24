@@ -5,3 +5,4 @@ networkx==1.11
 pcst_fast==1.0.6
 py2cytoscape==0.6.2
 python-louvain==0.8
+goenrich==1.6.0
