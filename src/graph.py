@@ -627,8 +627,19 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
 	njs = cy.from_networkx(nxgraph)
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
 
+def output_networkx_graph_as_edgelist(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_edgelist.txt)
+	"""
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
+	path = os.path.join(os.path.abspath(output_dir), 'graph_edgelist.txt')
+	njs = cy.from_networkx(nxgraph)
+	nx.write_edgelist(njs, path, data=True)

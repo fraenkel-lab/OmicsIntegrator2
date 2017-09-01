@@ -4,14 +4,14 @@
 #constraining similar samples to result in similar networks
 
 #Inputs: 
-#   -prize file per sample (possibly Z score)
+#   -prize file per sample
 #   -One interactome
 #   -Dendrogram representing heirarchical clustering of samples
 
 import argparse
 import sys, os
 import pickle
-from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
+from graph import Graph, output_networkx_graph_as_edgelist
 
 def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     #One straightforward application of PCSF
@@ -19,15 +19,8 @@ def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     graph.prepare_prizes(prizeFile)
     vertex_indices, edge_indices = graph.pcsf()
     forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
-    output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, outdir)
+    output_networkx_graph_as_edgelist(augmented_forest, outdir)
     return forest
-
-def run_param_screen(prizeFile, edgeFile, w_list, b_list, a_list, outdir):
-    #For a single clade & sample, run a parameter screen and return the best resulting forest
-    #Did Gitter et al vary parameters per iteration? - they tested multiple params but mostly kept things unchanging.
-    #TODO Decide how we want to do this
-    pass
-
 
 def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
@@ -43,7 +36,7 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, out
     for i,p in enumerate(prizefiles):
         i_outdir = outdir + '/initial/sample%i'%i
         os.makedirs(i_outdir)
-        unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)  #change this to param screen later?
+        unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)
         lastF[i] = unadjusted_forest.nodes()
         with open(p,'r') as pf:
             for line in pf:
@@ -128,14 +121,8 @@ def main():
     parser.add_argument('-o', '--output', dest='output_dir', default='.',
 	    help='Output directory path. Default current directory')
 
-    #parser. add_argument("-ws", "--w_list", dest="w_list", nargs="+", default=[5,10], 
-    #    help="A list of integers for the parameter w (number of trees). default='5 10'")
     parser.add_argument("-w", dest="w", default=5, type=float, help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 5]")
-    #parser. add_argument("-bs", "--b_list", dest="b_list", nargs="+", default=[5,10], 
-    #    help="A list of integers for the parameter b (size of network). default='5 10'")
-    parser.add_argument("-b", dest="b", default=5, type=float, help="Beta: scaling factor of prizes [default: 1]")
-    #parser. add_argument("-gs", "--g_list", dest="g_list", nargs="+", default=[0,10000,100000], 
-    #    help="A list of integers for the parameter g (penalty on hubs). default='0 10000 100000'")
+    parser.add_argument("-b", dest="b", default=1, type=float, help="Beta: scaling factor of prizes [default: 1]")
     parser.add_argument("-g", dest="g", default=0, type=float, help="Gamma: Edge penalty on hubs [default: 0]")
     parser.add_argument("-l", "--lambda",dest="lbda", default=1, type=float, help="Lambda: scaling factor on artificial prizes [default: 1]")
     parser.add_argument("-a", "--alpha",dest="alpha", default=1, type=float, help="Alpha: non-linear scaling on artificial prizes [default: 1]")
