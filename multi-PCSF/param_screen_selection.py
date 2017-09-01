@@ -13,7 +13,7 @@ def run_param_screen(prize_file, edge_file, w_list, b_list, a_list):
         for a in a_list:
             for b in b_list:
                 #run pcsf for these parameter combinations
-                outdir = 'w%s_b%s_a%s'%(w,b,a)
+                outdir = '%s_w%s_b%s_a%s'%(prize_file.rsplit('.',1)[0],w,b,a)
                 if not os.path.exists(outdir): os.mkdir(outdir)
                 params = {"w":int(w), "b":int(b), "a":int(a)}
                 graph = Graph(edge_file, params)
@@ -28,7 +28,7 @@ def run_param_screen(prize_file, edge_file, w_list, b_list, a_list):
                 hiddens=0
                 totalterm=0
                 totalhidden=0
-                graphf = open('w%s_b%s_a%s/graph_json.json'%(w,b,a),'r')
+                graphf = open('%s_w%s_b%s_a%s/graph_json.json'%(prize_file.rsplit('.',1)[0],w,b,a),'r')
                 nodes = json.load(graphf)['elements']['nodes']
                 for node in nodes:
                     if 'prize' in node['data']:
@@ -47,6 +47,7 @@ def run_param_screen(prize_file, edge_file, w_list, b_list, a_list):
                     #print('For w = %s, b = %s, a = %s, there are 0 terminals'%(w,b,a))
 
     #Determine optimal set (if it exists)
+    print (prize_file)
     print ('There are %i parameter sets with acceptable difference between average degrees.'%len(goodparams))
     if len(goodparams)>0:
         maxtermsindex = -1
@@ -56,7 +57,7 @@ def run_param_screen(prize_file, edge_file, w_list, b_list, a_list):
                 maxtermindex = i
                 maxterms = params[3]
         bestw, bestb, besta, num = goodparams[maxtermsindex]
-        print ('Of these, the parameter set with maximum terminals is w = %s, b = %s, a = %s. Check this directory for the visualization.'%(bestw, bestb, besta))
+        print ('Of these, the parameter set with maximum terminals is w = %s, b = %s, a = %s.\n'%(bestw, bestb, besta))
 
         
 if __name__ == '__main__':
