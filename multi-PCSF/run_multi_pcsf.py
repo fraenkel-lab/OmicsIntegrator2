@@ -30,7 +30,7 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
         prizefiles = pf.readlines()
     N = len(prizefiles)
     lastF = [[] for _ in range(N)] #list of N lists of nodes in latest version of each sample
-    artificial_prize_dicts = [{} for _ in range(N)] #list of N dicts of latest artificial prizes in each sample
+    last_iteration_for_samples = [-1 for _ in range(N)] #keep track of last iteration where this sample appeared
     origP = [[] for _ in range(N)] #keep track of original prizes per sample so we know which are Steiners
 
     #Run the first iteration with unaltered prizes and note which nodes are terminals
@@ -64,7 +64,18 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
         for s in samples_in_clade:
             s_outdir = outdir + '/iter%i/sample%i'%(i,s)
             os.makedirs(s_outdir, exist_ok=True)
-            artificial_prizes = artificial_prize_dicts[s]
+            #read in artificial prizes we already assigned to this sample in previous iterations
+            last_iter = last_iteration_for_samples[s]
+            if last_iter == -1:
+                artificial_prizes = {}
+            else:
+                s_lastdir = outdir + 'iter%i/sample%i'%(last_iter,s)
+                with open('%s/artificial_prizes.txt'%(s_lastdir), 'r') as a:
+                    artificial_prizes = {}
+                    for line in a:
+                        node, prize = line.strip().split('\t')
+                        artificial_prizes[node] = float(prize)
+            #Calculate new artificial prizes for this iteration
             for node in forestFreq:
                 if node not in origP[s]:
                     if node in artificial_prizes:
@@ -73,18 +84,19 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
                         artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
             #write new prizes + original prizes to a file
             with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
-                for item in artificial_prizes:
-                    f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                with open('%s/artificial_prizes.txt'%(s_outdir),'w') as a:
+                    for item in artificial_prizes:
+                        f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                        a.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
                 with open(prizefiles[s].strip(), "r") as p:
                     f.writelines(p.readlines())
 
             #submit new artificial prizes + orig prize list to run_single_pcsf
             new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
 
-            #update lastF and artificial_prize_dicts
+            #update lastF
             lastF[s] = new_forest.nodes()
-            artificial_prize_dicts[s] = artificial_prizes
-
+            
 def calc_original_samples(sample, N, Z):
     #recursively find all original samples in this merge
     #if the sample number is greater than N, this is a clade of several other samples
