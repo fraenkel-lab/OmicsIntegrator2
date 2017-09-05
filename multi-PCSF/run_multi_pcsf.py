@@ -34,11 +34,11 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
     origP = [[] for _ in range(N)] #keep track of original prizes per sample so we know which are Steiners
 
     #Run the first iteration with unaltered prizes and note which nodes are terminals
-    os.makedirs(outdir + '/initial')
+    os.makedirs(outdir + '/initial', exist_ok=True)
     for i,p in enumerate(prizefiles):
         p = p.strip()
         i_outdir = outdir + '/initial/sample%i'%i
-        os.makedirs(i_outdir)
+        os.makedirs(i_outdir, exist_ok=True)
         unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)
         lastF[i] = unadjusted_forest.nodes()
         with open(p,'r') as pf:
@@ -48,7 +48,7 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
-        os.makedirs(outdir + '/iter%i'%i)
+        os.makedirs(outdir + '/iter%i'%i, exist_ok=True)
         num_samples_in_clade = int(c[3])
         s_c = float(c[2])
         d_c = 1-s_c
@@ -63,7 +63,7 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
         #Update forests for each sample
         for s in samples_in_clade:
             s_outdir = outdir + '/iter%i/sample%i'%(i,s)
-            os.makedirs(s_outdir)
+            os.makedirs(s_outdir, exist_ok=True)
             artificial_prizes = artificial_prize_dicts[s]
             for node in forestFreq:
                 if node not in origP[s]:
