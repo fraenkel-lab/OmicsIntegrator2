@@ -22,10 +22,12 @@ def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     output_networkx_graph_as_edgelist(augmented_forest, outdir)
     return forest
 
-def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, outdir):
+def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
     
     dendrogram = pickle.load(open(dendrogram,'rb'))
+    with open(prizefileslist, 'r') as pf:
+        prizefiles = pf.readlines()
     N = len(prizefiles)
     lastF = [[] for _ in range(N)] #list of N lists of nodes in latest version of each sample
     artificial_prize_dicts = [{} for _ in range(N)] #list of N dicts of latest artificial prizes in each sample
@@ -34,6 +36,7 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, out
     #Run the first iteration with unaltered prizes and note which nodes are terminals
     os.makedirs(outdir + '/initial')
     for i,p in enumerate(prizefiles):
+        p = p.strip()
         i_outdir = outdir + '/initial/sample%i'%i
         os.makedirs(i_outdir)
         unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)
@@ -72,7 +75,7 @@ def run_multi_PCSF(dendrogram, prizefiles, edgeFile, paramDict, alpha, lbda, out
             with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
                 for item in artificial_prizes:
                     f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
-                with open(prizefiles[s], "r") as p:
+                with open(prizefiles[s].strip(), "r") as p:
                     f.writelines(p.readlines())
 
             #submit new artificial prizes + orig prize list to run_single_pcsf
@@ -114,8 +117,8 @@ def main():
 
     parser.add_argument("-e", "--edge", dest='edge_file', required=True,
 	    help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
-    parser.add_argument("-p", "--prizefiles", dest='prize_files', required=True, nargs="+",
-	    help='(Required, one or more) Paths to the text files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Should be tab delimited files with lines: "nodeName(tab)prize"')
+    parser.add_argument("-p", "--prizefiles", dest='prize_files', required=True,
+	    help='(Required, one or more) A text file containing paths to the files containing the prizes. The list should be in the same order as was provided to create the dendrogram. Each path should lead to a tab delimited files with lines: "nodeName(tab)prize"')
     parser.add_argument("-d", "--dendrogram", dest="dendrogram", required=True,
         help='(Required) pickled object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
     parser.add_argument('-o', '--output', dest='output_dir', default='.',
