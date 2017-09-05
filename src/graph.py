@@ -641,5 +641,4 @@ def output_networkx_graph_as_edgelist(nxgraph, output_dir):
 	"""
 	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), 'graph_edgelist.txt')
-	njs = cy.from_networkx(nxgraph)
-	nx.write_edgelist(njs, path, data=True)
+	nx.write_edgelist(nxgraph, path, data=False)
