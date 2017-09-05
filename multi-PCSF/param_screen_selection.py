@@ -10,7 +10,7 @@ from graph import *
 def run_param_screen(prize_file, edge_file, w_list, b_list, g_list):
     goodparams = []
     for w in w_list:
-        for a in a_list:
+        for g in g_list:
             for b in b_list:
                 #run pcsf for these parameter combinations
                 outdir = '%s_w%s_b%s_g%s'%(prize_file.rsplit('.',1)[0],w,b,g)
