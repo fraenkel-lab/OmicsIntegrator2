@@ -17,6 +17,7 @@ import json
 import numpy as np
 import pandas as pd
 import networkx as nx
+from sklearn.cluster import SpectralClustering
 import community    # pip install python-louvain
 from py2cytoscape import util as cy
 import goenrich
@@ -258,8 +259,8 @@ class Graph:
 		the results of this function.
 
 		Arguments:
-			pruning (str): TODO
-			verbosity_level (int): TODO
+			pruning (str): a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
+			verbosity_level (int): an integer indicating how much debug output the function should produce.
 
 		Returns:
 			numpy.array: indices of the selected vertices
@@ -342,9 +343,9 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) +
-				sum(nx.get_edge_attributes(forest, 'cost').values()) +
-				(self.params.w * nx.number_connected_components(forest))
+		return ((sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) +
+				 sum(nx.get_edge_attributes(forest, 'cost').values()) +
+				 (self.params.w * nx.number_connected_components(forest)))
 
 
 	def _noisy_edges(self):
@@ -590,7 +591,8 @@ def k_clique_clustering(nxgraph, k):
 def spectral_clustering(nxgraph, k):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'spectral_clusters', )
+	clustering = SpectralClustering(k, affinity='precomputed', n_init=100, assign_labels='discretize').fit_predict(nx.to_numpy_matrix(nxgraph))
+	nx.set_node_attributes(nxgraph, 'spectral_clusters', dict(zip(nxgraph.nodes(), clustering)))
 
 
 # GO ENRICHMENT

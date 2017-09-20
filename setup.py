@@ -21,7 +21,8 @@ setup(
         "pcst_fast",
         "python-louvain",
         "py2cytoscape==0.6.0",
-        "goenrich"
+        "goenrich",
+        "sklearn"
     ],
     entry_points={
         'console_scripts': [
