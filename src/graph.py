@@ -19,6 +19,7 @@ import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
 from py2cytoscape import util as cy
+import goenrich
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -54,7 +55,7 @@ class Options(object):
 class Graph:
 	"""
 	A Graph object is a representation of a graph, with convenience methods for using the pcst_fast
-	package, which computes an approximate minimization Prize-Collecting Steiner Forest objective.
+	package, which approximately minimizes the Prize-Collecting Steiner Forest objective.
 	"""
 	def __init__(self, interactome_file, params):
 		"""
@@ -176,7 +177,7 @@ class Graph:
 
 	def prepare_prizes(self, prize_file):
 		"""
-		Parses a prize file and returns an array of prizes, a list of terminal indices.
+		Parses a prize file and adds prize-related attributes to the graph object.
 
 		This function logs duplicate assignments in the prize file and memebers of the prize file
 		not found in the interactome.
@@ -187,12 +188,13 @@ class Graph:
 		i.e. the first row of the tsv must be the names of the columns.
 
 		Sets the graph attributes
-		- `graph.prizes` (numpy.array): properly indexed
+		- `graph.bare_prizes` (numpy.array): properly indexed (same as `graph.nodes`) prizes from the file.
+		- `graph.prizes` (numpy.array): properly indexed prizes, scaled by beta (`graph.params.b`)
 		- `graph.terminals` (numpy.array): their indices
-		- `graph.node_attributes` (pandas.DataFrame)
+		- `graph.node_attributes` (pandas.DataFrame) Any node attributes passed in with the prize file (columns 3, ...)
 
 		Arguments:
-			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
+			prize_file (str or FILE): a filepath or file object containing a tsv **with column headers**.
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
@@ -340,7 +342,9 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) +
+				sum(nx.get_edge_attributes(forest, 'cost').values()) +
+				(self.params.w * nx.number_connected_components(forest))
 
 
 	def _noisy_edges(self):
@@ -566,6 +570,8 @@ def betweenness(nxgraph):
 	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
 
 
+# CLUSTERING
+
 def louvain_clustering(nxgraph):
 	"""
 	"""
@@ -581,6 +587,13 @@ def k_clique_clustering(nxgraph, k):
 	"""
 	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
 
+def spectral_clustering(nxgraph, k):
+	"""
+	"""
+	nx.set_node_attributes(nxgraph, 'spectral_clusters', )
+
+
+# GO ENRICHMENT
 
 def augment_with_all_GO_terms(nxgraph):
 	"""
@@ -593,6 +606,16 @@ def augment_with_subcellular_localization(nxgraph):
 	"""
 	"""
 	pass
+
+	# ontology_graph = goenrich.obo.ontology('db/go-basic.obo')
+	# gene2go = pd.read_csv('gene2go.csv')
+	# GO_terms_and_associated_genes = {k: set(v) for k,v in gene2go.groupby('GO_ID')['GeneSymbol']}
+	# background_set_attribute_name = 'genes'
+	# goenrich.enrich.propagate(ontology_graph, GO_terms_and_associated_genes, background_set_attribute_name)
+
+	# query = nxgraph.nodes()
+	# df = goenrich.enrich.analyze(ontology_graph, query, background_set_attribute_name).dropna().sort_values('p')
+
 
 def augment_with_biological_process_terms(nxgraph):
 	"""
@@ -609,6 +632,8 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
 	"""
 	pass
 
+
+# EXPORT
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
