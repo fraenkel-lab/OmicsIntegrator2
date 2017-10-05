@@ -553,8 +553,8 @@ class Graph:
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict().items())
-		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
+		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
+		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
 
 		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
