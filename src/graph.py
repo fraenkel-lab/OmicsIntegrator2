@@ -544,10 +544,10 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		results = _grid_pcsf(prize_file, Gs, Bs, Ws)
+		results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
-		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
+		vertex_indices, edge_indices = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
 
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
@@ -569,17 +569,17 @@ def betweenness(nxgraph):
 def louvain_clustering(nxgraph):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
+	nx.set_node_attributes(nxgraph, 'louvainClusters', community.best_partition(nxgraph))
 
 # def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
 # 	"""
 # 	"""
-# 	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', invert(nx.girvan_newman(nxgraph)))
+# 	nx.set_node_attributes(nxgraph, 'edgeBetweennessClusters', invert(nx.girvan_newman(nxgraph)))
 
 def k_clique_clustering(nxgraph, k):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
+	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
