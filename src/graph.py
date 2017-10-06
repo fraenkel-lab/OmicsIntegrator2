@@ -319,6 +319,8 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		# the above won't capture the singletons, so we'll add them here
+		forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
 		for attribute in self.node_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
@@ -505,6 +507,7 @@ class Graph:
 
 		self._reset_hyperparameters(params)
 		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		logger.info(paramstring)
 		return (paramstring, self.pcsf())
 
 
