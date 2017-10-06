@@ -25,7 +25,7 @@ from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
-			"output_networkx_graph_as_gml_for_cytoscape",
+			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
@@ -618,7 +618,7 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
+def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
@@ -627,7 +627,7 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	nx.write_gml(nxgraph, path)
+	nx.write_graphml(nxgraph, path)
 
 
 def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
