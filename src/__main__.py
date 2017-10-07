@@ -7,8 +7,8 @@ import sys, os
 import argparse
 
 # import this module
-from . import Graph, output_networkx_graph_as_gml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
-# from graph import Graph, output_networkx_graph_as_gml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+from . import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+# from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
 
 parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using
@@ -87,7 +87,7 @@ def main():
 		vertex_indices, edge_indices = graph.pcsf()
 		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-	#output_networkx_graph_as_gml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
+	#output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
 	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
 
 if __name__ == '__main__':

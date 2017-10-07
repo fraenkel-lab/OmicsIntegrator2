@@ -27,7 +27,7 @@ from pcst_fast import pcst_fast
 
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
-			"output_networkx_graph_as_gml_for_cytoscape",
+			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
@@ -77,6 +77,12 @@ class Graph:
 
 		interactome_fieldnames = ["source","target","cost"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
+
+		self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
+		logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
+		logger.info(self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist())
+		self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
 		# We first take only the source and target columns from the interactome dataframe.
@@ -316,6 +322,8 @@ class Graph:
 		# Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
 		edges = self.interactome_dataframe.loc[edge_indices]
 		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		# the above won't capture the singletons, so we'll add them here
+		forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
 		for attribute in self.node_attributes.columns.values:
 			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
@@ -487,11 +495,11 @@ class Graph:
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
 		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict().items())
-			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict().items())
+			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
+			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
 		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict().items())
-			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict().items())
+			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
+			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
 		return forest, augmented_forest
@@ -504,6 +512,7 @@ class Graph:
 
 		self._reset_hyperparameters(params)
 		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		logger.info(paramstring)
 		return (paramstring, self.pcsf())
 
 
@@ -549,17 +558,17 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		results = _grid_pcsf(prize_file, Gs, Bs, Ws)
+		results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
-		vertex_indices, edge_indices = self._aggregate_pcsf(dict(results).values(), 'frequency')
+		vertex_indices, edge_indices = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
 
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict().items())
-		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict().items())
+		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
+		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
 
 		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
@@ -576,17 +585,17 @@ def betweenness(nxgraph):
 def louvain_clustering(nxgraph):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'louvain_clusters', community.best_partition(nxgraph))
+	nx.set_node_attributes(nxgraph, 'louvainClusters', community.best_partition(nxgraph))
 
 # def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
 # 	"""
 # 	"""
-# 	nx.set_node_attributes(nxgraph, 'edge_betweenness_clusters', invert(nx.girvan_newman(nxgraph)))
+# 	nx.set_node_attributes(nxgraph, 'edgeBetweennessClusters', invert(nx.girvan_newman(nxgraph)))
 
 def k_clique_clustering(nxgraph, k):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'k_clique_clusters', invert(nx.k_clique_communities(nxgraph, k)))
+	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 def spectral_clustering(nxgraph, k):
 	"""
@@ -664,7 +673,7 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	return intermediate[['protein1', 'protein2']]
 
 
-def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
+def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
@@ -673,7 +682,7 @@ def output_networkx_graph_as_gml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	nx.write_gml(nxgraph, path)
+	nx.write_graphml(nxgraph, path)
 
 
 def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
