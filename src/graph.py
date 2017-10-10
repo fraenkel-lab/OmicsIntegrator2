@@ -630,13 +630,13 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
 	nx.write_graphml(nxgraph, path)
 
 
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
-	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+	path = os.path.join(os.path.abspath(output_dir), filename)
 	njs = cy.from_networkx(nxgraph)
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))

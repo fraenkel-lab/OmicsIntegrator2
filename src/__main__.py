@@ -7,8 +7,8 @@ import sys, os
 import argparse
 
 # import this module
-from . import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
-# from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+# from . import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
+from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs, get_networkx_graph_as_dataframe_of_nodes, get_networkx_graph_as_dataframe_of_edges
 
 parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using
@@ -88,7 +88,12 @@ def main():
 		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
 	#output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
-	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
+	output_networkx_graph_as_json_for_cytoscapejs(forest, args.output_dir, "forest_solution.json")
+	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir, "forest_augmented.json")
+
+	tag = "w_{}_b_{}_g_{}".format(args.w, args.b, args.g)
+	output_dataframe_to_tsv(get_networkx_graph_as_dataframe_of_nodes(augmented_forest), args.output_dir, tag+".graph_nodes.tsv")
+	output_dataframe_to_tsv(get_networkx_graph_as_dataframe_of_edges(augmented_forest), args.output_dir, tag+".graph_edges.tsv")
 
 if __name__ == '__main__':
 	main()
