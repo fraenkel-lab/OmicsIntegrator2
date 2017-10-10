@@ -490,6 +490,10 @@ class Graph:
 		if noisy_edges_reps > 0:
 			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
 			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
+
+			edge_robustness_dic = edge_indices.set_index("edge_index")["robustness"].to_dict()
+			nx.set_edge_attributes(forest, 'robustness', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_robustness_dic[edge] for edge in edge_robustness_dic})
+
 		if random_terminals_reps > 0:
 			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
@@ -594,6 +598,7 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400, min_compone
 	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
 	of size less than min_size, do not remove. 
 	"""
+	# TODO
 	return 
 
 
