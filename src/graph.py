@@ -622,11 +622,9 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	Returns:
 		pd.DataFrame: edges from the input graph and their attributes as a dataframe
 	"""
-
-	intermediate = pd.DataFrame(nxgraph.edges(data=True))
-	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
-	# TODO: in the future, get the other attributes out into columns
-	return intermediate[['protein1', 'protein2']]
+	intermediate = pd.DataFrame([{**{"protein1": x[0], "protein2": x[1]}, **x[2]} for x in forest.edges(data=True)])
+	intermediate = intermediate[['protein1', 'protein2'] + list(set(intermediate.columns)-set(['protein1', 'protein2']))]
+	return intermediate
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
