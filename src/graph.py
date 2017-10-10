@@ -66,7 +66,7 @@ class Graph:
 		- `graph.nodes` (pandas.Index),
 		- `graph.edges` (list of pairs),
 		- `graph.costs` and `graph.edge_penalties` (lists, such that the ordering is the same as in graph.edges),
-		- `graph.node_degrees` and `graph.negprizes` (lists, such that the ordering is the same as in graph.nodes).
+		- `graph.node_degrees` (list, such that the ordering is the same as in graph.nodes).
 
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
@@ -109,13 +109,11 @@ class Graph:
 			params (dict): params with which to run the program
 		"""
 
-		defaults = {"w": 6, "b": 1, "mu": 0, "g": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
+		defaults = {"w": 6, "b": 1, "g": 20, "noise": 0.1, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
 
 		self.params = Options({**defaults, **params})
 
 		self._knockout(self.params.knockout)
-
-		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
 		N = len(self.nodes)
 		self.edge_penalties = self.params.g * np.array([self.node_degrees[a] * self.node_degrees[b] /

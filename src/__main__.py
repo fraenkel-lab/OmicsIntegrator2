@@ -45,16 +45,12 @@ params.add_argument("-w", dest="w", type=float, required=False,
 	help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 6]")
 params.add_argument("-b", dest="b", type=float, required=False,
 	help="Beta: scaling factor of prizes [default: 1]")
-params.add_argument("-mu", dest="mu", type=float, required=False,
-	help="Mu: multiplicative node penalty from degree of node [default: 0]")
 params.add_argument("-g", dest="g", type=float, required=False,
 	help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
 params.add_argument("-noise", dest="noise", type=float, required=False,
 	help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
 params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
-params.add_argument("--muSquared", action='store_true', dest='mu_squared', required=False,
-	help='Flag to add negative prizes to hub nodes proportional to their degree^2, rather than degree. Must specify a positive mu in conf file. [default: False]')
 params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
 	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: False]')
 params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
@@ -73,7 +69,7 @@ def main():
 
 	args = parser.parse_args()
 
-	params = {"w":args.w, "b":args.b, "mu":args.mu, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "mu_squared":args.mu_squared, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
+	params = {"w":args.w, "b":args.b, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "exclude_terminals":args.exclude_terminals, "seed":args.seed}
 	params = {param: value for param, value in params.items() if value}
 	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
