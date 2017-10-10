@@ -591,6 +591,14 @@ def k_clique_clustering(nxgraph, k):
 	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 
+def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
+	"""
+	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
+	of size less than min_size, do not remove. 
+	"""
+	return 
+
+
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	"""
 	Arguments:
