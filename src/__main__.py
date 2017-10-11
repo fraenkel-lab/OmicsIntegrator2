@@ -76,14 +76,32 @@ def main():
 	graph = Graph(args.edge_file, params)
 	graph.prepare_prizes(args.prize_file)
 
-	# if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-	# 	forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
+	# Why doesn't this work: 
+	# results = graph._grid_pcsf2(prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
+	# Traceback (most recent call last):
+	#   File "__main__.py", line 125, in <module>
+	#     main()
+	#   File "__main__.py", line 107, in main
+	#     results = graph._grid_pcsf2(args.prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/src/graph.py", line 602, in _grid_pcsf2
+	#     self.prepare_prizes(prize_file)
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/src/graph.py", line 202, in prepare_prizes
+	#     prizes_dataframe = pd.read_csv(prize_file, sep='\t')
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 655, in parser_f
+	#     return _read(filepath_or_buffer, kwds)
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 405, in _read
+	#     parser = TextFileReader(filepath_or_buffer, **kwds)
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 764, in __init__
+	#     self._make_engine(self.engine)
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 985, in _make_engine
+	#     self._engine = CParserWrapper(self.f, **self.options)
+	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 1605, in __init__
+	#     self._reader = parsers.TextReader(src, **kwds)
+	#   File "pandas/_libs/parsers.pyx", line 565, in pandas._libs.parsers.TextReader.__cinit__ (pandas/_libs/parsers.c:6260)
+	# pandas.errors.EmptyDataError: No columns to parse from file
 
-	# else:
-	# 	vertex_indices, edge_indices = graph.pcsf()
-	# 	forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
-
-	results = graph._grid_pcsf2(args.prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
+	prize_file = "/nfs/latdata/iamjli/ALS/network_analysis/iMNs_ALS_CTR_20171004/protein_TF_prizes.tsv"
+	results = graph._grid_pcsf2(prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
 
 	for tag, forest, augmented_forest in results: 
 

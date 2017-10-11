@@ -598,7 +598,7 @@ class Graph:
 		Returns:
 			list: list of tuples of vertex indices and edge indices
 		"""
-
+		
 		self.prepare_prizes(prize_file)
 
 		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
