@@ -575,23 +575,24 @@ class Graph:
 		"""
 
 		self._reset_hyperparameters(params)
-		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		paramstring = 'W_'+str(params['w'])+'_B_'+str(params['b'])+'_G_'+str(params['g'])
 		logger.info(paramstring)
 
+		forest, augmented_forest = self.randomizations(100, 0)
 		# TODO: pass randomization number as a parameter
-		return (paramstring, self.randomizations(100, 0))
+		return {"tag": paramstring, "forest": forest, "augmented_forest": augmented_forest}
 
 
-	def _grid_pcsf2(self, prize_file, Gs, Bs, Ws):
+	def _grid_pcsf2(self, prize_file, Ws, Bs, Gs):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
 
 		Arguments:
 			prize_file (str): filepath
-			Gs (list): Values of gamma
-			Bs (list): Values of beta
 			Ws (list): Values of omega
+			Bs (list): Values of beta
+			Gs (list): Values of gamma
 
 		Returns:
 			list: list of tuples of vertex indices and edge indices
@@ -599,9 +600,9 @@ class Graph:
 
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
+		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
 
-		results = list(map(self._eval_pcsf2, parameter_permutations))
+		results = list(map(self._eval_randomizations, parameter_permutations))
 
 		return results
 
@@ -636,8 +637,11 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400, min_compone
 	"""
 	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
 	of size less than min_size, do not remove. 
+	Approach 2: select top max_size nodes based on robustness, then return subgraph. 
 	"""
 	# TODO
+
+
 	return 
 
 
@@ -653,6 +657,8 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 	intermediate = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
 	intermediate.index.name = "protein"
 	intermediate.reset_index(inplace=True)
+
+	if "robustness" in intermediate.columns: intermediate.sort_values("robustness", ascending=False, inplace=True)
 
 	return intermediate
 
