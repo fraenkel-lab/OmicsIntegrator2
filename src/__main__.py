@@ -76,21 +76,29 @@ def main():
 	graph = Graph(args.edge_file, params)
 	graph.prepare_prizes(args.prize_file)
 
-	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
-		forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
+	# if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
+	# 	forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
-	else:
-		vertex_indices, edge_indices = graph.pcsf()
-		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
+	# else:
+	# 	vertex_indices, edge_indices = graph.pcsf()
+	# 	forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-	#output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
-	output_networkx_graph_as_json_for_cytoscapejs(forest, args.output_dir, "forest_solution.json")
-	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir, "forest_augmented.json")
+	results = graph._grid_pcsf2(args.prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
 
-	tag = "w_{}_b_{}_g_{}".format(args.w, args.b, args.g)
-	augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_dataframe_attributes(augmented_forest)
-	output_dataframe_to_tsv(augmented_nodes_df, args.output_dir, tag+".graph_nodes.tsv")
-	output_dataframe_to_tsv(augmented_edges_df, args.output_dir, tag+".graph_edges.tsv")
+	for tag, forest, augmented_forest in results: 
+
+		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_dataframe_attributes(augmented_forest)
+
+		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
+		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_dataframe_attributes(robust_net)
+
+		# Write node and edge attributes for augmented network to files
+		output_dataframe_to_tsv(augmented_nodes_df, args.output_dir, tag+".augmented_network.nodes.tsv")
+		output_dataframe_to_tsv(augmented_edges_df, args.output_dir, tag+".augmented_network.edges.tsv")
+
+		# Write json for robust network
+		output_networkx_graph_as_json_for_cytoscapejs(robust_net, args.output_dir, tag+".robust_network.json")
+
 
 if __name__ == '__main__':
 	main()

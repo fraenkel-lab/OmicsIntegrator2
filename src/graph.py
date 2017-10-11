@@ -581,7 +581,7 @@ class Graph:
 
 		forest, augmented_forest = self.randomizations(10, 0)
 		# TODO: pass randomization number as a parameter
-		return {"tag": paramstring, "forest": forest, "augmented_forest": augmented_forest}
+		return paramstring, forest, augmented_forest
 
 
 	def _grid_pcsf2(self, prize_file, Ws, Bs, Gs):
