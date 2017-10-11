@@ -316,7 +316,7 @@ class Graph:
 
 		# Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
 		edges = self.interactome_dataframe.loc[edge_indices]
-		forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+		forest = nx.from_pandas_dataframe(edges, 'protein1', 'protein2', edge_attr=True)
 		# the above won't capture the singletons, so we'll add them here
 		forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
@@ -625,7 +625,7 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 
 	intermediate = pd.DataFrame([{**{"protein1": x[0], "protein2": x[1]}, **x[2]} for x in nxgraph.edges(data=True)])
 	intermediate = intermediate[['protein1', 'protein2'] + list(set(intermediate.columns)-set(['protein1', 'protein2']))]
-	
+
 	return intermediate
 
 
