@@ -3,6 +3,7 @@
 # Core python modules
 import sys
 import os
+import multiprocessing
 
 # Peripheral python modules
 import argparse
@@ -18,7 +19,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
-from py2cytoscape import util as cy
+# from py2cytoscape import util as cy
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -535,6 +536,29 @@ class Graph:
 		return results
 
 
+	def _grid_pcsf_parallel(self, prize_file, Gs, Bs, Ws):
+
+		# necessary to add cwd to path when script run by slurm (since it executes a copy)
+		sys.path.append(os.getcwd())
+
+		# get number of cpus available to job
+		try:
+			n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
+		except KeyError:
+			n_cpus = multiprocessing.cpu_count()
+
+		pool = multiprocessing.Pool(n_cpus)
+
+
+		self.prepare_prizes(prize_file)
+
+		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
+
+		results = pool.map(self._eval_pcsf, parameter_permutations)
+
+		return results
+
+
 	def grid_search(self, prize_file, Gs, Bs, Ws):
 		"""
 		Macro function which performs grid search and merges the results.
@@ -553,7 +577,7 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
+		results = self._grid_pcsf_parallel(prize_file, Gs, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
