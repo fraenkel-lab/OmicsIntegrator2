@@ -78,6 +78,7 @@ def main():
 	graph.prepare_prizes(args.prize_file)
 
 	# Parameter search
+	# TODO: if range of parameters are passed in via command line, perform parameter sweep. 
 	results = graph.grid_search_randomizations(args.prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
 
 	for tag, forest, augmented_forest in results: 
