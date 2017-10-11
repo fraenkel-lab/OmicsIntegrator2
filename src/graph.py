@@ -482,7 +482,7 @@ class Graph:
 		else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
 		###########
-
+		# logger.info(len(vertex_indices.node_index.values), len(edge_indices.edge_index.values))
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
@@ -499,7 +499,10 @@ class Graph:
 			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
 
-		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
+			edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
+			nx.set_edge_attributes(forest          , 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+			nx.set_edge_attributes(augmented_forest, 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+		
 		return forest, augmented_forest
 
 
