@@ -584,7 +584,7 @@ class Graph:
 		return paramstring, forest, augmented_forest
 
 
-	def _grid_pcsf2(self, prize_file, Ws, Bs, Gs):
+	def grid_search_randomizations(self, prize_file, Ws, Bs, Gs):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
@@ -606,12 +606,6 @@ class Graph:
 		results = list(map(self._eval_randomizations, parameter_permutations))
 
 		return results
-
-
-	def grid_search2(self, prize_file, Ws, Bs, Gs): 
-		"""
-		"""
-		pass 
 
 
 def betweenness(nxgraph):

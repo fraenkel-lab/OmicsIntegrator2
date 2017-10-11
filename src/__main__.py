@@ -76,13 +76,15 @@ def main():
 
 	graph = Graph(args.edge_file, params)
 	graph.prepare_prizes(args.prize_file)
-	
-	results = graph._grid_pcsf2(args.prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
+
+	# Parameter search
+	results = graph.grid_search_randomizations(args.prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
 
 	for tag, forest, augmented_forest in results: 
 
 		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_dataframe_attributes(augmented_forest)
 
+		# Get top 400 nodes as subnetwork of augmented forest
 		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
 		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_dataframe_attributes(robust_net)
 
