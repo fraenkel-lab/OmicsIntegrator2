@@ -598,7 +598,7 @@ class Graph:
 		Returns:
 			list: list of tuples of vertex indices and edge indices
 		"""
-		
+
 		self.prepare_prizes(prize_file)
 
 		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
@@ -658,11 +658,14 @@ def get_networkx_graph_as_dataframe_attributes(nxgraph):
 	"""
 
 	# Prepare node dataframe
-	node_df = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+	node_df = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose()
 	node_df.index.name = "protein"
 	node_df.reset_index(inplace=True)
 
 	if "robustness" in node_df.columns: node_df.sort_values("robustness", ascending=False, inplace=True)
+	if "type" in node_df.columns: node_df["type"].fillna("steiner", inplace=True)
+
+	node_df.fillna(0, inplace=True)
 
 	# Prepare edge dataframe
 	edge_df = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)]).fillna(0)

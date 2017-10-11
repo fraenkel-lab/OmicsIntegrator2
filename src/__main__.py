@@ -61,6 +61,7 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	"""
 	Output the dataframe to a csv
 	"""
+
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	dataframe.to_csv(path, sep='\t', header=True, index=False)
 
@@ -101,7 +102,7 @@ def main():
 	# pandas.errors.EmptyDataError: No columns to parse from file
 
 	prize_file = "/nfs/latdata/iamjli/ALS/network_analysis/iMNs_ALS_CTR_20171004/protein_TF_prizes.tsv"
-	results = graph._grid_pcsf2(prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
+	results = graph._grid_pcsf2(prize_file, Ws=[3,6,9], Bs=[0.25,0.5,0.75,1], Gs=[20])
 
 	for tag, forest, augmented_forest in results: 
 
