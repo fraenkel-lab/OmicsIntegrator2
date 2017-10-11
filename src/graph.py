@@ -611,7 +611,11 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
 		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
 	"""
 
-	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+	intermediate = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+	intermediate.index.name = "protein"
+	intermediate.reset_index(inplace=True)
+
+	return intermediate
 
 
 def get_networkx_graph_as_dataframe_of_edges(nxgraph):

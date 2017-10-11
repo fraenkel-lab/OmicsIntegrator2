@@ -62,7 +62,7 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	Output the dataframe to a csv
 	"""
 	path = os.path.join(os.path.abspath(output_dir), filename)
-	dataframe.to_csv(path, sep='\t', header=True, index=True)
+	dataframe.to_csv(path, sep='\t', header=True, index=False)
 
 
 def main():
