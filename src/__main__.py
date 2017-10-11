@@ -8,7 +8,7 @@ import argparse
 
 # import this module
 # from . import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
-from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs, get_networkx_graph_as_dataframe_attributes
+from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs, get_networkx_graph_as_dataframe_attributes, get_networkx_subgraph_from_randomizations
 
 parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using

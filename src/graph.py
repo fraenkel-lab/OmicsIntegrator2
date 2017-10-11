@@ -27,7 +27,8 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"get_networkx_graph_as_dataframe_attributes" ]
+			"get_networkx_graph_as_dataframe_attributes", 
+			"get_networkx_subgraph_from_randomizations" ]
 
 
 logger = logging.getLogger(__name__)
@@ -491,7 +492,8 @@ class Graph:
 			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
 
 			edge_robustness_dic = edge_indices.set_index("edge_index")["robustness"].to_dict()
-			nx.set_edge_attributes(forest, 'robustness', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_robustness_dic[edge] for edge in edge_robustness_dic})
+			nx.set_edge_attributes(forest          , 'robustness', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_robustness_dic[edge] for edge in edge_robustness_dic})
+			nx.set_edge_attributes(augmented_forest, 'robustness', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_robustness_dic[edge] for edge in edge_robustness_dic})
 
 		if random_terminals_reps > 0:
 			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
@@ -577,7 +579,7 @@ class Graph:
 		paramstring = 'W_'+str(params['w'])+'_B_'+str(params['b'])+'_G_'+str(params['g'])
 		logger.info(paramstring)
 
-		forest, augmented_forest = self.randomizations(100, 0)
+		forest, augmented_forest = self.randomizations(10, 0)
 		# TODO: pass randomization number as a parameter
 		return {"tag": paramstring, "forest": forest, "augmented_forest": augmented_forest}
 
@@ -638,10 +640,11 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
 	of size less than min_size, do not remove. 
 	Approach 2: select top max_size nodes based on robustness, then return subgraph. 
 	"""
-	# TODO
 
+	node_attributes_df, _ = get_networkx_graph_as_dataframe_attributes(nxgraph)
+	top_hits = node_attributes_df["protein"].tolist()[:max_size]
 
-	return 
+	return nxgraph.subgraph(top_hits)
 
 
 def get_networkx_graph_as_dataframe_attributes(nxgraph):
@@ -662,7 +665,7 @@ def get_networkx_graph_as_dataframe_attributes(nxgraph):
 	if "robustness" in node_df.columns: node_df.sort_values("robustness", ascending=False, inplace=True)
 
 	# Prepare edge dataframe
-	edge_df = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)])
+	edge_df = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)]).fillna(0)
 	edge_df = edge_df[['source', 'target'] + list(set(edge_df.columns)-set(['source', 'target']))]
 
 	return node_df, edge_df
