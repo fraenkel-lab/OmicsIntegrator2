@@ -482,7 +482,6 @@ class Graph:
 		else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
 		###########
-		# logger.info(len(vertex_indices.node_index.values), len(edge_indices.edge_index.values))
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
@@ -689,7 +688,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
-	
+
 	path = os.path.join(os.path.abspath(output_dir), filename)
 
 	njs = cy.from_networkx(nxgraph)
