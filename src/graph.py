@@ -622,8 +622,10 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 	Returns:
 		pd.DataFrame: edges from the input graph and their attributes as a dataframe
 	"""
-	intermediate = pd.DataFrame([{**{"protein1": x[0], "protein2": x[1]}, **x[2]} for x in forest.edges(data=True)])
+
+	intermediate = pd.DataFrame([{**{"protein1": x[0], "protein2": x[1]}, **x[2]} for x in nxgraph.edges(data=True)])
 	intermediate = intermediate[['protein1', 'protein2'] + list(set(intermediate.columns)-set(['protein1', 'protein2']))]
+	
 	return intermediate
 
 
