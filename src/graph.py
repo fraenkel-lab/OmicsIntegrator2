@@ -27,7 +27,7 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"get_networkx_graph_as_dataframe_attributes", 
+			"get_networkx_graph_as_node_edge_dataframes", 
 			"get_networkx_subgraph_from_randomizations" ]
 
 
@@ -505,73 +505,6 @@ class Graph:
 		return forest, augmented_forest
 
 
-	def _eval_pcsf(self, params):
-		"""
-		Convenience methods which sets parameters and performs PCSF
-		"""
-
-		self._reset_hyperparameters(params)
-		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-		logger.info(paramstring)
-		return (paramstring, self.pcsf())
-	def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
-		"""
-		Internal function which executes pcsf at every point in a parameter grid.
-		Subroutine of `grid_search`.
-
-		Arguments:
-			prize_file (str): filepath
-			Gs (list): Values of gamma
-			Bs (list): Values of beta
-			Ws (list): Values of omega
-
-		Returns:
-			list: list of tuples of vertex indices and edge indices
-		"""
-
-		self.prepare_prizes(prize_file)
-
-		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
-
-		results = list(map(self._eval_pcsf, parameter_permutations))
-
-		return results
-	def grid_search(self, prize_file, Gs, Bs, Ws):
-		"""
-		Macro function which performs grid search and merges the results.
-
-		This function is under construction and subject to change.
-
-		Arguments:
-			prize_file (str): filepath
-			Gs (list): Values of gamma
-			Bs (list): Values of beta
-			Ws (list): Values of omega
-
-		Returns:
-			networkx.Graph: forest
-			networkx.Graph: augmented_forest
-			pd.DataFrame: parameters and node membership lists
-		"""
-
-		results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
-
-		### GET THE REGULAR OUTPUT ###
-		vertex_indices, edge_indices = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
-
-		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
-
-		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
-
-		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
-		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
-
-		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
-		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
-
-		return forest, augmented_forest, params_by_nodes
-
-
 	def _eval_randomizations(self, params):
 		"""
 		Convenience methods which sets parameters and performs PCSF
@@ -637,13 +570,13 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
 	Approach 2: select top max_size nodes based on robustness, then return subgraph. 
 	"""
 
-	node_attributes_df, _ = get_networkx_graph_as_dataframe_attributes(nxgraph)
+	node_attributes_df, _ = get_networkx_graph_as_node_edge_dataframes(nxgraph)
 	top_hits = node_attributes_df["protein"].tolist()[:max_size]
 
 	return nxgraph.subgraph(top_hits)
 
 
-def get_networkx_graph_as_dataframe_attributes(nxgraph):
+def get_networkx_graph_as_node_edge_dataframes(nxgraph):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
