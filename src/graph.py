@@ -27,8 +27,7 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"get_networkx_graph_as_dataframe_of_nodes",
-			"get_networkx_graph_as_dataframe_of_edges" ]
+			"get_networkx_graph_as_dataframe_attributes" ]
 
 
 logger = logging.getLogger(__name__)
@@ -633,7 +632,7 @@ def k_clique_clustering(nxgraph, k):
 	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
 
 
-def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
+def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400): 
 	"""
 	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
 	of size less than min_size, do not remove. 
@@ -645,37 +644,28 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400, min_compone
 	return 
 
 
-def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
+def get_networkx_graph_as_dataframe_attributes(nxgraph):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 
 	Returns:
 		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
-	"""
-
-	intermediate = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
-	intermediate.index.name = "protein"
-	intermediate.reset_index(inplace=True)
-
-	if "robustness" in intermediate.columns: intermediate.sort_values("robustness", ascending=False, inplace=True)
-
-	return intermediate
-
-
-def get_networkx_graph_as_dataframe_of_edges(nxgraph):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-
-	Returns:
 		pd.DataFrame: edges from the input graph and their attributes as a dataframe
 	"""
 
-	intermediate = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)])
-	intermediate = intermediate[['source', 'target'] + list(set(intermediate.columns)-set(['source', 'target']))]
+	# Prepare node dataframe
+	node_df = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+	node_df.index.name = "protein"
+	node_df.reset_index(inplace=True)
 
-	return intermediate
+	if "robustness" in node_df.columns: node_df.sort_values("robustness", ascending=False, inplace=True)
+
+	# Prepare edge dataframe
+	edge_df = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)])
+	edge_df = edge_df[['source', 'target'] + list(set(edge_df.columns)-set(['source', 'target']))]
+
+	return node_df, edge_df
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
