@@ -102,7 +102,7 @@ def main():
 	# pandas.errors.EmptyDataError: No columns to parse from file
 
 	prize_file = "/nfs/latdata/iamjli/ALS/network_analysis/iMNs_ALS_CTR_20171004/protein_TF_prizes.tsv"
-	results = graph._grid_pcsf2(prize_file, Ws=[3,6,9], Bs=[0.25,0.5,0.75,1], Gs=[20])
+	results = graph._grid_pcsf2(prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
 
 	for tag, forest, augmented_forest in results: 
 

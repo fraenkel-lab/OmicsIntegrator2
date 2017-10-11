@@ -579,7 +579,7 @@ class Graph:
 		paramstring = 'W_'+str(params['w'])+'_B_'+str(params['b'])+'_G_'+str(params['g'])
 		logger.info(paramstring)
 
-		forest, augmented_forest = self.randomizations(10, 0)
+		forest, augmented_forest = self.randomizations(100, 0)
 		# TODO: pass randomization number as a parameter
 		return paramstring, forest, augmented_forest
 
@@ -692,6 +692,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
+	# TODO: add meta data like collection/network name
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	njs = cy.from_networkx(nxgraph)
 	with open(path,'w') as outf:
