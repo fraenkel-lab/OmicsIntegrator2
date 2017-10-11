@@ -24,9 +24,9 @@ def directory(dirname):
 	else: return dirname
 
 # Input / Output parameters:
-parser.add_argument("-e", "--edge", dest='edge_file', type=argparse.FileType('r'), required=True,
+parser.add_argument("-e", "--edge", dest='edge_file', type=str, required=True,
 	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
-parser.add_argument("-p", "--prize", dest='prize_file', type=argparse.FileType('r'), required=True,
+parser.add_argument("-p", "--prize", dest='prize_file', type=str, required=True,
 	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "nodeName(tab)prize"')
 parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
 	help='(Required) Output directory path')
@@ -76,33 +76,8 @@ def main():
 
 	graph = Graph(args.edge_file, params)
 	graph.prepare_prizes(args.prize_file)
-
-	# Why doesn't this work: 
-	# results = graph._grid_pcsf2(prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
-	# Traceback (most recent call last):
-	#   File "__main__.py", line 125, in <module>
-	#     main()
-	#   File "__main__.py", line 107, in main
-	#     results = graph._grid_pcsf2(args.prize_file, Ws=[6], Bs=[0.25,0.5,1], Gs=[20])
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/src/graph.py", line 602, in _grid_pcsf2
-	#     self.prepare_prizes(prize_file)
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/src/graph.py", line 202, in prepare_prizes
-	#     prizes_dataframe = pd.read_csv(prize_file, sep='\t')
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 655, in parser_f
-	#     return _read(filepath_or_buffer, kwds)
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 405, in _read
-	#     parser = TextFileReader(filepath_or_buffer, **kwds)
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 764, in __init__
-	#     self._make_engine(self.engine)
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 985, in _make_engine
-	#     self._engine = CParserWrapper(self.f, **self.options)
-	#   File "/nfs/latdata/iamjli/packages/OmicsIntegrator2/venv/lib/python3.6/site-packages/pandas/io/parsers.py", line 1605, in __init__
-	#     self._reader = parsers.TextReader(src, **kwds)
-	#   File "pandas/_libs/parsers.pyx", line 565, in pandas._libs.parsers.TextReader.__cinit__ (pandas/_libs/parsers.c:6260)
-	# pandas.errors.EmptyDataError: No columns to parse from file
-
-	prize_file = "/nfs/latdata/iamjli/ALS/network_analysis/iMNs_ALS_CTR_20171004/protein_TF_prizes.tsv"
-	results = graph._grid_pcsf2(prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
+	
+	results = graph._grid_pcsf2(args.prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
 
 	for tag, forest, augmented_forest in results: 
 
