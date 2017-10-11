@@ -8,7 +8,7 @@ import argparse
 
 # import this module
 # from . import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs
-from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs, get_networkx_graph_as_dataframe_attributes, get_networkx_subgraph_from_randomizations
+from graph import Graph, output_networkx_graph_as_graphml_for_cytoscape, output_networkx_graph_as_json_for_cytoscapejs, get_networkx_graph_as_node_edge_dataframes, get_networkx_subgraph_from_randomizations
 
 parser = argparse.ArgumentParser(description="""
 	Find multiple pathways within an interactome that are altered in a particular condition using
@@ -79,15 +79,15 @@ def main():
 
 	# Parameter search
 	# TODO: if range of parameters are passed in via command line, perform parameter sweep. 
-	results = graph.grid_search_randomizations(args.prize_file, Ws=[3,6,9,12], Bs=[0.2,0.4,0.6,0.8,1], Gs=[0,2,5,10,20])
+	results = graph.grid_search_randomizations(args.prize_file, Ws=[3], Bs=[0.2,0.6,1], Gs=[10,20])
 
 	for tag, forest, augmented_forest in results: 
 
-		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_dataframe_attributes(augmented_forest)
+		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_node_edge_dataframes(augmented_forest)
 
 		# Get top 400 nodes as subnetwork of augmented forest
 		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
-		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_dataframe_attributes(robust_net)
+		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_node_edge_dataframes(robust_net)
 
 		# Write node and edge attributes for augmented network to files
 		output_dataframe_to_tsv(augmented_nodes_df, args.output_dir, tag+".augmented_network.nodes.tsv")

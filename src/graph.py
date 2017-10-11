@@ -487,7 +487,7 @@ class Graph:
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
 		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
+			nx.set_node_attributes(forest, 	         'robustness', vertex_indices['robustness'].to_dict())
 			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
 
 			edge_robustness_dic = edge_indices.set_index("edge_index")["robustness"].to_dict()
@@ -495,7 +495,7 @@ class Graph:
 			nx.set_edge_attributes(augmented_forest, 'robustness', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_robustness_dic[edge] for edge in edge_robustness_dic})
 
 		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
+			nx.set_node_attributes(forest,           'specificity', vertex_indices['specificity'].to_dict())
 			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
 
 			edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
