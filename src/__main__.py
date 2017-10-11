@@ -75,26 +75,17 @@ def main():
 	# gross code. http://stackoverflow.com/questions/42400646/is-it-possible-to-denote-some-set-of-argparses-arguments-without-using-subparse
 
 	graph = Graph(args.edge_file, params)
-	graph.prepare_prizes(args.prize_file)
+	graph.prepare_prizes(args.prize_file) 
 
-	# Parameter search
-	# TODO: if range of parameters are passed in via command line, perform parameter sweep. 
-	results = graph.grid_search_randomizations(args.prize_file, Ws=[3], Bs=[0.2,0.6,1], Gs=[10,20])
+	if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
+		forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
-	for tag, forest, augmented_forest in results: 
+	else:
+		vertex_indices, edge_indices = graph.pcsf()
+		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_node_edge_dataframes(augmented_forest)
-
-		# Get top 400 nodes as subnetwork of augmented forest
-		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
-		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_node_edge_dataframes(robust_net)
-
-		# Write node and edge attributes for augmented network to files
-		output_dataframe_to_tsv(augmented_nodes_df, args.output_dir, tag+".augmented_network.nodes.tsv")
-		output_dataframe_to_tsv(augmented_edges_df, args.output_dir, tag+".augmented_network.edges.tsv")
-
-		# Write json for robust network
-		output_networkx_graph_as_json_for_cytoscapejs(robust_net, args.output_dir, tag+".robust_network.json")
+	#output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
+	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
 
 
 if __name__ == '__main__':
