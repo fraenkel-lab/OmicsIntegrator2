@@ -32,9 +32,9 @@ parser.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=
 	help='(Required) Output directory path')
 
 # Command parameters (specify what the algorithm does):
-parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=10,
+parser.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: %default]')
-parser.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=10,
+parser.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: %default]')
 parser.add_argument("--knockout", dest='knockout', nargs='*', default=[],
 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: []]')
@@ -72,7 +72,7 @@ def main():
 
 	params = {"w":args.w, "b":args.b, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "exclude_terminals":args.exclude_terminals, "seed":args.seed,
 			  "noisy_edges_repetitions": args.noisy_edges_repetitions, "random_terminals_repetitions": args.random_terminals_repetitions}
-	params = {param: value for param, value in params.items() if value}
+	params = {param: value for param, value in params.items() if value is not None}
 
 	graph = Graph(args.edge_file, {})
 

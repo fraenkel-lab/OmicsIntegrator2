@@ -435,6 +435,12 @@ class Graph:
 
 		if self.params.seed: random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
 
+		# For single PCSF run
+		if noisy_edges_reps == random_terminals_reps == 0: 
+
+			return self.output_forest_as_networkx(*self.pcsf())
+
+
 		#### NOISY EDGES ####
 		if noisy_edges_reps > 0:
 
@@ -517,7 +523,7 @@ class Graph:
 		logger.info(params)
 
 		forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
-		# TODO: pass randomization number as a parameter
+		
 		return paramstring, forest, augmented_forest
 
 
