@@ -59,11 +59,31 @@ params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 
 def output_dataframe_to_tsv(dataframe, output_dir, filename):
 	"""
-	Output the dataframe to a csv
+	Output the dataframe to a csv.
 	"""
 
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	dataframe.to_csv(path, sep='\t', header=True, index=False)
+
+
+def output_networkx_graph_as_files(nxgraph, project_dir, tag, subfolder=""): 
+	"""
+	Output networkx graph in various formats.
+	"""
+
+	os.makedirs(os.path.abspath(project_dir), exist_ok=True)
+	output_dir = os.path.join(os.path.abspath(project_dir), subfolder)
+
+
+	nxgraph_nodes_df, nxgraph_edges_df = get_networkx_graph_as_node_edge_dataframes(nxgraph)
+
+	output_networkx_graph_as_pickle(nxgraph, output_dir, tag+".gpickle")
+	output_dataframe_to_tsv(nxgraph_nodes_df, output_dir, tag+".nodes.tsv")
+	output_dataframe_to_tsv(nxgraph_edges_df, output_dir, tag+".edges.tsv")
+	output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, "{}.{}.json".format(tag, subfolder.replace("/", "")))
+
+	return output_dir
+
 
 
 def main():
@@ -76,28 +96,17 @@ def main():
 
 	graph = Graph(args.edge_file, {})
 
-	print(params)
-
 	# Parameter search
 	results = graph.grid_search_randomizations(args.prize_file, params)
 
 	for tag, forest, augmented_forest in results: 
 
-		augmented_nodes_df, augmented_edges_df = get_networkx_graph_as_node_edge_dataframes(augmented_forest)
-
-		# Get top 400 nodes as subnetwork of augmented forest
 		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
-		robust_net_nodes_df, robust_net_edges_df = get_networkx_graph_as_node_edge_dataframes(robust_net)
 
-		# Save augmented forest as pickled networkx object
-		output_networkx_graph_as_pickle(augmented_forest, args.output_dir, tag+".augmented_forest.gpickle")
+		output_networkx_graph_as_files(forest,           args.output_dir, tag, subfolder="forest")
+		output_networkx_graph_as_files(augmented_forest, args.output_dir, tag, subfolder="augmented_forest")
+		output_networkx_graph_as_files(robust_net,       args.output_dir, tag, subfolder="robust_net")
 
-		# Write node and edge attributes for augmented network to files
-		output_dataframe_to_tsv(augmented_nodes_df, args.output_dir, tag+".augmented_forest.nodes.tsv")
-		output_dataframe_to_tsv(augmented_edges_df, args.output_dir, tag+".augmented_forest.edges.tsv")
-
-		# Write json for robust network
-		output_networkx_graph_as_json_for_cytoscapejs(robust_net, args.output_dir, tag+".robust_network.json")
 
 
 main()

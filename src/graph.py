@@ -591,7 +591,9 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
 	"""
 
 	node_attributes_df, _ = get_networkx_graph_as_node_edge_dataframes(nxgraph)
-	top_hits = node_attributes_df["protein"].tolist()[:max_size]
+	top_hits = node_attributes_df["protein"].tolist()[:min(max_size,node_attributes_df.shape[0])]
+
+	if "robustness" not in node_attributes_df.columns: logger.info("WARNING: 'robustness' is not an attribute in subgraph, subgraph may not be meaningful.")
 
 	return nxgraph.subgraph(top_hits)
 
