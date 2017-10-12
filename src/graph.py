@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
-from py2cytoscape import util as cy
+# from py2cytoscape import util as cy
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -535,8 +535,6 @@ class Graph:
 			list: list of tuples of vertex indices and edge indices
 		"""
 
-		sys.path.append(os.getcwd())
-
 		# get number of cpus available to job
 		try:
 			n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
@@ -550,7 +548,7 @@ class Graph:
 
 		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
 
-		results = list(map(self._eval_randomizations, parameter_permutations))
+		results = pool.map(self._eval_randomizations, parameter_permutations)
 
 		return results
 
