@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import community    # pip install python-louvain
-# from py2cytoscape import util as cy
+from py2cytoscape import util as cy
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -512,15 +512,15 @@ class Graph:
 		"""
 
 		self._reset_hyperparameters(params)
-		paramstring = 'W_'+str(params['w'])+'_B_'+str(params['b'])+'_G_'+str(params['g'])
-		logger.info(paramstring)
+		paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
+		logger.info("Randomizations for " + paramstring)
 
-		forest, augmented_forest = self.randomizations(100, 0)
+		forest, augmented_forest = self.randomizations(params["ne"], params["rt"])
 		# TODO: pass randomization number as a parameter
 		return paramstring, forest, augmented_forest
 
 
-	def grid_search_randomizations(self, prize_file, Ws, Bs, Gs):
+	def grid_search_randomizations(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
@@ -546,7 +546,7 @@ class Graph:
 		
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
+		parameter_permutations = [{'w':w,'b':b,'g':g,'ne':ne,'rt':rt} for (w, b, g, ne, rt) in product(Ws, Bs, Gs, [noisy_edges_reps], [random_terminals_reps])]
 
 		results = pool.map(self._eval_randomizations, parameter_permutations)
 
@@ -613,6 +613,21 @@ def get_networkx_graph_as_node_edge_dataframes(nxgraph):
 	return node_df, edge_df
 
 
+def output_networkx_graph_as_pickle(nxgraph, output_dir, filename):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the graph.
+		filename (str): Filenames ending in .gz or .bz2 will be compressed.
+	"""
+
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
+	path = os.path.join(os.path.abspath(output_dir), filename)
+	nx.write_gpickle(nxgraph, path)
+
+	return path
+
+
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
 	"""
 	Arguments:
@@ -620,9 +635,12 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
 		output_dir (str): the directory in which to output the graph.
 		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
+
 	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_graphml(nxgraph, path)
+
+	return path
 
 
 def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
@@ -632,6 +650,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
 
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
 
 	njs = cy.from_networkx(nxgraph)
@@ -640,3 +659,4 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
 
+	return path
