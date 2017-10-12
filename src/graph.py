@@ -3,6 +3,7 @@
 # Core python modules
 import sys
 import os
+import multiprocessing
 
 # Peripheral python modules
 import argparse
@@ -534,6 +535,17 @@ class Graph:
 			list: list of tuples of vertex indices and edge indices
 		"""
 
+		sys.path.append(os.getcwd())
+
+		# get number of cpus available to job
+		try:
+			n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
+		except KeyError:
+			n_cpus = multiprocessing.cpu_count()
+
+		pool = multiprocessing.Pool(n_cpus)
+		
+		
 		self.prepare_prizes(prize_file)
 
 		parameter_permutations = [{'w':w,'b':b,'g':g} for (w, b, g) in product(Ws, Bs, Gs)]
