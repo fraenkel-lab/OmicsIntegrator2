@@ -103,11 +103,11 @@ def main():
 
 	for tag, forest, augmented_forest in results: 
 
-		robust_net = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
+		robust_network = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
 
 		output_networkx_graph_as_files(forest,           args.output_dir, tag, subfolder="forest")
 		output_networkx_graph_as_files(augmented_forest, args.output_dir, tag, subfolder="augmented_forest")
-		output_networkx_graph_as_files(robust_net,       args.output_dir, tag, subfolder="robust_net")
+		output_networkx_graph_as_files(robust_network,   args.output_dir, tag, subfolder="robust_network")
 
 
 

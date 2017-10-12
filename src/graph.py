@@ -483,8 +483,8 @@ class Graph:
 			vertex_indices = specific_vertices; edge_indices = specific_edges;
 
 		elif noisy_edges_reps > 0 and random_terminals_reps > 0:
-			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
-			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
+			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index').fillna(0)
+			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index').fillna(0)
 
 		else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
