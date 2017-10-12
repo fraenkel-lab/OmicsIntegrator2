@@ -47,7 +47,7 @@ params.add_argument("-b", dest="b", nargs="*", type=float, required=False, defau
 	help="Beta: scaling factor of prizes [default: 1]")
 params.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=[20],
 	help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
-params.add_argument("-noise", dest="noise", type=float, required=False,
+params.add_argument("-noise", dest="noise", type=float, required=False, default=0.1,
 	help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
 params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
@@ -70,10 +70,16 @@ def main():
 
 	args = parser.parse_args()
 
+	params = {"w":args.w, "b":args.b, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "exclude_terminals":args.exclude_terminals, "seed":args.seed,
+			  "noisy_edges_repetitions": args.noisy_edges_repetitions, "random_terminals_repetitions": args.random_terminals_repetitions}
+	params = {param: value for param, value in params.items() if value}
+
 	graph = Graph(args.edge_file, {})
 
+	print(params)
+
 	# Parameter search
-	results = graph.grid_search_randomizations(args.prize_file, args.w, args.b, args.g, args.noisy_edges_repetitions, args.random_terminals_repetitions)
+	results = graph.grid_search_randomizations(args.prize_file, params)
 
 	for tag, forest, augmented_forest in results: 
 

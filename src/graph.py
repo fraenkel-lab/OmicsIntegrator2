@@ -433,7 +433,7 @@ class Graph:
 			networkx.Graph: augmented_forest
 		"""
 
-		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
+		if self.params.seed: random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
 
 		#### NOISY EDGES ####
 		if noisy_edges_reps > 0:
@@ -514,13 +514,14 @@ class Graph:
 		self._reset_hyperparameters(params)
 		paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
 		logger.info("Randomizations for " + paramstring)
+		logger.info(params)
 
-		forest, augmented_forest = self.randomizations(params["ne"], params["rt"])
+		forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
 		# TODO: pass randomization number as a parameter
 		return paramstring, forest, augmented_forest
 
 
-	def grid_search_randomizations(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
+	def grid_search_randomizations(self, prize_file, params):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
@@ -544,11 +545,14 @@ class Graph:
 		pool = multiprocessing.Pool(n_cpus)
 		
 		
+
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'w':w,'b':b,'g':g,'ne':ne,'rt':rt} for (w, b, g, ne, rt) in product(Ws, Bs, Gs, [noisy_edges_reps], [random_terminals_reps])]
+		model_params = [{'w': w, 'b': b, 'g':g} for (w, b, g) in product(params['w'], params['b'], params['g'])]
+		other_params = {key: params[key] for key in params if key not in 'wbg'}
+		all_params = [{**model_param, **other_params} for model_param in model_params]
 
-		results = pool.map(self._eval_randomizations, parameter_permutations)
+		results = pool.map(self._eval_randomizations, all_params)
 
 		return results
 
