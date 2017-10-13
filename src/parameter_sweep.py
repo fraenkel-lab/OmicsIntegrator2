@@ -27,9 +27,9 @@ def directory(dirname):
 params_io = parser.add_argument_group("Input / Output Files")
 
 params_io.add_argument("-e", "--edge", dest='edge_file', type=str, required=True,
-	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file with 3 columns: "nodeA\tnodeB\tcost"')
+	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file (no header) with 3 columns: "nodeA\tnodeB\tcost"')
 params_io.add_argument("-p", "--prize", dest='prize_file', type=str, required=True,
-	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file with lines: "nodeName(tab)prize"')
+	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file (*with* header) with lines: "nodeName(tab)prize"')
 params_io.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
 	help='(Required) Output directory path')
 
