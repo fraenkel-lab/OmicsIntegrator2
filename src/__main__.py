@@ -110,5 +110,5 @@ def main():
 		output_networkx_graph_as_files(robust_network,   args.output_dir, tag, subfolder="robust_network")
 
 
-
-main()
+if __name__ == '__main__':
+	main()
