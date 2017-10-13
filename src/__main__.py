@@ -24,39 +24,39 @@ def directory(dirname):
 	else: return dirname
 
 # Input / Output parameters:
-params_io = parser.add_argument_group("Input / Output Files")
+io_params = parser.add_argument_group("Input / Output Files")
 
-params_io.add_argument("-e", "--edge", dest='edge_file', type=str, required=True,
+io_params.add_argument("-e", "--edge", dest='edge_file', type=str, required=True,
 	help ='(Required) Path to the text file containing the edges. Should be a tab delimited file (no header) with 3 columns: "nodeA\tnodeB\tcost"')
-params_io.add_argument("-p", "--prize", dest='prize_file', type=str, required=True,
+io_params.add_argument("-p", "--prize", dest='prize_file', type=str, required=True,
 	help='(Required) Path to the text file containing the prizes. Should be a tab delimited file (*with* header) with lines: "nodeName(tab)prize"')
-params_io.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
+io_params.add_argument('-o', '--output', dest='output_dir', action=FullPaths, type=directory, required=True,
 	help='(Required) Output directory path')
 
 # Command parameters (specify what the algorithm does):
-params_pcsf = parser.add_argument_group("PCSF Parameters")
+pcsf_params = parser.add_argument_group("PCSF Parameters")
 
-params_pcsf.add_argument("-w", dest="w", nargs="*", type=float, required=False, default=[6],
+pcsf_params.add_argument("-w", dest="w", nargs="*", type=float, required=False, default=[6],
 	help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 6]")
-params_pcsf.add_argument("-b", dest="b", nargs="*", type=float, required=False, default=[1],
+pcsf_params.add_argument("-b", dest="b", nargs="*", type=float, required=False, default=[1],
 	help="Beta: scaling factor of prizes [default: 1]")
-params_pcsf.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=[20],
+pcsf_params.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=[20],
 	help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
-params_pcsf.add_argument("-noise", dest="noise", type=float, required=False, default=0.1,
+pcsf_params.add_argument("-noise", dest="noise", type=float, required=False, default=0.1,
 	help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
 
-params_pcsf.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
+pcsf_params.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: 0]')
-params_pcsf.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
+pcsf_params.add_argument("--random_terminals", dest='random_terminals_repetitions', type=int, default=0,
 	help='An integer specifying how many times you would like to apply your given prizes to random nodes in the interactome (with a similar degree distribution) and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_random_terminals_" added to their names. [default: 0]')
-params_pcsf.add_argument("--knockout", dest='knockout', nargs='*', default=[],
+pcsf_params.add_argument("--knockout", dest='knockout', nargs='*', default=[],
 	help='Protein(s) you would like to "knock out" of the interactome to simulate a knockout experiment. [default: []]')
 
-params_pcsf.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
+pcsf_params.add_argument("--dummyMode", dest='dummy_mode', choices=("terminals", "other", "all"), required=False,
 	help='Tells the program which nodes in the interactome to connect the dummy node to. "terminals"= connect to all terminals, "others"= connect to all nodes except for terminals, "all"= connect to all nodes in the interactome. [default: terminals]')
-params_pcsf.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
+pcsf_params.add_argument("--excludeTerminals", action='store_true', dest='exclude_terminals', required=False,
 	help='Flag to exclude terminals when calculating negative prizes. Use if you want terminals to keep exact assigned prize regardless of degree. [default: False]')
-params_pcsf.add_argument("-s", "--seed", dest='seed', type=int, required=False,
+pcsf_params.add_argument("-s", "--seed", dest='seed', type=int, required=False,
 	help='An integer seed for the pseudo-random number generators. If you want to reproduce exact results, supply the same seed. [default: None]')
 
 
