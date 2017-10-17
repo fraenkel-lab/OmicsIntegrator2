@@ -35,9 +35,12 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
 
     #Run the first iteration with unaltered prizes and note which nodes are terminals
     os.makedirs(outdir + '/initial', exist_ok=True)
+    names = []
     for i,p in enumerate(prizefiles):
         p = p.strip()
-        i_outdir = outdir + '/initial/sample%i'%i
+        p_name = os.path.basename(p)
+        names.append(p_name)
+        i_outdir = outdir + '/initial/%s'%p_name
         os.makedirs(i_outdir, exist_ok=True)
         unadjusted_forest = run_single_PCSF(p, edgeFile, paramDict, i_outdir)
         lastF[i] = unadjusted_forest.nodes()
@@ -62,14 +65,14 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
 
         #Update forests for each sample
         for s in samples_in_clade:
-            s_outdir = outdir + '/iter%i/sample%i'%(i,s)
+            s_outdir = outdir + '/iter%i/%s'%(i,names[s])
             os.makedirs(s_outdir, exist_ok=True)
             #read in artificial prizes we already assigned to this sample in previous iterations
             last_iter = last_iteration_for_samples[s]
             if last_iter == -1:
                 artificial_prizes = {}
             else:
-                s_lastdir = outdir + 'iter%i/sample%i'%(last_iter,s)
+                s_lastdir = outdir + 'iter%i/%s'%(last_iter,names[s])
                 with open('%s/artificial_prizes.txt'%(s_lastdir), 'r') as a:
                     artificial_prizes = {}
                     for line in a:
