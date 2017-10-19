@@ -22,7 +22,7 @@ def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     output_networkx_graph_as_edgelist(augmented_forest, outdir)
     return forest
 
-def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda, outdir):
+def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, alpha, lbda, outdir):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
     
     dendrogram = pickle.load(open(dendrogram,'rb'))
@@ -51,54 +51,55 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, paramDict, alpha, lbda,
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
-        os.makedirs(outdir + '/iter%i'%i, exist_ok=True)
         num_samples_in_clade = int(c[3])
-        s_c = float(c[2])
-        d_c = 1-s_c
-        sample1 = int(c[0])
-        sample2 = int(c[1])
-        samples_in_clade = calc_original_samples(sample1, N, dendrogram) + calc_original_samples(sample2, N, dendrogram)
-        if len(samples_in_clade) != num_samples_in_clade: sys.exit('Calculation of samples in clade %i went wrong'%i)
+        if num_samples_in_clade >= minClade:
+            os.makedirs(outdir + '/iter%i'%i, exist_ok=True)
+            s_c = float(c[2])
+            d_c = 1-s_c
+            sample1 = int(c[0])
+            sample2 = int(c[1])
+            samples_in_clade = calc_original_samples(sample1, N, dendrogram) + calc_original_samples(sample2, N, dendrogram)
+            if len(samples_in_clade) != num_samples_in_clade: sys.exit('Calculation of samples in clade %i went wrong'%i)
         
-        #get frequency of nodes in these networks
-        forestFreq = nodeFrequency([lastF[k] for k in samples_in_clade])
+            #get frequency of nodes in these networks
+            forestFreq = nodeFrequency([lastF[k] for k in samples_in_clade])
 
-        #Update forests for each sample
-        for s in samples_in_clade:
-            s_outdir = outdir + '/iter%i/%s'%(i,names[s])
-            os.makedirs(s_outdir, exist_ok=True)
-            #read in artificial prizes we already assigned to this sample in previous iterations
-            last_iter = last_iteration_for_samples[s]
-            if last_iter == -1:
-                artificial_prizes = {}
-            else:
-                s_lastdir = outdir + 'iter%i/%s'%(last_iter,names[s])
-                with open('%s/artificial_prizes.txt'%(s_lastdir), 'r') as a:
+            #Update forests for each sample
+            for s in samples_in_clade:
+                s_outdir = outdir + '/iter%i/%s'%(i,names[s])
+                os.makedirs(s_outdir, exist_ok=True)
+                #read in artificial prizes we already assigned to this sample in previous iterations
+                last_iter = last_iteration_for_samples[s]
+                if last_iter == -1:
                     artificial_prizes = {}
-                    for line in a:
-                        node, prize = line.strip().split('\t')
-                        artificial_prizes[node] = float(prize)
-            #Calculate new artificial prizes for this iteration
-            for node in forestFreq:
-                if node not in origP[s]:
-                    if node in artificial_prizes:
-                        artificial_prizes[node] = artificial_prizes[node] + lbda*((s_c*forestFreq[node])**(alpha-d_c)) 
-                    else:
-                        artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
-            #write new prizes + original prizes to a file
-            with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
-                with open('%s/artificial_prizes.txt'%(s_outdir),'w') as a:
-                    for item in artificial_prizes:
-                        f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
-                        a.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
-                with open(prizefiles[s].strip(), "r") as p:
-                    f.writelines(p.readlines())
+                else:
+                    s_lastdir = outdir + 'iter%i/%s'%(last_iter,names[s])
+                    with open('%s/artificial_prizes.txt'%(s_lastdir), 'r') as a:
+                        artificial_prizes = {}
+                        for line in a:
+                            node, prize = line.strip().split('\t')
+                            artificial_prizes[node] = float(prize)
+                #Calculate new artificial prizes for this iteration
+                for node in forestFreq:
+                    if node not in origP[s]:
+                        if node in artificial_prizes:
+                            artificial_prizes[node] = artificial_prizes[node] + lbda*((s_c*forestFreq[node])**(alpha-d_c)) 
+                        else:
+                            artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
+                #write new prizes + original prizes to a file
+                with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
+                    with open('%s/artificial_prizes.txt'%(s_outdir),'w') as a:
+                        for item in artificial_prizes:
+                            f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                            a.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                    with open(prizefiles[s].strip(), "r") as p:
+                        f.writelines(p.readlines())
 
-            #submit new artificial prizes + orig prize list to run_single_pcsf
-            new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
+                #submit new artificial prizes + orig prize list to run_single_pcsf
+                new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
 
-            #update lastF
-            lastF[s] = new_forest.nodes()
+                #update lastF
+                lastF[s] = new_forest.nodes()
             
 def calc_original_samples(sample, N, Z):
     #recursively find all original samples in this merge
@@ -138,6 +139,8 @@ def main():
         help='(Required) pickled object denoting hierarchical clustering of samples, of the type returned by scipy.cluster.heirarchy\'s linkage().. Should be an array of length n-1, where dendrogram[i] indicates which clusters are merged at the i-th iteration.')
     parser.add_argument('-o', '--output', dest='output_dir', default='.',
 	    help='Output directory path. Default current directory')
+    parser.add_argument('-m', '--minClade', dest='minClade', default=2, type=int,
+	    help='Only calculate artificial prizes for clades that contain at least m samples. Default = all clades')
 
     parser.add_argument("-w", dest="w", default=5, type=float, help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 5]")
     parser.add_argument("-b", dest="b", default=1, type=float, help="Beta: scaling factor of prizes [default: 1]")
@@ -148,7 +151,7 @@ def main():
     args = parser.parse_args()
     paramDict = {'w':args.w, 'b':args.b, 'g':args.g}
 
-    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, paramDict, args.alpha, args.lbda, args.output_dir)
+    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, args.minClade, paramDict, args.alpha, args.lbda, args.output_dir)
 
 
 if __name__ == '__main__':
