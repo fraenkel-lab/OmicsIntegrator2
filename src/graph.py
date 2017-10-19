@@ -669,7 +669,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
-    return path
+	return path
 
 def output_networkx_graph_as_edgelist(nxgraph, output_dir):
 	"""
