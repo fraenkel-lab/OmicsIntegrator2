@@ -48,13 +48,24 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
             for line in pf:
                 prot = line.split('\t')[0]
                 origP[i].append(prot)
+    
+    # Change the disimilarity to similarity score: 
+    Height=[]               
+    for i, c in enumerate(dendrogram):
+         Height.append(float(c[2]))
+       
+    Similarity=[]             
+
+    for i in range(0,len(Height)):
+        Similarity.append((1-(Height[i]-min(Height))/(max(Height)-min(Height)))+ 0.00001)
+
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
         num_samples_in_clade = int(c[3])
         if num_samples_in_clade >= minClade:
             os.makedirs(outdir + '/iter%i'%i, exist_ok=True)
-            s_c = float(c[2])
+            s_c = float(Similarity[i])
             d_c = 1-s_c
             sample1 = int(c[0])
             sample2 = int(c[1])
