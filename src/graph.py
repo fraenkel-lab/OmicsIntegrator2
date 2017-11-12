@@ -18,8 +18,9 @@ import json
 import numpy as np
 import pandas as pd
 import networkx as nx
+from networkx.readwrite import json_graph
 import community    # pip install python-louvain
-# from py2cytoscape import util as cy
+import jinja2
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -31,6 +32,8 @@ __all__ = [ "Graph",
 			"get_networkx_graph_as_dataframe_of_nodes",
 			"get_networkx_graph_as_dataframe_of_edges" ]
 
+templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
+templateEnv = jinja2.Environment(loader=templateLoader)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -78,9 +81,12 @@ class Graph:
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
 
 		self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
+		duplicated_edges = self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist()
 		logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
-		logger.info(self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist())
-		self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+		logger.info(duplicated_edges)
+		if len(duplicated_edges) > 0:
+			self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+		else: del self.interactome_dataframe['temp']
 
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
@@ -664,4 +670,18 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
 	njs = cy.from_networkx(nxgraph)
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
+
+def output_networkx_graph_as_interactive_html(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file
+	"""
+	graph_json = json.dumps(json_graph.node_link_data(nxgraph))
+
+	path = os.path.join(os.path.abspath(output_dir), 'graph.html')
+	html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json)
+	with open(path, "w") as output_file:
+		output_file.write(html_output)
+
 
