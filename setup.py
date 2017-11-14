@@ -15,12 +15,10 @@ setup(
     description='',
     install_requires=[
         "numpy",
-        "pandas",
-        # "garnet",
-        "networkx==1.11",
+        "pandas==0.21.0",
+        "networkx==2.0",
         "pcst_fast",
         "python-louvain",
-        # "py2cytoscape==0.6.0"
     ],
     entry_points={
         'console_scripts': [

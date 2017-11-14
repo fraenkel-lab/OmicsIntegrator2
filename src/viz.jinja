@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 
+<link href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.2/chosen.min.css" rel="stylesheet" />
+
 <style>
 body {
   overflow:hidden;
@@ -19,13 +21,31 @@ text {
     border: 2px solid black;
     background-color: white;
 }
+.input {
+
+}
 </style>
 <body>
+
+    <input type="text" class="input" id="magic" list="nodes" />
+    <datalist id="nodes">
+      {% for node in nodes %}<option value="{{node}}">{{node}}</option>{% endfor %}
+    </datalist>
+
+    <input type="checkbox" id="allEdges" name="allEdges" value="allEdges">
+    <label for="allEdges">Show all edges</label>
+
+    <button id="saveButton">
+        <big>⇩</big> Download PNG
+    </button>
 
     <!-- <div class="legend_container"></div> -->
 
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.13.0/d3-legend.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.slim.min.js"></script>
+<script src="https://cdn.rawgit.com/eligrey/canvas-toBlob.js/f1a01896135ab378aa5c0118eadd81da55e698d8/canvas-toBlob.js"></script>
+<script src="https://cdn.rawgit.com/eligrey/FileSaver.js/e9d941381475b5df8b7d7691013401e171014e89/FileSaver.min.js"></script>
 <script>
 var w = window.innerWidth;
 var h = window.innerHeight;
@@ -147,6 +167,7 @@ var node = g.selectAll(".node")
             .data(graph.nodes)
             .enter().append("g")
             .attr("class", "node")
+            .attr("id", function(d) { return d.id; })
             .call(force.drag)
 
 node.on("dblclick.zoom", function(d) {
@@ -166,18 +187,13 @@ if (outline) {
 
 var circle = node.append("path")
     .attr("d", d3.svg.symbol()
-        .size(function(d) {
-            return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2);
-        })
-        .type(function(d) {
-            return display_type(d.type);
-        }))
+        .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
+        .type(function(d) { return display_type(d.type); }))
 
     .style(tocolor, function(d) {
         if (isNumber(d.prize) && d.prize >= 0) return color(d.prize);
         else return default_node_color;
     })
-    //.attr("r", function(d) { return size(d.size)||nominal_base_node_size; })
     .style("stroke-width", default_stroke_width)
     .style(towhite, "white");
 
@@ -187,34 +203,26 @@ var text = g.selectAll(".text")
             .attr("dy", ".35em")
             .style("font-size", nominal_text_size + "px")
 
-if (text_center)
+if (text_center) {
     text.text(function(d) { return d.id; })
         .style("text-anchor", "middle");
-else
+} else {
     text.attr("dx", function(d) { return (size(d.size) || nominal_base_node_size); })
         .text(function(d) { return '\u2002' + d.id; });
+}
 
 node.on("mouseover", function(d) { set_highlight(d); })
     .on("mousedown", function(d) {
         d3.event.stopPropagation();
         focus_node = d;
+        console.log(d);
         set_focus(d)
         if (highlight_node === null) { set_highlight(d) }
     }).on("mouseout", function(d) {
         exit_highlight();
     });
 
-d3.select(window).on("mouseup", function() {
-        if (focus_node !== null) {
-            focus_node = null;
-            if (highlight_trans < 1) {
-                circle.style("opacity", 1);
-                text.style("opacity", 1);
-                link.style("opacity", 1);
-            }
-        }
-        if (highlight_node === null) { exit_highlight(); }
-    });
+d3.select(window).on("mouseup", remove_focus);
 
 function exit_highlight() {
     highlight_node = null;
@@ -244,6 +252,14 @@ function set_focus(d) {
             return o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans;
         });
     }
+}
+
+function remove_focus() {
+    focus_node = null;
+    circle.style("opacity", 1);
+    text.style("opacity", 1);
+    link.style("opacity", 1);
+    if (highlight_node === null) { exit_highlight(); }
 }
 
 function set_highlight(d) {
@@ -304,32 +320,17 @@ d3.select(window).on("resize", resize).on("keydown", keydown);
 
 force.on("tick", function() {
 
-    node.attr("transform", function(d) {
-        return "translate(" + d.x + "," + d.y + ")";
-    });
-    text.attr("transform", function(d) {
-        return "translate(" + d.x + "," + d.y + ")";
-    });
+    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
-    link.attr("x1", function(d) {
-            return d.source.x;
-        })
-        .attr("y1", function(d) {
-            return d.source.y;
-        })
-        .attr("x2", function(d) {
-            return d.target.x;
-        })
-        .attr("y2", function(d) {
-            return d.target.y;
-        });
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
-    node.attr("cx", function(d) {
-            return d.x;
-        })
-        .attr("cy", function(d) {
-            return d.y;
-        });
+    node.attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; });
+
 });
 
 function resize() {
@@ -394,12 +395,29 @@ var legendLinear = d3.legend.color()
                             .shapeWidth(30)
                             .orient('vertical')
                             .scale(color)
-                            .title("Color Legend Title");
+                            .title("Node Prizes");
 
 svg.select(".legendLinear")
    .call(legendLinear);
 
-// Symbol Legend
+// // SIZE LEGEND
+// svg.append("g")
+//    .attr("class", "legendSizeLine")
+//    .attr("transform", "translate(20, 500)");
+
+// var legendSizeLine = d3.legend.size()
+//                               .scale(width)
+//                               .shape("line")
+//                               .orient("vertical")
+//                               // .labels(["tiny", "small", "medium", "large", "grand"])
+//                               .shapeWidth(40)
+//                               .labelAlign("start")
+//                               .shapePadding(10);
+
+// svg.select(".legendSizeLine")
+//    .call(legendSizeLine);
+
+// SYMBOL LEGEND
 svg.append("g")
    .attr("class", "legendSymbol")
    .attr("transform", "translate(20, 200)");
@@ -407,7 +425,7 @@ svg.append("g")
 var legendPath = d3.legend.symbol()
                           .scale(display_type)
                           .orient("vertical")
-                          .title("Symbol Legend Title");
+                          .title("Node Types");
                           // .on("cellclick", function(d){alert("clicked " + d);});
 
 svg.select(".legendSymbol")
@@ -448,5 +466,136 @@ function vis_by_link_score(score) {
 function isNumber(n) {
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
+
+
+
+$("#magic").on('input', function () {
+    var val = this.value;
+    if ($('#nodes').find('option').filter(function() {
+        return this.value.toUpperCase() === val.toUpperCase();
+    }).length) {
+        set_focus(d3.select("#"+this.value)[0][0].__data__);
+    }
+    else { remove_focus(); }
+});
+
+
+
+
+
+
+// Downloading
+
+// Set-up the export button
+// d3.select('#saveButton').on('click', function(){
+//     var svgString = getSVGString(svg.node());
+//     svgString2Image( svgString, 2*w, 2*h, 'png', save ); // passes Blob and filesize String to the callback
+
+//     function save( dataBlob, filesize ){
+//         saveAs( dataBlob, 'D3 vis exported to PNG.png' ); // FileSaver.js function
+//     }
+// });
+
+// // Below are the functions that handle actual exporting:
+// // getSVGString ( svgNode ) and svgString2Image( svgString, width, height, format, callback )
+// function getSVGString( svgNode ) {
+//     svgNode.setAttribute('xlink', 'http://www.w3.org/1999/xlink');
+//     var cssStyleText = getCSSStyles( svgNode );
+//     appendCSS( cssStyleText, svgNode );
+
+//     var serializer = new XMLSerializer();
+//     var svgString = serializer.serializeToString(svgNode);
+//     svgString = svgString.replace(/(\w+)?:?xlink=/g, 'xmlns:xlink='); // Fix root xlink without namespace
+//     svgString = svgString.replace(/NS\d+:href/g, 'xlink:href'); // Safari NS namespace fix
+
+//     return svgString;
+
+//     function getCSSStyles( parentElement ) {
+//         var selectorTextArr = [];
+
+//         // Add Parent element Id and Classes to the list
+//         selectorTextArr.push( '#'+parentElement.id );
+//         for (var c = 0; c < parentElement.classList.length; c++)
+//                 if ( !contains('.'+parentElement.classList[c], selectorTextArr) )
+//                     selectorTextArr.push( '.'+parentElement.classList[c] );
+
+//         // Add Children element Ids and Classes to the list
+//         var nodes = parentElement.getElementsByTagName("*");
+//         for (var i = 0; i < nodes.length; i++) {
+//             var id = nodes[i].id;
+//             if ( !contains('#'+id, selectorTextArr) )
+//                 selectorTextArr.push( '#'+id );
+
+//             var classes = nodes[i].classList;
+//             for (var c = 0; c < classes.length; c++)
+//                 if ( !contains('.'+classes[c], selectorTextArr) )
+//                     selectorTextArr.push( '.'+classes[c] );
+//         }
+
+//         // Extract CSS Rules
+//         var extractedCSSText = "";
+//         for (var i = 0; i < document.styleSheets.length; i++) {
+//             var s = document.styleSheets[i];
+
+//             try {
+//                 if(!s.cssRules) continue;
+//             } catch( e ) {
+//                     if(e.name !== 'SecurityError') throw e; // for Firefox
+//                     continue;
+//                 }
+
+//             var cssRules = s.cssRules;
+//             for (var r = 0; r < cssRules.length; r++) {
+//                 if ( contains( cssRules[r].selectorText, selectorTextArr ) )
+//                     extractedCSSText += cssRules[r].cssText;
+//             }
+//         }
+
+
+//         return extractedCSSText;
+
+//         function contains(str,arr) {
+//             return arr.indexOf( str ) === -1 ? false : true;
+//         }
+
+//     }
+
+//     function appendCSS( cssText, element ) {
+//         var styleElement = document.createElement("style");
+//         styleElement.setAttribute("type","text/css");
+//         styleElement.innerHTML = cssText;
+//         var refNode = element.hasChildNodes() ? element.children[0] : null;
+//         element.insertBefore( styleElement, refNode );
+//     }
+// }
+
+
+// function svgString2Image( svgString, width, height, format, callback ) {
+//     var format = format ? format : 'png';
+
+//     var imgsrc = 'data:image/svg+xml;base64,'+ btoa( unescape( encodeURIComponent( svgString ) ) ); // Convert SVG string to data URL
+
+//     var canvas = document.createElement("canvas");
+//     var context = canvas.getContext("2d");
+
+//     canvas.width = width;
+//     canvas.height = height;
+
+//     var image = new Image();
+//     image.onload = function() {
+//         context.clearRect ( 0, 0, width, height );
+//         context.drawImage(image, 0, 0, width, height);
+
+//         canvas.toBlob( function(blob) {
+//             var filesize = Math.round( blob.length/1024 ) + ' KB';
+//             if ( callback ) callback( blob, filesize );
+//         });
+
+
+//     };
+
+//     image.src = imgsrc;
+// }
+
 
 </script>

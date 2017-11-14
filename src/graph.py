@@ -329,14 +329,15 @@ class Graph:
 		# the above won't capture the singletons, so we'll add them here
 		forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
-		for attribute in self.node_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		# Set Node degrees on graph
+		nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].to_dict(orient='index'))
 
-		# Add the degree as an attribute
-		node_degree_dict = nx.degree(self.interactome_graph)
-		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+		# Set all othe attributes on graph
+		nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
+
+		nx.set_edge_attributes(augmented_forest, {edge: {'in_solution':True} for edge in forest.edges()})
 
 		# Post-processing
 		louvain_clustering(augmented_forest)
@@ -496,12 +497,15 @@ class Graph:
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
-			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
-		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
-			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
+		nx.set_node_attributes(forest, vertex_indices.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_node_attributes(augmented_forest, vertex_indices.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
+
+		# if noisy_edges_reps > 0:
+		# 	nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
+		# 	nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
+		# if random_terminals_reps > 0:
+		# 	nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
+		# 	nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
 
 		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
 		return forest, augmented_forest
@@ -592,8 +596,11 @@ class Graph:
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
-		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
+		nx.set_node_attributes(forest, vertex_indices.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_node_attributes(augmented_forest, vertex_indices.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
+
+		# nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
+		# nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
 
 		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
@@ -602,13 +609,15 @@ class Graph:
 
 
 def betweenness(nxgraph):
-	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
+	"""
+	"""
+	nx.set_node_attributes(nxgraph, {node: {'betweenness':cluster} for node,cluster in nx.betweenness_centrality(nxgraph).items()})
 
 
 def louvain_clustering(nxgraph):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'louvainClusters', community.best_partition(nxgraph))
+	nx.set_node_attributes(nxgraph, {node: {'louvainClusters':cluster} for node,cluster in community.best_partition(nxgraph).items()})
 
 # def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
 # 	"""
@@ -618,7 +627,7 @@ def louvain_clustering(nxgraph):
 def k_clique_clustering(nxgraph, k):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
+	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
 
 
 def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
@@ -642,10 +651,9 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
 		pd.DataFrame: edges from the input graph and their attributes as a dataframe
 	"""
 
-	intermediate = pd.DataFrame(nxgraph.edges(data=True))
-	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
-	# TODO: in the future, get the other attributes out into columns
-	return intermediate[['protein1', 'protein2']]
+	df = pd.DataFrame(list(nxgraph.edges(data=True)))
+	df.columns = ['protein1', 'protein2'] + df.columns[2:].tolist()
+	return df
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
@@ -671,6 +679,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
 
+
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir):
 	"""
 	Arguments:
@@ -678,9 +687,10 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir):
 		output_dir (str): the directory in which to output the file
 	"""
 	graph_json = json.dumps(json_graph.node_link_data(nxgraph))
+	nodes = nxgraph.nodes()
 
 	path = os.path.join(os.path.abspath(output_dir), 'graph.html')
-	html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json)
+	html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json, nodes=nodes)
 	with open(path, "w") as output_file:
 		output_file.write(html_output)
 
