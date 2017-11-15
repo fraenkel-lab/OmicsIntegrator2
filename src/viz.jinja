@@ -41,8 +41,8 @@ text {
 
     <!-- <div class="legend_container"></div> -->
 
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.13.0/d3-legend.min.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.24.0/d3-legend.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.slim.min.js"></script>
 <script src="https://cdn.rawgit.com/eligrey/canvas-toBlob.js/f1a01896135ab378aa5c0118eadd81da55e698d8/canvas-toBlob.js"></script>
 <script src="https://cdn.rawgit.com/eligrey/FileSaver.js/e9d941381475b5df8b7d7691013401e171014e89/FileSaver.min.js"></script>
@@ -78,39 +78,28 @@ var max_score = 4;
 var min_confidence = 0;
 var max_confidence = 1;
 
-// var color = d3.scale.linear()
+// var color = d3.scaleLinear()
 //                     .domain([min_score, (min_score + max_score) / 2, max_score])
                     // .range(["blue", "white", "red"]);
-var color = d3.scale.linear()
-                    .domain([min_score, max_score])
-                    .range(["white", "red"]);
+var color = d3.scaleLinear()
+              .domain([min_score, max_score])
+              .range(["white", "red"]);
 
-var width = d3.scale.linear()
-                    .domain([min_confidence, max_confidence])
-                    .range([0.2, 2]);
+var width = d3.scaleLinear()
+              .domain([min_confidence, max_confidence])
+              .range([0.2, 2]);
 
-var circleSymbol          = d3.svg.symbol().type('circle')(),
-    triangleUpSymbol      = d3.svg.symbol().type('triangle-up')(),
-    // triangleDownSymbol = d3.svg.symbol().type('triangle-down')(),
-    // crossSymbol        = d3.svg.symbol().type('cross')(),
-    diamondSymbol         = d3.svg.symbol().type('diamond')();
-
-var display_type = d3.scale.ordinal()
-                           .domain(['protein', 'TF', 'metabolite'])
-                           .range([circleSymbol, triangleUpSymbol, diamondSymbol] );
+var display_type = d3.scaleOrdinal()
+                     .domain(['protein', 'TF', 'metabolite'])
+                     .range([d3.symbolCircle, d3.symbolTriangl, d3.symbolDiamond] );
 
 var highlight_color = "blue";
 var highlight_trans = 0.1;
 
-var size = d3.scale.pow()
-                   .exponent(1)
-                   .domain([1, 100])
-                   .range([8, 24]);
-
-var force = d3.layout.force()
-                     .linkDistance(60)
-                     .charge(-300)
-                     .size([w, h]);
+var size = d3.scalePow()
+             .exponent(1)
+             .domain([1, 100])
+             .range([8, 24]);
 
 var default_node_color = "#ccc";
 var default_link_color = "#888";
@@ -123,32 +112,30 @@ var max_base_node_size = 36;
 var min_zoom = 1;
 var max_zoom = 7;
 var svg = d3.select("body").append("svg");
-var zoom = d3.behavior.zoom().scaleExtent([min_zoom, max_zoom])
 var g = svg.append("g");
 svg.style("cursor", "move");
 
 
-var linkedByIndex = {};
-
-graph.links.forEach(function(d) {
-    linkedByIndex[d.source + "," + d.target] = true;
-});
+var linked = {};
+graph.links.forEach(function(d) { linked[d.source + "," + d.target] = true; });
 
 function isConnected(a, b) {
-    return linkedByIndex[a.index + "," + b.index] || linkedByIndex[b.index + "," + a.index] || a.index == b.index;
+    return linked[a.id + "," + b.id] || linked[b.id + "," + a.id] || a.id == b.id;
 }
 
 function hasConnections(a) {
-    for (var property in linkedByIndex) {
+    for (var property in linked) {
         s = property.split(",");
-        if ((s[0] == a.index || s[1] == a.index) && linkedByIndex[property]) return true;
+        if ((s[0] == a.id || s[1] == a.id) && linked[property]) return true;
     }
     return false;
 }
 
-force.nodes(graph.nodes)
-     .links(graph.links)
-     .start();
+
+var force = d3.forceSimulation()
+              .force("link", d3.forceLink().id(function(d) { return d.id; }))
+              .force("charge", d3.forceManyBody())
+              .force("center", d3.forceCenter(w / 2, h / 2));
 
 var link = g.selectAll(".link")
             .data(graph.links)
@@ -168,7 +155,53 @@ var node = g.selectAll(".node")
             .enter().append("g")
             .attr("class", "node")
             .attr("id", function(d) { return d.id; })
-            .call(force.drag)
+
+force.nodes(graph.nodes).on("tick", function() {
+
+    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    node.attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; });
+
+});
+
+force.force("link").links(graph.links);
+
+//add drag capabilities
+var drag_handler = d3.drag()
+    .on("start", drag_start)
+    .on("drag", drag_drag)
+    .on("end", drag_end);
+
+drag_handler(node);
+
+//Drag functions
+//d is the node
+function drag_start(d) {
+    if (!d3.event.active) { force.alphaTarget(0.3).restart(); }
+    set_focus(d);
+    d.fx = d.x;
+    d.fy = d.y;
+}
+
+//make sure you can't drag the circle outside the box
+function drag_drag(d) {
+  d.fx = d3.event.x;
+  d.fy = d3.event.y;
+}
+
+function drag_end(d) {
+  if (!d3.event.active) { force.alphaTarget(0); }
+  remove_focus(d)
+  d.fx = null;
+  d.fy = null;
+}
 
 node.on("dblclick.zoom", function(d) {
     d3.event.stopPropagation();
@@ -186,10 +219,10 @@ if (outline) {
 }
 
 var circle = node.append("path")
-    .attr("d", d3.svg.symbol()
+    .attr("d", d3.symbol()
         .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
-        .type(function(d) { return display_type(d.type); }))
-
+        .type(function(d) { return display_type(d.type);
+    }))
     .style(tocolor, function(d) {
         if (isNumber(d.prize) && d.prize >= 0) return color(d.prize);
         else return default_node_color;
@@ -211,18 +244,27 @@ if (text_center) {
         .text(function(d) { return '\u2002' + d.id; });
 }
 
-node.on("mouseover", function(d) { set_highlight(d); })
-    .on("mousedown", function(d) {
-        d3.event.stopPropagation();
-        focus_node = d;
-        console.log(d);
-        set_focus(d)
-        if (highlight_node === null) { set_highlight(d) }
-    }).on("mouseout", function(d) {
-        exit_highlight();
-    });
+node.on("mouseover", function(d) { set_highlight(d); }).on("mouseout", function(d) { exit_highlight(); });
 
-d3.select(window).on("mouseup", remove_focus);
+
+function set_highlight(d) {
+    svg.style("cursor", "pointer");
+    if (focus_node !== null) d = focus_node;
+    highlight_node = d;
+
+    if (highlight_color != "white") {
+        circle.style(towhite, function(o) {
+            return isConnected(d, o) ? highlight_color : "white";
+        });
+        text.style("font-weight", function(o) {
+            return isConnected(d, o) ? "bold" : "normal";
+        });
+        link.style("stroke", function(o) {
+            return o.source.index == d.index || o.target.index == d.index ? highlight_color : ((isNumber(o.score) && o.score >= 0) ? color(o.score) : default_link_color);
+
+        });
+    }
+}
 
 function exit_highlight() {
     highlight_node = null;
@@ -262,83 +304,23 @@ function remove_focus() {
     if (highlight_node === null) { exit_highlight(); }
 }
 
-function set_highlight(d) {
-    svg.style("cursor", "pointer");
-    if (focus_node !== null) d = focus_node;
-    highlight_node = d;
 
-    if (highlight_color != "white") {
-        circle.style(towhite, function(o) {
-            return isConnected(d, o) ? highlight_color : "white";
-        });
-        text.style("font-weight", function(o) {
-            return isConnected(d, o) ? "bold" : "normal";
-        });
-        link.style("stroke", function(o) {
-            return o.source.index == d.index || o.target.index == d.index ? highlight_color : ((isNumber(o.score) && o.score >= 0) ? color(o.score) : default_link_color);
-
-        });
-    }
-}
-
-zoom.on("zoom", function() {
-    var stroke = default_stroke_width;
-    if (default_stroke_width * zoom.scale() > max_stroke) stroke = max_stroke / zoom.scale();
-    link.style("stroke-width", function(d) {
-                if (isNumber(d.cost) && d.cost >= 0) return width(1-d.cost);
-                else return stroke;
-            });
-    circle.style("stroke-width", default_stroke_width);
-
-    var base_radius = nominal_base_node_size;
-    if (nominal_base_node_size * zoom.scale() > max_base_node_size) base_radius = max_base_node_size / zoom.scale();
-    circle.attr("d", d3.svg.symbol()
-        .size(function(d) {
-            return Math.PI * Math.pow(size(d.size) * base_radius / nominal_base_node_size || base_radius, 2);
-        })
-        .type(function(d) {
-            return display_type(d.type);
-        }))
-
-    //circle.attr("r", function(d) { return (size(d.size)*base_radius/nominal_base_node_size||base_radius); })
-    if (!text_center) text.attr("dx", function(d) {
-        return (size(d.size) * base_radius / nominal_base_node_size || base_radius);
-    });
-
-    var text_size = nominal_text_size;
-    if (nominal_text_size * zoom.scale() > max_text_size) text_size = max_text_size / zoom.scale();
-    text.style("font-size", text_size + "px");
-
-    g.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-});
-
-svg.call(zoom);
+// Zooming
+function zoom_actions() { g.attr("transform", d3.event.transform) }
+var zoom_handler = d3.zoom().scaleExtent([min_zoom, max_zoom]).on("zoom", zoom_actions);
+zoom_handler(svg);
 
 resize();
 //window.focus();
+
 d3.select(window).on("resize", resize).on("keydown", keydown);
-
-force.on("tick", function() {
-
-    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-    text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-
-    link.attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-
-    node.attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; });
-
-});
 
 function resize() {
     var width = window.innerWidth,
         height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
 
-    force.size([force.size()[0] + (width - w) / zoom.scale(), force.size()[1] + (height - h) / zoom.scale()]).resume();
+    // force.size([force.size()[0] + (width - w) / zoom.scale(), force.size()[1] + (height - h) / zoom.scale()]).resume();
     w = width;
     h = height;
 }
@@ -365,7 +347,7 @@ function keydown() {
 
         link.style("display", function(d) {
             var flag = vis_by_type(d.source.type) && vis_by_type(d.target.type) && vis_by_node_score(d.source.score) && vis_by_node_score(d.target.score) && vis_by_link_score(d.score);
-            linkedByIndex[d.source.index + "," + d.target.index] = flag;
+            linked[d.source.index + "," + d.target.index] = flag;
             return flag ? "inline" : "none";
         });
         node.style("display", function(d) {
@@ -391,11 +373,11 @@ svg.append("g")
    .attr("class", "legendLinear")
    .attr("transform", "translate(20,20)");
 
-var legendLinear = d3.legend.color()
-                            .shapeWidth(30)
-                            .orient('vertical')
-                            .scale(color)
-                            .title("Node Prizes");
+var legendLinear = d3.legendColor()
+                     .shapeWidth(30)
+                     .orient('vertical')
+                     .scale(color)
+                     .title("Node Prizes");
 
 svg.select(".legendLinear")
    .call(legendLinear);
@@ -418,18 +400,18 @@ svg.select(".legendLinear")
 //    .call(legendSizeLine);
 
 // SYMBOL LEGEND
-svg.append("g")
-   .attr("class", "legendSymbol")
-   .attr("transform", "translate(20, 200)");
+// svg.append("g")
+//    .attr("class", "legendSymbol")
+//    .attr("transform", "translate(20, 200)");
 
-var legendPath = d3.legend.symbol()
-                          .scale(display_type)
-                          .orient("vertical")
-                          .title("Node Types");
-                          // .on("cellclick", function(d){alert("clicked " + d);});
+// var legendPath = d3.legendSymbol()
+//                     .scale(display_type)
+//                     .orient("vertical")
+//                     .title("Node Types");
+//                     // .on("cellclick", function(d){alert("clicked " + d);});
 
-svg.select(".legendSymbol")
-   .call(legendPath);
+// svg.select(".legendSymbol")
+//    .call(legendPath);
 
 
 
@@ -474,128 +456,125 @@ $("#magic").on('input', function () {
     if ($('#nodes').find('option').filter(function() {
         return this.value.toUpperCase() === val.toUpperCase();
     }).length) {
-        set_focus(d3.select("#"+this.value)[0][0].__data__);
+        set_focus(d3.select("#"+this.value)._groups[0][0].__data__);
     }
     else { remove_focus(); }
 });
 
 
 
-
-
-
 // Downloading
 
 // Set-up the export button
-// d3.select('#saveButton').on('click', function(){
-//     var svgString = getSVGString(svg.node());
-//     svgString2Image( svgString, 2*w, 2*h, 'png', save ); // passes Blob and filesize String to the callback
+d3.select('#saveButton').on('click', function(){
+    var svgString = getSVGString(svg.node());
+    svgString2Image( svgString, 2*w, 2*h, 'png', save ); // passes Blob and filesize String to the callback
 
-//     function save( dataBlob, filesize ){
-//         saveAs( dataBlob, 'D3 vis exported to PNG.png' ); // FileSaver.js function
-//     }
-// });
+    function save( dataBlob, filesize ){
+        saveAs( dataBlob, 'D3 vis exported to PNG.png' ); // FileSaver.js function
+    }
+});
 
-// // Below are the functions that handle actual exporting:
-// // getSVGString ( svgNode ) and svgString2Image( svgString, width, height, format, callback )
-// function getSVGString( svgNode ) {
-//     svgNode.setAttribute('xlink', 'http://www.w3.org/1999/xlink');
-//     var cssStyleText = getCSSStyles( svgNode );
-//     appendCSS( cssStyleText, svgNode );
+// Below are the functions that handle actual exporting:
+// getSVGString ( svgNode ) and svgString2Image( svgString, width, height, format, callback )
+function getSVGString( svgNode ) {
+    svgNode.setAttribute('xlink', 'http://www.w3.org/1999/xlink');
+    var cssStyleText = getCSSStyles( svgNode );
+    appendCSS( cssStyleText, svgNode );
 
-//     var serializer = new XMLSerializer();
-//     var svgString = serializer.serializeToString(svgNode);
-//     svgString = svgString.replace(/(\w+)?:?xlink=/g, 'xmlns:xlink='); // Fix root xlink without namespace
-//     svgString = svgString.replace(/NS\d+:href/g, 'xlink:href'); // Safari NS namespace fix
+    var serializer = new XMLSerializer();
+    var svgString = serializer.serializeToString(svgNode);
+    svgString = svgString.replace(/(\w+)?:?xlink=/g, 'xmlns:xlink='); // Fix root xlink without namespace
+    svgString = svgString.replace(/NS\d+:href/g, 'xlink:href'); // Safari NS namespace fix
 
-//     return svgString;
+    return svgString;
 
-//     function getCSSStyles( parentElement ) {
-//         var selectorTextArr = [];
+    function getCSSStyles( parentElement ) {
+        var selectorTextArr = [];
 
-//         // Add Parent element Id and Classes to the list
-//         selectorTextArr.push( '#'+parentElement.id );
-//         for (var c = 0; c < parentElement.classList.length; c++)
-//                 if ( !contains('.'+parentElement.classList[c], selectorTextArr) )
-//                     selectorTextArr.push( '.'+parentElement.classList[c] );
+        // Add Parent element Id and Classes to the list
+        selectorTextArr.push( '#'+parentElement.id );
+        for (var c = 0; c < parentElement.classList.length; c++)
+                if ( !contains('.'+parentElement.classList[c], selectorTextArr) )
+                    selectorTextArr.push( '.'+parentElement.classList[c] );
 
-//         // Add Children element Ids and Classes to the list
-//         var nodes = parentElement.getElementsByTagName("*");
-//         for (var i = 0; i < nodes.length; i++) {
-//             var id = nodes[i].id;
-//             if ( !contains('#'+id, selectorTextArr) )
-//                 selectorTextArr.push( '#'+id );
+        // Add Children element Ids and Classes to the list
+        var nodes = parentElement.getElementsByTagName("*");
+        for (var i = 0; i < nodes.length; i++) {
+            var id = nodes[i].id;
+            if ( !contains('#'+id, selectorTextArr) )
+                selectorTextArr.push( '#'+id );
 
-//             var classes = nodes[i].classList;
-//             for (var c = 0; c < classes.length; c++)
-//                 if ( !contains('.'+classes[c], selectorTextArr) )
-//                     selectorTextArr.push( '.'+classes[c] );
-//         }
+            var classes = nodes[i].classList;
+            for (var c = 0; c < classes.length; c++)
+                if ( !contains('.'+classes[c], selectorTextArr) )
+                    selectorTextArr.push( '.'+classes[c] );
+        }
 
-//         // Extract CSS Rules
-//         var extractedCSSText = "";
-//         for (var i = 0; i < document.styleSheets.length; i++) {
-//             var s = document.styleSheets[i];
+        // Extract CSS Rules
+        var extractedCSSText = "";
+        for (var i = 0; i < document.styleSheets.length; i++) {
+            var s = document.styleSheets[i];
 
-//             try {
-//                 if(!s.cssRules) continue;
-//             } catch( e ) {
-//                     if(e.name !== 'SecurityError') throw e; // for Firefox
-//                     continue;
-//                 }
+            try {
+                if(!s.cssRules) continue;
+            } catch( e ) {
+                    if(e.name !== 'SecurityError') throw e; // for Firefox
+                    continue;
+                }
 
-//             var cssRules = s.cssRules;
-//             for (var r = 0; r < cssRules.length; r++) {
-//                 if ( contains( cssRules[r].selectorText, selectorTextArr ) )
-//                     extractedCSSText += cssRules[r].cssText;
-//             }
-//         }
-
-
-//         return extractedCSSText;
-
-//         function contains(str,arr) {
-//             return arr.indexOf( str ) === -1 ? false : true;
-//         }
-
-//     }
-
-//     function appendCSS( cssText, element ) {
-//         var styleElement = document.createElement("style");
-//         styleElement.setAttribute("type","text/css");
-//         styleElement.innerHTML = cssText;
-//         var refNode = element.hasChildNodes() ? element.children[0] : null;
-//         element.insertBefore( styleElement, refNode );
-//     }
-// }
+            var cssRules = s.cssRules;
+            for (var r = 0; r < cssRules.length; r++) {
+                if ( contains( cssRules[r].selectorText, selectorTextArr ) )
+                    extractedCSSText += cssRules[r].cssText;
+            }
+        }
 
 
-// function svgString2Image( svgString, width, height, format, callback ) {
-//     var format = format ? format : 'png';
+        return extractedCSSText;
 
-//     var imgsrc = 'data:image/svg+xml;base64,'+ btoa( unescape( encodeURIComponent( svgString ) ) ); // Convert SVG string to data URL
+        function contains(str,arr) {
+            return arr.indexOf( str ) === -1 ? false : true;
+        }
 
-//     var canvas = document.createElement("canvas");
-//     var context = canvas.getContext("2d");
+    }
 
-//     canvas.width = width;
-//     canvas.height = height;
-
-//     var image = new Image();
-//     image.onload = function() {
-//         context.clearRect ( 0, 0, width, height );
-//         context.drawImage(image, 0, 0, width, height);
-
-//         canvas.toBlob( function(blob) {
-//             var filesize = Math.round( blob.length/1024 ) + ' KB';
-//             if ( callback ) callback( blob, filesize );
-//         });
+    function appendCSS( cssText, element ) {
+        var styleElement = document.createElement("style");
+        styleElement.setAttribute("type","text/css");
+        styleElement.innerHTML = cssText;
+        var refNode = element.hasChildNodes() ? element.children[0] : null;
+        element.insertBefore( styleElement, refNode );
+    }
+}
 
 
-//     };
+function svgString2Image( svgString, width, height, format, callback ) {
+    var format = format ? format : 'png';
 
-//     image.src = imgsrc;
-// }
+    var imgsrc = 'data:image/svg+xml;base64,'+ btoa( unescape( encodeURIComponent( svgString ) ) ); // Convert SVG string to data URL
+
+    var canvas = document.createElement("canvas");
+    var context = canvas.getContext("2d");
+
+    canvas.width = width;
+    canvas.height = height;
+
+    var image = new Image();
+    image.onload = function() {
+        context.clearRect ( 0, 0, width, height );
+        context.drawImage(image, 0, 0, width, height);
+
+        canvas.toBlob( function(blob) {
+            var filesize = Math.round( blob.length/1024 ) + ' KB';
+            if ( callback ) callback( blob, filesize );
+        });
+
+
+    };
+
+    image.src = imgsrc;
+}
 
 
 </script>
