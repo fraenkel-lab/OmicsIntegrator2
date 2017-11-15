@@ -52,25 +52,12 @@ var h = window.innerHeight;
 
 var graph = {{ graph_json|safe }}
 
-var keyc = true,
-    keys = true,
-    keyt = true,
-    keyr = true,
-    keyx = true,
-    keyd = true,
-    keyl = true,
-    keym = true,
-    keyh = true,
-    key1 = true,
-    key2 = true,
-    key3 = true,
-    key0 = true
-
 var focus_node = null,
     highlight_node = null;
 
-var text_center = false;
-var outline = false;
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Scales    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 var min_score = 0;
 var max_score = 4;
@@ -93,14 +80,19 @@ var display_type = d3.scaleOrdinal()
                      .domain(['protein', 'TF', 'metabolite'])
                      .range([d3.symbolCircle, d3.symbolTriangl, d3.symbolDiamond] );
 
-var highlight_color = "blue";
-var highlight_trans = 0.1;
-
 var size = d3.scalePow()
              .exponent(1)
              .domain([1, 100])
              .range([8, 24]);
 
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Variables    ///////
+/////////////////////////////////////////////////////////////////////////////
+
+var text_center = false;
+var outline = false;
+var highlight_color = "blue";
+var highlight_trans = 0.1;
 var default_node_color = "#ccc";
 var default_link_color = "#888";
 var nominal_base_node_size = 8;
@@ -115,6 +107,9 @@ var svg = d3.select("body").append("svg");
 var g = svg.append("g");
 svg.style("cursor", "move");
 
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Helpers    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 var linked = {};
 graph.links.forEach(function(d) { linked[d.source + "," + d.target] = true; });
@@ -131,6 +126,13 @@ function hasConnections(a) {
     return false;
 }
 
+function isNumber(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Force    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 var force = d3.forceSimulation()
               .force("link", d3.forceLink().id(function(d) { return d.id; }))
@@ -173,7 +175,11 @@ force.nodes(graph.nodes).on("tick", function() {
 
 force.force("link").links(graph.links);
 
-//add drag capabilities
+
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Drag    ///////
+/////////////////////////////////////////////////////////////////////////////
+
 var drag_handler = d3.drag()
     .on("start", drag_start)
     .on("drag", drag_drag)
@@ -181,8 +187,6 @@ var drag_handler = d3.drag()
 
 drag_handler(node);
 
-//Drag functions
-//d is the node
 function drag_start(d) {
     if (!d3.event.active) { force.alphaTarget(0.3).restart(); }
     set_focus(d);
@@ -190,7 +194,6 @@ function drag_start(d) {
     d.fy = d.y;
 }
 
-//make sure you can't drag the circle outside the box
 function drag_drag(d) {
   d.fx = d3.event.x;
   d.fy = d3.event.y;
@@ -203,6 +206,14 @@ function drag_end(d) {
   d.fy = null;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Zoom    ///////
+/////////////////////////////////////////////////////////////////////////////
+
+function zoom_actions() { g.attr("transform", d3.event.transform) }
+var zoom_handler = d3.zoom().scaleExtent([min_zoom, max_zoom]).on("zoom", zoom_actions);
+zoom_handler(svg);
+
 node.on("dblclick.zoom", function(d) {
     d3.event.stopPropagation();
     var dcx = (window.innerWidth / 2 - d.x * zoom.scale());
@@ -210,6 +221,10 @@ node.on("dblclick.zoom", function(d) {
     zoom.translate([dcx, dcy]);
     g.attr("transform", "translate(" + dcx + "," + dcy + ")scale(" + zoom.scale() + ")");
 });
+
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Draw Graph    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 var tocolor = "fill";
 var towhite = "stroke";
@@ -243,6 +258,11 @@ if (text_center) {
     text.attr("dx", function(d) { return (size(d.size) || nominal_base_node_size); })
         .text(function(d) { return '\u2002' + d.id; });
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Highlight    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 node.on("mouseover", function(d) { set_highlight(d); }).on("mouseout", function(d) { exit_highlight(); });
 
@@ -280,19 +300,15 @@ function exit_highlight() {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Focus    ///////
+/////////////////////////////////////////////////////////////////////////////
+
 function set_focus(d) {
     if (highlight_trans < 1) {
-        circle.style("opacity", function(o) {
-            return isConnected(d, o) ? 1 : highlight_trans;
-        });
-
-        text.style("opacity", function(o) {
-            return isConnected(d, o) ? 1 : highlight_trans;
-        });
-
-        link.style("opacity", function(o) {
-            return o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans;
-        });
+        circle.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
+        text.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
+        link.style("opacity", function(o) { return o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans; });
     }
 }
 
@@ -304,16 +320,9 @@ function remove_focus() {
     if (highlight_node === null) { exit_highlight(); }
 }
 
-
-// Zooming
-function zoom_actions() { g.attr("transform", d3.event.transform) }
-var zoom_handler = d3.zoom().scaleExtent([min_zoom, max_zoom]).on("zoom", zoom_actions);
-zoom_handler(svg);
-
-resize();
-//window.focus();
-
-d3.select(window).on("resize", resize).on("keydown", keydown);
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Resize    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 function resize() {
     var width = window.innerWidth,
@@ -325,48 +334,13 @@ function resize() {
     h = height;
 }
 
-function keydown() {
-    if (d3.event.keyCode == 32) {
-        force.stop();
-    } else if (d3.event.keyCode >= 48 && d3.event.keyCode <= 90 && !d3.event.ctrlKey && !d3.event.altKey && !d3.event.metaKey) {
-        switch (String.fromCharCode(d3.event.keyCode)) {
-            case "C": keyc = !keyc; break;
-            case "S": keys = !keys; break;
-            case "T": keyt = !keyt; break;
-            case "R": keyr = !keyr; break;
-            case "X": keyx = !keyx; break;
-            case "D": keyd = !keyd; break;
-            case "L": keyl = !keyl; break;
-            case "M": keym = !keym; break;
-            case "H": keyh = !keyh; break;
-            case "1": key1 = !key1; break;
-            case "2": key2 = !key2; break;
-            case "3": key3 = !key3; break;
-            case "0": key0 = !key0; break;
-        }
+d3.select(window).on("resize", resize).on("keydown", keydown);
 
-        link.style("display", function(d) {
-            var flag = vis_by_type(d.source.type) && vis_by_type(d.target.type) && vis_by_node_score(d.source.score) && vis_by_node_score(d.target.score) && vis_by_link_score(d.score);
-            linked[d.source.index + "," + d.target.index] = flag;
-            return flag ? "inline" : "none";
-        });
-        node.style("display", function(d) {
-            return (key0 || hasConnections(d)) && vis_by_type(d.type) && vis_by_node_score(d.score) ? "inline" : "none";
-        });
-        text.style("display", function(d) {
-            return (key0 || hasConnections(d)) && vis_by_type(d.type) && vis_by_node_score(d.score) ? "inline" : "none";
-        });
+resize();
 
-        if (highlight_node !== null) {
-            if ((key0 || hasConnections(highlight_node)) && vis_by_type(highlight_node.type) && vis_by_node_score(highlight_node.score)) {
-                if (focus_node !== null) set_focus(focus_node);
-                set_highlight(highlight_node);
-            } else {
-                exit_highlight();
-            }
-        }
-    }
-}
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Legends    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 // COLOR LEGEND
 svg.append("g")
@@ -387,14 +361,14 @@ svg.select(".legendLinear")
 //    .attr("class", "legendSizeLine")
 //    .attr("transform", "translate(20, 500)");
 
-// var legendSizeLine = d3.legend.size()
-//                               .scale(width)
-//                               .shape("line")
-//                               .orient("vertical")
-//                               // .labels(["tiny", "small", "medium", "large", "grand"])
-//                               .shapeWidth(40)
-//                               .labelAlign("start")
-//                               .shapePadding(10);
+// var legendSizeLine = d3.legendSize()
+//                        .scale(width)
+//                        .shape("line")
+//                        .orient("vertical")
+//                        // .labels(["tiny", "small", "medium", "large", "grand"])
+//                        .shapeWidth(40)
+//                        .labelAlign("start")
+//                        .shapePadding(10);
 
 // svg.select(".legendSizeLine")
 //    .call(legendSizeLine);
@@ -414,42 +388,9 @@ svg.select(".legendLinear")
 //    .call(legendPath);
 
 
-
-function vis_by_type(type) {
-    switch (type) {
-        case "circle"        : return keyc;
-        case "square"        : return keys;
-        case "triangle-up"   : return keyt;
-        case "diamond"       : return keyr;
-        case "cross"         : return keyx;
-        case "triangle-down" : return keyd;
-        default              : return true;
-    }
-}
-
-function vis_by_node_score(score) {
-    if (isNumber(score)) {
-        if (score >= 0.666) return keyh;
-        else if (score >= 0.333) return keym;
-        else if (score >= 0) return keyl;
-    }
-    return true;
-}
-
-function vis_by_link_score(score) {
-    if (isNumber(score)) {
-        if (score >= 0.666) return key3;
-        else if (score >= 0.333) return key2;
-        else if (score >= 0) return key1;
-    }
-    return true;
-}
-
-function isNumber(n) {
-    return !isNaN(parseFloat(n)) && isFinite(n);
-}
-
-
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Features    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 $("#magic").on('input', function () {
     var val = this.value;
@@ -463,7 +404,10 @@ $("#magic").on('input', function () {
 
 
 
-// Downloading
+
+/////////////////////////////////////////////////////////////////////////////
+                      ///////    Download    ///////
+/////////////////////////////////////////////////////////////////////////////
 
 // Set-up the export button
 d3.select('#saveButton').on('click', function(){
@@ -536,7 +480,6 @@ function getSVGString( svgNode ) {
         function contains(str,arr) {
             return arr.indexOf( str ) === -1 ? false : true;
         }
-
     }
 
     function appendCSS( cssText, element ) {
@@ -547,7 +490,6 @@ function getSVGString( svgNode ) {
         element.insertBefore( styleElement, refNode );
     }
 }
-
 
 function svgString2Image( svgString, width, height, format, callback ) {
     var format = format ? format : 'png';
@@ -575,6 +517,5 @@ function svgString2Image( svgString, width, height, format, callback ) {
 
     image.src = imgsrc;
 }
-
 
 </script>
