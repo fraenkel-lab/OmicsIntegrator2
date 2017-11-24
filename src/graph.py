@@ -334,10 +334,9 @@ class Graph:
 
 		# Set all othe attributes on graph
 		nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_edge_attributes(forest, True, name='in_solution')
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
-
-		nx.set_edge_attributes(augmented_forest, {edge: {'in_solution':True} for edge in forest.edges()})
 
 		# Post-processing
 		louvain_clustering(augmented_forest)

@@ -87,8 +87,8 @@ def main():
 		vertex_indices, edge_indices = graph.pcsf()
 		forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-	#output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
-	output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
+	output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
+	# output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
 
 if __name__ == '__main__':
 	main()

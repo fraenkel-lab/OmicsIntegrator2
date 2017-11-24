@@ -101,7 +101,7 @@ var max_text_size = 24;
 var default_stroke_width = 1;
 var max_stroke = 16;
 var max_base_node_size = 36;
-var min_zoom = 1;
+var min_zoom = 0.2;
 var max_zoom = 7;
 var svg = d3.select("body").append("svg");
 var g = svg.append("g");
@@ -133,6 +133,112 @@ function isNumber(n) {
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Force    ///////
 /////////////////////////////////////////////////////////////////////////////
+
+
+// var force = d3.forceSimulation()
+//               .force("link", d3.forceLink().id(function(d) { return d.id; }))
+//               .force("charge", d3.forceManyBody().strength(-300))
+//               .force("center", d3.forceCenter(w / 2, h / 2))
+//               .alphaTarget(1)
+//               .on("tick", function() {
+
+//                     node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+//                     text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+//                     link.attr("x1", function(d) { return d.source.x; })
+//                         .attr("y1", function(d) { return d.source.y; })
+//                         .attr("x2", function(d) { return d.target.x; })
+//                         .attr("y2", function(d) { return d.target.y; });
+
+//                     node.attr("cx", function(d) { return d.x; })
+//                         .attr("cy", function(d) { return d.y; });
+//                 });
+
+// var link = g.selectAll(".link")
+//             .data(graph.links)
+//             .enter().append("line")
+//             .attr("class", "link")
+//             .style("stroke-width", function(d) {
+//                 if (isNumber(d.cost) && d.cost >= 0) return width(1-d.cost);
+//                 else return default_stroke_width;
+//             })
+//             .style("stroke", function(d) {
+//                 if (isNumber(d.score) && d.score >= 0) return color(d.score);
+//                 else return default_link_color;
+//             })
+
+// var node = g.selectAll(".node")
+//             .data(graph.nodes)
+//             .enter().append("g")
+//             .attr("class", "node")
+//             .attr("id", function(d) { return d.id; })
+
+// function restart() {
+
+//     // Apply the general update pattern to the nodes.
+//     node = g.selectAll(".node").data(graph.nodes, function(d) { return d.id;});
+//     node.exit().remove();
+//     node = node.enter().append("g")
+//                        .attr("class", "node")
+//                        .attr("id", function(d) { return d.id; })
+
+//     // Apply the general update pattern to the links.
+//     link = link.data(graph.links, function(d) { return d.source.id + "-" + d.target.id; });
+//     link.exit().remove();
+//     link = link.enter().append("line").merge(link)
+//                      .attr("class", "link")
+//                      .style("stroke-width", function(d) {
+//                          if (isNumber(d.cost) && d.cost >= 0) return width(1-d.cost);
+//                          else return default_stroke_width;
+//                      })
+//                      .style("stroke", function(d) {
+//                          if (isNumber(d.score) && d.score >= 0) return color(d.score);
+//                          else return default_link_color;
+//                      })
+
+//     var tocolor = "fill";
+//     var towhite = "stroke";
+//     if (outline) {
+//         tocolor = "stroke"
+//         towhite = "fill"
+//     }
+
+//     var circle = node.append("path")
+//         .attr("d", d3.symbol()
+//             .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
+//             .type(function(d) { return display_type(d.type);
+//         }))
+//         .style(tocolor, function(d) {
+//             if (isNumber(d.prize) && d.prize >= 0) return color(d.prize);
+//             else return default_node_color;
+//         })
+//         .style("stroke-width", default_stroke_width)
+//         .style(towhite, "white");
+
+//     var text = g.selectAll(".text")
+//                 .data(graph.nodes)
+//                 .enter().append("text")
+//                 .attr("dy", ".35em")
+//                 .style("font-size", nominal_text_size + "px")
+
+//     if (text_center) {
+//         text.text(function(d) { return d.id; })
+//             .style("text-anchor", "middle");
+//     } else {
+//         text.attr("dx", function(d) { return (size(d.size) || nominal_base_node_size); })
+//             .text(function(d) { return '\u2002' + d.id; });
+//     }
+
+
+//     // Update and restart the simulation.
+//     force.nodes(graph.nodes);
+//     force.force("link").links(graph.links);
+//     force.alpha(1).restart();
+// }
+
+
+// restart();
+
 
 var force = d3.forceSimulation()
               .force("link", d3.forceLink().id(function(d) { return d.id; }))
@@ -263,7 +369,7 @@ if (text_center) {
                       ///////    Highlight    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-node.on("mouseover", function(d) { set_highlight(d); }).on("mouseout", function(d) { exit_highlight(); });
+node.on("mouseover", function(d) { set_highlight(d); }).on("mouseout", function(d) { remove_highlight(); });
 
 function set_highlight(d) {
     svg.style("cursor", "pointer");
@@ -283,7 +389,7 @@ function set_highlight(d) {
     }
 }
 
-function exit_highlight() {
+function remove_highlight() {
     highlight_node = null;
     if (focus_node === null) {
         svg.style("cursor", "move");
@@ -314,7 +420,7 @@ function remove_focus() {
     circle.style("opacity", 1);
     text.style("opacity", 1);
     link.style("opacity", 1);
-    if (highlight_node === null) { exit_highlight(); }
+    if (highlight_node === null) { remove_highlight(); }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -391,8 +497,9 @@ $("#magic").on('input', function () {
         return this.value.toUpperCase() === val.toUpperCase();
     }).length) {
         set_focus(d3.select("#"+this.value)._groups[0][0].__data__);
+        set_highlight(d3.select("#"+this.value)._groups[0][0].__data__);
     }
-    else { remove_focus(); }
+    else { remove_focus(); remove_highlight(); }
 });
 
 $("#solutionEdges").change(function() {
@@ -402,44 +509,6 @@ $("#solutionEdges").change(function() {
         g.selectAll(".link").style('opacity', 1)
     }
 });
-
-
-// $("#solutionEdges").change(function() {
-//     if(this.checked) {
-//         link.exit()
-//         link = g.selectAll(".link").filter(function(d) {return !d.in_solution})
-//                 .data(graph.links.filter(function(d){return !d.in_solution}))
-//                 .enter().append("line")
-//                 .attr("class", "link")
-//                 .style("stroke-width", function(d) {
-//                     if (isNumber(d.cost) && d.cost >= 0) return width(1-d.cost);
-//                     else return default_stroke_width;
-//                 })
-//                 .style("stroke", function(d) {
-//                     if (isNumber(d.score) && d.score >= 0) return color(d.score);
-//                     else return default_link_color;
-//                 })
-
-//         force.force("link").links(graph.links.filter(function(d){return !d.in_solution}));
-
-//     } else {
-//         link.exit()
-//         link = g.selectAll(".link")
-//                 .data(graph.links)
-//                 .enter().append("line")
-//                 .attr("class", "link")
-//                 .style("stroke-width", function(d) {
-//                     if (isNumber(d.cost) && d.cost >= 0) return width(1-d.cost);
-//                     else return default_stroke_width;
-//                 })
-//                 .style("stroke", function(d) {
-//                     if (isNumber(d.score) && d.score >= 0) return color(d.score);
-//                     else return default_link_color;
-//                 })
-//         force.force("link").links(graph.links);
-
-//     }
-// });
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -511,7 +580,6 @@ function getSVGString( svgNode ) {
             }
         }
 
-
         return extractedCSSText;
 
         function contains(str,arr) {
@@ -548,8 +616,6 @@ function svgString2Image( svgString, width, height, format, callback ) {
             var filesize = Math.round( blob.length/1024 ) + ' KB';
             if ( callback ) callback( blob, filesize );
         });
-
-
     };
 
     image.src = imgsrc;
