@@ -20,8 +20,8 @@ import pandas as pd
 import networkx as nx
 from networkx.readwrite import json_graph
 import community    # pip install python-louvain
+from sklearn.cluster import SpectralClustering
 import jinja2
-
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -30,7 +30,7 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"get_networkx_graph_as_node_edge_dataframes", 
+			"get_networkx_graph_as_node_edge_dataframes",
 			"get_networkx_subgraph_from_randomizations" ]
 
 templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
@@ -59,7 +59,7 @@ class Options(object):
 class Graph:
 	"""
 	A Graph object is a representation of a graph, with convenience methods for using the pcst_fast
-	package, which computes an approximate minimization Prize-Collecting Steiner Forest objective.
+	package, which approximately minimizes the Prize-Collecting Steiner Forest objective.
 	"""
 	def __init__(self, interactome_file, params):
 		"""
@@ -188,7 +188,7 @@ class Graph:
 
 	def prepare_prizes(self, prize_file):
 		"""
-		Parses a prize file and returns an array of prizes, a list of terminal indices.
+		Parses a prize file and adds prize-related attributes to the graph object.
 
 		This function logs duplicate assignments in the prize file and memebers of the prize file
 		not found in the interactome.
@@ -199,12 +199,13 @@ class Graph:
 		i.e. the first row of the tsv must be the names of the columns.
 
 		Sets the graph attributes
-		- `graph.prizes` (numpy.array): properly indexed
+		- `graph.bare_prizes` (numpy.array): properly indexed (same as `graph.nodes`) prizes from the file.
+		- `graph.prizes` (numpy.array): properly indexed prizes, scaled by beta (`graph.params.b`)
 		- `graph.terminals` (numpy.array): their indices
-		- `graph.node_attributes` (pandas.DataFrame)
+		- `graph.node_attributes` (pandas.DataFrame) Any node attributes passed in with the prize file (columns 3, ...)
 
 		Arguments:
-			prize_file (str or FILE): a filepath or file object containing a tsv **with headers**.
+			prize_file (str or FILE): a filepath or file object containing a tsv **with column headers**.
 		"""
 
 		prizes_dataframe = pd.read_csv(prize_file, sep='\t')
@@ -268,8 +269,8 @@ class Graph:
 		the results of this function.
 
 		Arguments:
-			pruning (str): TODO
-			verbosity_level (int): TODO
+			pruning (str): a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
+			verbosity_level (int): an integer indicating how much debug output the function should produce.
 
 		Returns:
 			numpy.array: indices of the selected vertices
@@ -354,7 +355,9 @@ class Graph:
 			float: PCSF objective function score
 		"""
 
-		return (sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) + sum(nx.get_edge_attributes(forest, 'cost').values()) + (self.params.w * nx.number_connected_components(forest))
+		return ((sum(self.prizes) - sum(nx.get_node_attributes(forest, 'prize').values())) +
+				 sum(nx.get_edge_attributes(forest, 'cost').values()) +
+				 (self.params.w * nx.number_connected_components(forest)))
 
 
 	def _noisy_edges(self):
@@ -443,7 +446,7 @@ class Graph:
 		if self.params.seed: random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
 
 		# For single PCSF run
-		if noisy_edges_reps == random_terminals_reps == 0: 
+		if noisy_edges_reps == random_terminals_reps == 0:
 
 			return self.output_forest_as_networkx(*self.pcsf())
 
@@ -514,7 +517,7 @@ class Graph:
 			edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
 			nx.set_edge_attributes(forest          , 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
 			nx.set_edge_attributes(augmented_forest, 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
-		
+
 		return forest, augmented_forest
 
 
@@ -529,7 +532,7 @@ class Graph:
 		logger.info(params)
 
 		forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
-		
+
 		return paramstring, forest, augmented_forest
 
 
@@ -555,8 +558,8 @@ class Graph:
 			n_cpus = multiprocessing.cpu_count()
 
 		pool = multiprocessing.Pool(n_cpus)
-		
-		
+
+
 
 		self.prepare_prizes(prize_file)
 
@@ -607,12 +610,14 @@ class Graph:
 
 		return forest, augmented_forest, params_by_nodes
 
-  
+
 def betweenness(nxgraph):
 	"""
 	"""
 	nx.set_node_attributes(nxgraph, {node: {'betweenness':cluster} for node,cluster in nx.betweenness_centrality(nxgraph).items()})
 
+
+# CLUSTERING
 
 def louvain_clustering(nxgraph):
 	"""
@@ -630,11 +635,11 @@ def k_clique_clustering(nxgraph, k):
 	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
 
 
-def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400): 
+def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
 	"""
-	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
-	of size less than min_size, do not remove. 
-	Approach 2: select top max_size nodes based on robustness, then return subgraph. 
+	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component
+	of size less than min_size, do not remove.
+	Approach 2: select top max_size nodes based on robustness, then return subgraph.
 	"""
 
 	node_attributes_df, _ = get_networkx_graph_as_node_edge_dataframes(nxgraph)
@@ -644,6 +649,54 @@ def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
 
 	return nxgraph.subgraph(top_hits)
 
+def spectral_clustering(nxgraph, k):
+	"""
+	"""
+	clustering = SpectralClustering(k, affinity='precomputed', n_init=100, assign_labels='discretize').fit_predict(nx.to_numpy_matrix(nxgraph))
+	nx.set_node_attributes(nxgraph, 'spectral_clusters', dict(zip(nxgraph.nodes(), clustering)))
+
+
+# GO ENRICHMENT
+
+def augment_with_all_GO_terms(nxgraph):
+	"""
+	"""
+	augment_with_subcellular_localization(nxgraph)
+	augment_with_biological_process_terms(nxgraph)
+	augment_with_molecular_function_terms(nxgraph)
+
+def augment_with_subcellular_localization(nxgraph):
+	"""
+	"""
+	pass
+
+	# ontology_graph = goenrich.obo.ontology('db/go-basic.obo')
+	# gene2go = pd.read_csv('gene2go.csv')
+	# GO_terms_and_associated_genes = {k: set(v) for k,v in gene2go.groupby('GO_ID')['GeneSymbol']}
+	# background_set_attribute_name = 'genes'
+	# goenrich.enrich.propagate(ontology_graph, GO_terms_and_associated_genes, background_set_attribute_name)
+
+	# query = nxgraph.nodes()
+	# df = goenrich.enrich.analyze(ontology_graph, query, background_set_attribute_name).dropna().sort_values('p')
+
+
+def augment_with_biological_process_terms(nxgraph):
+	"""
+	"""
+	pass
+
+def augment_with_molecular_function_terms(nxgraph):
+	"""
+	"""
+	pass
+
+def perform_GO_enrichment_on_clusters(nxgraph, clustering):
+	"""
+	"""
+	pass
+
+
+# EXPORT
 
 def get_networkx_graph_as_node_edge_dataframes(nxgraph):
 	"""
@@ -718,7 +771,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
-	
+
   return path
 
 

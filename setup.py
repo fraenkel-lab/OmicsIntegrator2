@@ -19,6 +19,8 @@ setup(
         "networkx==2.0",
         "pcst_fast",
         "python-louvain",
+        "goenrich",
+        "sklearn"
     ],
     entry_points={
         'console_scripts': [
