@@ -31,6 +31,8 @@ __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
 			"output_networkx_graph_as_interactive_html",
+			"get_networkx_graph_as_dataframe_of_nodes",
+			"get_networkx_graph_as_dataframe_of_edges",
 			"get_networkx_graph_as_node_edge_dataframes",
 			"get_networkx_subgraph_from_randomizations" ]
 
@@ -82,16 +84,17 @@ class Graph:
 		interactome_fieldnames = ["source","target","cost"]
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
 
-		# Handle the case of possible duplicate edges.
-		# Do so by creating a string column of both interactors, e.g. "ABCD1EFGR" and remove duplicates
-		# This operation is time consuming, especially if there do exist duplicates. TODO: optimize this code.
-		self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
-		duplicated_edges = self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist()
-		logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
-		logger.info(duplicated_edges)
-		if len(duplicated_edges) > 0:
-			self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
-		else: del self.interactome_dataframe['temp']
+		if not params.get('interactome_is_clean_I_promise'):
+			# Handle the case of possible duplicate edges.
+			# Do so by creating a string column of both interactors, e.g. "ABCD1EFGR" and remove duplicates
+			# This operation is time consuming, especially if there do exist duplicates. TODO: optimize this code.
+			self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
+			duplicated_edges = self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist()
+			logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
+			logger.info(duplicated_edges)
+			if len(duplicated_edges) > 0:
+				self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+			else: del self.interactome_dataframe['temp']
 
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
@@ -346,8 +349,9 @@ class Graph:
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
 		# Post-processing
+		betweenness(augmented_forest)
 		louvain_clustering(augmented_forest)
-		spectral_clustering(augmented_forest)
+		# edge_betweenness_clustering(augmented_forest)
 
 		return forest, augmented_forest
 
@@ -516,9 +520,9 @@ class Graph:
 		# 	nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
 
 
-			edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
-			nx.set_edge_attributes(forest          , 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
-			nx.set_edge_attributes(augmented_forest, 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+			# edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
+			# nx.set_edge_attributes(forest          , 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+			# nx.set_edge_attributes(augmented_forest, 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
 
 		return forest, augmented_forest
 
@@ -529,9 +533,7 @@ class Graph:
 		"""
 
 		self._reset_hyperparameters(params=params)
-		paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
-		logger.info("Randomizations for " + paramstring)
-		logger.info(params)
+		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
 
 		forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
 
@@ -570,6 +572,38 @@ class Graph:
 		all_params = [{**model_param, **other_params} for model_param in model_params]
 
 		results = pool.map(self._eval_randomizations, all_params)
+
+		return results
+
+
+	def _eval_pcsf(self, params):
+		"""
+		Convenience methods which sets parameters and performs PCSF
+		"""
+
+		self._reset_hyperparameters(params=params)
+		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
+		return (paramstring, self.pcsf())
+
+
+	def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
+		"""
+		Internal function which executes pcsf at every point in a parameter grid.
+		Subroutine of `grid_search`.
+		Arguments:
+			prize_file (str): filepath
+			Gs (list): Values of gamma
+			Bs (list): Values of beta
+			Ws (list): Values of omega
+		Returns:
+			list: list of tuples of vertex indices and edge indices
+		"""
+
+		self.prepare_prizes(prize_file)
+
+		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
+
+		results = list(map(self._eval_pcsf, parameter_permutations))
 
 		return results
 
@@ -626,15 +660,15 @@ def louvain_clustering(nxgraph):
 	"""
 	nx.set_node_attributes(nxgraph, {node: {'louvainClusters':cluster} for node,cluster in community.best_partition(nxgraph).items()})
 
-def edge_betweenness_clustering(nxgraph):
+# def edge_betweenness_clustering(nxgraph):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, {node: {'edgeBetweennessClusters':cluster} for node, cluster in invert(nx.girvan_newman(nxgraph))})
+	# nx.set_node_attributes(nxgraph, {node: {'edgeBetweennessClusters':cluster} for node, cluster in invert(nx.algorithms.community.centrality.girvan_newman(nxgraph))})
 
-def k_clique_clustering(nxgraph, k):
-	"""
-	"""
-	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
+# def k_clique_clustering(nxgraph, k):
+# 	"""
+# 	"""
+# 	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
 
 def spectral_clustering(nxgraph, k):
 	"""
@@ -683,6 +717,31 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
 
 
 # EXPORT
+
+def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+	Returns:
+		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
+	"""
+
+	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+
+
+def get_networkx_graph_as_dataframe_of_edges(nxgraph):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+	Returns:
+		pd.DataFrame: edges from the input graph and their attributes as a dataframe
+	"""
+
+	intermediate = pd.DataFrame(nxgraph.edges(data=True))
+	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
+	# TODO: in the future, get the other attributes out into columns
+	return intermediate[['protein1', 'protein2']]
+
 
 def get_networkx_graph_as_node_edge_dataframes(nxgraph):
 	"""
@@ -770,7 +829,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
 
-  return path
+	return path
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir):
