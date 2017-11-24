@@ -351,7 +351,6 @@ class Graph:
 		# Post-processing
 		betweenness(augmented_forest)
 		louvain_clustering(augmented_forest)
-		# edge_betweenness_clustering(augmented_forest)
 
 		return forest, augmented_forest
 
@@ -649,32 +648,63 @@ class Graph:
 
 def betweenness(nxgraph):
 	"""
+	Compute and add as an attribute the betweenness of each node.
+
+	Betweenness centrality of a node v is the sum of the fraction of all-pairs shortest paths that pass through v.
+
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
 	"""
-	nx.set_node_attributes(nxgraph, {node: {'betweenness':cluster} for node,cluster in nx.betweenness_centrality(nxgraph).items()})
+	nx.set_node_attributes(nxgraph, {node: {'betweenness':betweenness} for node,betweenness in nx.betweenness_centrality(nxgraph).items()})
 
 
 # CLUSTERING
 
 def louvain_clustering(nxgraph):
 	"""
-	"""
-	nx.set_node_attributes(nxgraph, {node: {'louvainClusters':cluster} for node,cluster in community.best_partition(nxgraph).items()})
+	Compute "Louvain"/"Community" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
 
-# def edge_betweenness_clustering(nxgraph):
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
 	"""
-	"""
-	# nx.set_node_attributes(nxgraph, {node: {'edgeBetweennessClusters':cluster} for node, cluster in invert(nx.algorithms.community.centrality.girvan_newman(nxgraph))})
+	nx.set_node_attributes(nxgraph, {node: {'louvainClusters':int(cluster)} for node,cluster in community.best_partition(nxgraph).items()})
 
-# def k_clique_clustering(nxgraph, k):
-# 	"""
-# 	"""
-# 	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
+def edge_betweenness_clustering(nxgraph):
+	"""
+	Compute "Edge-betweenness"/"Girvan-Newman" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
+
+	The Girvan–Newman algorithm detects communities by progressively removing edges from the original graph.
+	The algorithm removes the “most valuable” edge, traditionally the edge with the highest betweenness centrality, at each step.
+	As the graph breaks down into pieces, the tightly knit community structure is exposed and the result can be depicted as a dendrogram.
+
+	TODO: currently, we're removing a single edge, which has no effect, so this isn't a real clustering method yet.
+
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
+	"""
+	nx.set_node_attributes(nxgraph, {node: {'edgeBetweennessClusters':int(cluster)} for node, cluster in invert(next(nx.algorithms.community.centrality.girvan_newman(nxgraph)))})
+
+def k_clique_clustering(nxgraph, k):
+	"""
+	Compute "k-Clique" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
+
+
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
+	"""
+	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':int(cluster)} for node,cluster in invert(nx.algorithms.community.kclique.k_clique_communities(nxgraph, k)).items()})
 
 def spectral_clustering(nxgraph, k):
 	"""
+	Compute "spectral" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
+
+
+	Arguments:
+		nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
 	"""
-	clustering = SpectralClustering(k, affinity='precomputed', n_init=100, assign_labels='discretize').fit_predict(nx.to_numpy_matrix(nxgraph))
-	nx.set_node_attributes(nxgraph, {node: {'spectral_clusters':cluster} for node,cluster in dict(zip(nxgraph.nodes(), clustering))})
+	adj_matrix = nx.to_pandas_adjacency(nxgraph)
+	clustering =  SpectralClustering(k, affinity='precomputed', n_init=100, assign_labels='discretize').fit_predict(adj_matrix.values)
+	nx.set_node_attributes(nxgraph, {node: {'spectral_clusters':int(cluster)} for node,cluster in zip(adj_matrix.index, clustering)})
 
 
 # GO ENRICHMENT
