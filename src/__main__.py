@@ -109,6 +109,9 @@ def main():
 		output_networkx_graph_as_files(augmented_forest, args.output_dir, tag, subfolder="augmented_forest")
 		output_networkx_graph_as_files(robust_network,   args.output_dir, tag, subfolder="robust_network")
 
+	output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
+	# output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
+
 
 if __name__ == '__main__':
 	main()
