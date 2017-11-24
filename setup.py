@@ -4,7 +4,7 @@ setup(
     name='OmicsIntegrator',
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
-    version='0.2.25',
+    version='0.2.26',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
@@ -15,12 +15,10 @@ setup(
     description='',
     install_requires=[
         "numpy",
-        "pandas",
-        "garnet",
-        "networkx==1.11",
+        "pandas==0.21.0",
+        "networkx==2.0",
         "pcst_fast",
         "python-louvain",
-        "py2cytoscape==0.6.0",
         "goenrich",
         "sklearn"
     ],
@@ -31,7 +29,4 @@ setup(
         ]
     },
 )
-
-
-
 

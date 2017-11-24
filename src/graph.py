@@ -3,6 +3,7 @@
 # Core python modules
 import sys
 import os
+import multiprocessing
 
 # Peripheral python modules
 import argparse
@@ -17,10 +18,10 @@ import json
 import numpy as np
 import pandas as pd
 import networkx as nx
-from sklearn.cluster import SpectralClustering
+from networkx.readwrite import json_graph
 import community    # pip install python-louvain
-from py2cytoscape import util as cy
-import goenrich
+from sklearn.cluster import SpectralClustering
+import jinja2
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -29,9 +30,11 @@ from pcst_fast import pcst_fast
 __all__ = [ "Graph",
 			"output_networkx_graph_as_graphml_for_cytoscape",
 			"output_networkx_graph_as_json_for_cytoscapejs",
-			"get_networkx_graph_as_dataframe_of_nodes",
-			"get_networkx_graph_as_dataframe_of_edges" ]
+			"get_networkx_graph_as_node_edge_dataframes",
+			"get_networkx_subgraph_from_randomizations" ]
 
+templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
+templateEnv = jinja2.Environment(loader=templateLoader)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -68,7 +71,7 @@ class Graph:
 		- `graph.nodes` (pandas.Index),
 		- `graph.edges` (list of pairs),
 		- `graph.costs` and `graph.edge_penalties` (lists, such that the ordering is the same as in graph.edges),
-		- `graph.node_degrees` and `graph.negprizes` (lists, such that the ordering is the same as in graph.nodes).
+		- `graph.node_degrees` (list, such that the ordering is the same as in graph.nodes).
 
 		Arguments:
 			interactome_file (str or FILE): tab-delimited text file containing edges in interactome and their weights formatted like "ProteinA\tProteinB\tCost"
@@ -79,9 +82,12 @@ class Graph:
 		self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', names=interactome_fieldnames)
 
 		self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
+		duplicated_edges = self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist()
 		logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
-		logger.info(self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist())
-		self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+		logger.info(duplicated_edges)
+		if len(duplicated_edges) > 0:
+			self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+		else: del self.interactome_dataframe['temp']
 
 		self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=['cost'])
 
@@ -111,13 +117,11 @@ class Graph:
 			params (dict): params with which to run the program
 		"""
 
-		defaults = {"w": 6, "b": 1, "mu": 0, "g": 20, "noise": 0.1, "mu_squared": False, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
+		defaults = {"w": 6, "b": 1, "g": 20, "noise": 0.1, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
 
 		self.params = Options({**defaults, **params})
 
 		self._knockout(self.params.knockout)
-
-		self.negprizes = (self.node_degrees**2 if self.params.mu_squared else self.node_degrees) * self.params.mu # unless self.params.exclude_terminals TODO
 
 		N = len(self.nodes)
 		self.edge_penalties = self.params.g * np.array([self.node_degrees[a] * self.node_degrees[b] /
@@ -325,12 +329,12 @@ class Graph:
 		# the above won't capture the singletons, so we'll add them here
 		forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
-		for attribute in self.node_attributes.columns.values:
-			nx.set_node_attributes(forest, attribute, {node: attr for node, attr in self.node_attributes[attribute].to_dict().items() if node in forest.nodes()})
+		# Set Node degrees on graph
+		nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].to_dict(orient='index'))
 
-		# Add the degree as an attribute
-		node_degree_dict = nx.degree(self.interactome_graph)
-		nx.set_node_attributes(forest, 'degree', {node: degree for node, degree in node_degree_dict.items() if node in forest.nodes()})
+		# Set all othe attributes on graph
+		nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_edge_attributes(forest, True, name='in_solution')
 
 		augmented_forest = nx.compose(self.interactome_graph.subgraph(forest.nodes()), forest)
 
@@ -439,7 +443,13 @@ class Graph:
 			networkx.Graph: augmented_forest
 		"""
 
-		if self.params.seed: random.seed(seed); numpy.random.seed(seed=seed)
+		if self.params.seed: random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
+
+		# For single PCSF run
+		if noisy_edges_reps == random_terminals_reps == 0:
+
+			return self.output_forest_as_networkx(*self.pcsf())
+
 
 		#### NOISY EDGES ####
 		if noisy_edges_reps > 0:
@@ -483,59 +493,81 @@ class Graph:
 			vertex_indices = specific_vertices; edge_indices = specific_edges;
 
 		elif noisy_edges_reps > 0 and random_terminals_reps > 0:
-			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index')
-			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index')
+			vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index').fillna(0)
+			edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index').fillna(0)
 
 		else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
 		###########
-
 		forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		if noisy_edges_reps > 0:
-			nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
-			nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
-		if random_terminals_reps > 0:
-			nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
-			nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
+		nx.set_node_attributes(forest, vertex_indices.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_node_attributes(augmented_forest, vertex_indices.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
 
-		# TODO we aren't yet using edge_indices which contain robustness and specificity information.
+		# if noisy_edges_reps > 0:
+		# 	nx.set_node_attributes(forest, 			 'robustness', vertex_indices['robustness'].to_dict())
+		# 	nx.set_node_attributes(augmented_forest, 'robustness', vertex_indices['robustness'].to_dict())
+		# if random_terminals_reps > 0:
+		# 	nx.set_node_attributes(forest, 			 'specificity', vertex_indices['specificity'].to_dict())
+		# 	nx.set_node_attributes(augmented_forest, 'specificity', vertex_indices['specificity'].to_dict())
+
+
+			edge_specificity_dic = edge_indices.set_index("edge_index")["specificity"].to_dict()
+			nx.set_edge_attributes(forest          , 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+			nx.set_edge_attributes(augmented_forest, 'specificity', {tuple([self.nodes[x] for x in self.edges[edge]]): edge_specificity_dic[edge] for edge in edge_specificity_dic})
+
 		return forest, augmented_forest
 
 
-	def _eval_pcsf(self, params):
+	def _eval_randomizations(self, params):
 		"""
 		Convenience methods which sets parameters and performs PCSF
 		"""
 
 		self._reset_hyperparameters(params)
-		paramstring = 'G_'+str(params['g'])+'_B_'+str(params['b'])+'_W_'+str(params['w'])
-		logger.info(paramstring)
-		return (paramstring, self.pcsf())
+		paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
+		logger.info("Randomizations for " + paramstring)
+		logger.info(params)
+
+		forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
+
+		return paramstring, forest, augmented_forest
 
 
-	def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
+	def grid_search_randomizations(self, prize_file, params):
 		"""
 		Internal function which executes pcsf at every point in a parameter grid.
 		Subroutine of `grid_search`.
 
 		Arguments:
 			prize_file (str): filepath
-			Gs (list): Values of gamma
-			Bs (list): Values of beta
 			Ws (list): Values of omega
+			Bs (list): Values of beta
+			Gs (list): Values of gamma
 
 		Returns:
 			list: list of tuples of vertex indices and edge indices
 		"""
 
+		# get number of cpus available to job
+		try:
+			n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
+		except KeyError:
+			n_cpus = multiprocessing.cpu_count()
+
+		pool = multiprocessing.Pool(n_cpus)
+
+
+
 		self.prepare_prizes(prize_file)
 
-		parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
+		model_params = [{'w': w, 'b': b, 'g':g} for (w, b, g) in product(params['w'], params['b'], params['g'])]
+		other_params = {key: params[key] for key in params if key not in 'wbg'}
+		all_params = [{**model_param, **other_params} for model_param in model_params]
 
-		results = list(map(self._eval_pcsf, parameter_permutations))
+		results = pool.map(self._eval_randomizations, all_params)
 
 		return results
 
@@ -558,7 +590,7 @@ class Graph:
 			pd.DataFrame: parameters and node membership lists
 		"""
 
-		results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
+		results = self._grid_pcsf_parallel(prize_file, Gs, Bs, Ws)
 
 		### GET THE REGULAR OUTPUT ###
 		vertex_indices, edge_indices = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
@@ -567,8 +599,11 @@ class Graph:
 
 		vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-		nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
-		nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
+		nx.set_node_attributes(forest, vertex_indices.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+		nx.set_node_attributes(augmented_forest, vertex_indices.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
+
+		# nx.set_node_attributes(forest, 			 'frequency', vertex_indices['frequency'].to_dict())
+		# nx.set_node_attributes(augmented_forest, 'frequency', vertex_indices['frequency'].to_dict())
 
 		### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
 		params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
@@ -577,7 +612,9 @@ class Graph:
 
 
 def betweenness(nxgraph):
-	nx.set_node_attributes(nxgraph, 'betweenness', nx.betweenness_centrality(nxgraph))
+	"""
+	"""
+	nx.set_node_attributes(nxgraph, {node: {'betweenness':cluster} for node,cluster in nx.betweenness_centrality(nxgraph).items()})
 
 
 # CLUSTERING
@@ -585,7 +622,7 @@ def betweenness(nxgraph):
 def louvain_clustering(nxgraph):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'louvainClusters', community.best_partition(nxgraph))
+	nx.set_node_attributes(nxgraph, {node: {'louvainClusters':cluster} for node,cluster in community.best_partition(nxgraph).items()})
 
 # def edge_betweenness_clustering(nxgraph):  # is coming with NetworkX 2.0, to be released soon.
 # 	"""
@@ -595,7 +632,22 @@ def louvain_clustering(nxgraph):
 def k_clique_clustering(nxgraph, k):
 	"""
 	"""
-	nx.set_node_attributes(nxgraph, 'kCliqueClusters', invert(nx.k_clique_communities(nxgraph, k)))
+	nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':cluster} for node,cluster in invert(nx.k_clique_communities(nxgraph, k)).items()})
+
+
+def get_networkx_subgraph_from_randomizations(nxgraph, max_size=400):
+	"""
+	Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component
+	of size less than min_size, do not remove.
+	Approach 2: select top max_size nodes based on robustness, then return subgraph.
+	"""
+
+	node_attributes_df, _ = get_networkx_graph_as_node_edge_dataframes(nxgraph)
+	top_hits = node_attributes_df["protein"].tolist()[:min(max_size,node_attributes_df.shape[0])]
+
+	if "robustness" not in node_attributes_df.columns: logger.info("WARNING: 'robustness' is not an attribute in subgraph, subgraph may not be meaningful.")
+
+	return nxgraph.subgraph(top_hits)
 
 def spectral_clustering(nxgraph, k):
 	"""
@@ -646,31 +698,47 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
 
 # EXPORT
 
-def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
+def get_networkx_graph_as_node_edge_dataframes(nxgraph):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 
 	Returns:
 		pd.DataFrame: nodes from the input graph and their attributes as a dataframe
-	"""
-
-	return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
-
-
-def get_networkx_graph_as_dataframe_of_edges(nxgraph):
-	"""
-	Arguments:
-		nxgraph (networkx.Graph): any instance of networkx.Graph
-
-	Returns:
 		pd.DataFrame: edges from the input graph and their attributes as a dataframe
 	"""
 
-	intermediate = pd.DataFrame(nxgraph.edges(data=True))
-	intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
-	# TODO: in the future, get the other attributes out into columns
-	return intermediate[['protein1', 'protein2']]
+	# Prepare node dataframe
+	node_df = pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose()
+	node_df.index.name = "protein"
+	node_df.reset_index(inplace=True)
+
+	if "robustness" in node_df.columns: node_df.sort_values("robustness", ascending=False, inplace=True)
+	if "type" in node_df.columns: node_df["type"].fillna("steiner", inplace=True)
+
+	node_df.fillna(0, inplace=True)
+
+	# Prepare edge dataframe
+	edge_df = pd.DataFrame([{**{'source': x[0], 'target': x[1]}, **x[2]} for x in nxgraph.edges(data=True)]).fillna(0)
+	edge_df = edge_df[['source', 'target'] + list(set(edge_df.columns)-set(['source', 'target']))]
+
+	return node_df, edge_df
+
+
+def output_networkx_graph_as_pickle(nxgraph, output_dir, filename):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the graph.
+		filename (str): Filenames ending in .gz or .bz2 will be compressed.
+	"""
+
+
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
+	path = os.path.join(os.path.abspath(output_dir), filename)
+	nx.write_gpickle(nxgraph, path)
+
+	return path
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename):
@@ -680,19 +748,43 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
 		output_dir (str): the directory in which to output the graph.
 		filename (str): Filenames ending in .gz or .bz2 will be compressed.
 	"""
+
 	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
 	path = os.path.join(os.path.abspath(output_dir), filename)
 	nx.write_graphml(nxgraph, path)
 
+	return path
 
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir):
+
+def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
 	"""
 	Arguments:
 		nxgraph (networkx.Graph): any instance of networkx.Graph
 		output_dir (str): the directory in which to output the file (named graph_json.json)
 	"""
-	path = os.path.join(os.path.abspath(output_dir), 'graph_json.json')
+
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
+	path = os.path.join(os.path.abspath(output_dir), filename)
+
 	njs = cy.from_networkx(nxgraph)
+	njs["data"]["name"] = filename.replace(".json", "")
+
 	with open(path,'w') as outf:
 		outf.write(json.dumps(njs, indent=4))
 
+  return path
+
+
+def output_networkx_graph_as_interactive_html(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file
+	"""
+	graph_json = json.dumps(json_graph.node_link_data(nxgraph))
+	nodes = nxgraph.nodes()
+
+	path = os.path.join(os.path.abspath(output_dir), 'graph.html')
+	html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json, nodes=nodes)
+	with open(path, "w") as output_file:
+		output_file.write(html_output)
