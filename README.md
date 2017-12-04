@@ -18,14 +18,3 @@ Finally, Forest uses the Prize-Collecting Steiner Forest algorithm to whittle th
 
 With the output of these sub-networks, Omics Integrator allows researchers to go from huge, often contradictory lists of genes, proteins, and metabolites from multiple -omics data sources to a few important cellular pathways to focus on in follow-up studies of their system.
 
-
-Reference:
---------------------
-[Network-Based Interpretation of Diverse High-Throughput Datasets through the Omics Integrator Software Package](http://dx.doi.org/10.1371/journal.pcbi.1004879)
-Tuncbag N<sup>\*</sup>, Gosline SJC<sup>\*</sup>, Kedaigle A, Soltis AR, Gitter A, Fraenkel E. *PLoS Comput Biol* 12(4): e1004879. doi:10.1371/journal.pcbi.1004879.
-
-Contact: Amanda Kedaigle [mandyjoy@mit.edu]
-
-Copyright (c) 2017 Massachusetts Institute of Technology
-All rights reserved.
-
