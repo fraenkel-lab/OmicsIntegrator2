@@ -7,6 +7,7 @@ import multiprocessing
 import logging
 import random
 import numbers
+import math
 
 # Peripheral python modules
 import argparse
@@ -815,17 +816,15 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         output_dir (str): the directory in which to output the file
     """
     graph_json = json.dumps(json_graph.node_link_data(nxgraph))
+
     nodes = nxgraph.nodes()
+
     numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
     non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
-
     min_max = lambda l: (min(l),max(l))
-    numerical_node_attributes_min_max = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
-    max_prize = numerical_node_attributes_min_max['prize'][1] * 1.5
-    max_degree = numerical_node_attributes_min_max['degree'][1]
-    max_betweenness = min([numerical_node_attributes_min_max['betweenness'][1] * 1.5, 1])
+    numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
 
-    html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes, max_prize=max_prize, max_degree=max_degree, max_betweenness=max_betweenness)
+    html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
 
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
@@ -833,3 +832,4 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         output_file.write(html_output)
 
     return path
+
