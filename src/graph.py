@@ -363,6 +363,7 @@ class Graph:
         # Post-processing
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
+        augment_with_subcellular_localization(augmented_forest)
 
         return forest, augmented_forest
 
@@ -650,6 +651,7 @@ def louvain_clustering(nxgraph):
     """
     Compute "Louvain"/"Community" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
 
+
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
@@ -704,18 +706,16 @@ def augment_with_all_GO_terms(nxgraph):
     augment_with_biological_process_terms(nxgraph)
     augment_with_molecular_function_terms(nxgraph)
 
+
 def augment_with_subcellular_localization(nxgraph):
     """
     """
-    # ontology_graph = goenrich.obo.ontology('db/go-basic.obo')
-    # gene2go = pd.read_csv('gene2go.csv')
-    # GO_terms_and_associated_genes = {k: set(v) for k,v in gene2go.groupby('GO_ID')['GeneSymbol']}
-    # background_set_attribute_name = 'genes'
-    # goenrich.enrich.propagate(ontology_graph, GO_terms_and_associated_genes, background_set_attribute_name)
 
-    # query = nxgraph.nodes()
-    # df = goenrich.enrich.analyze(ontology_graph, query, background_set_attribute_name).dropna().sort_values('p')
-    pass
+    subcellular = pd.read_pickle('subcellular.pickle')
+
+    nx.set_node_attributes(forest, subcellular.loc[list(nxgraph.nodes())].to_dict(orient='index'))
+
+    return nxgraph
 
 
 def augment_with_biological_process_terms(nxgraph):
