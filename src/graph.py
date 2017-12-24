@@ -15,6 +15,7 @@ from collections import Counter
 from itertools import product
 from copy import copy
 import json
+from pkg_resources import resource_filename as get_path
 
 # python external libraries
 import numpy as np
@@ -701,6 +702,8 @@ def spectral_clustering(nxgraph, k):
 
 def augment_with_all_GO_terms(nxgraph):
     """
+    Arguments:
+        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
     augment_with_subcellular_localization(nxgraph)
     augment_with_biological_process_terms(nxgraph)
@@ -709,27 +712,38 @@ def augment_with_all_GO_terms(nxgraph):
 
 def augment_with_subcellular_localization(nxgraph):
     """
+    Arguments:
+        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
 
-    subcellular = pd.read_pickle('subcellular.pickle')
+    try:
+        subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
+    except:
+        # maybe need os.path.realpath(__file__)
+        subcellular = pd.read_pickle('../subcellular_compartments/subcellular.pickle')
 
-    nx.set_node_attributes(forest, subcellular.loc[list(nxgraph.nodes())].to_dict(orient='index'))
-
-    return nxgraph
+    nx.set_node_attributes(nxgraph, subcellular.loc[list(nxgraph.nodes())].dropna(how='all').to_dict(orient='index'))
 
 
 def augment_with_biological_process_terms(nxgraph):
     """
+    Arguments:
+        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
     pass
 
 def augment_with_molecular_function_terms(nxgraph):
     """
+    Arguments:
+        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
     pass
 
 def perform_GO_enrichment_on_clusters(nxgraph, clustering):
     """
+    Arguments:
+        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
+        clustering (str): the column name of the clustering to perform GO enrichment with.
     """
     pass
 
@@ -745,7 +759,7 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
         pd.DataFrame: nodes from the input graph and their attributes as a dataframe
     """
 
-    return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose().fillna(0)
+    return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose()
 
 
 def get_networkx_graph_as_dataframe_of_edges(nxgraph):
@@ -815,6 +829,16 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the file
     """
+
+    try:
+        vizjinja = get_path('OmicsIntegrator', 'viz.jinja')
+    except:
+        # maybe need os.path.realpath(__file__)
+        print('except')
+        vizjinja = './viz.jinja'
+
+    print(vizjinja)
+
     graph_json = json.dumps(json_graph.node_link_data(nxgraph))
 
     nodes = nxgraph.nodes()
@@ -824,7 +848,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     min_max = lambda l: (min(l),max(l))
     numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
 
-    html_output = templateEnv.get_template("viz.jinja").render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
+    html_outputviz = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
 
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)

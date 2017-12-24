@@ -4,6 +4,7 @@ setup(
     name='OmicsIntegrator',
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
+    package_data={'OmicsIntegrator': ['subcellular_compartments/subcellular.pickle', 'src/viz.jinja', 'viz.jinja']},
     version='2.1.0',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[

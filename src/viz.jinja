@@ -141,9 +141,9 @@ var width = d3.scaleLinear()
 
 
 
-var triangle = d3.symbol().type(d3.symbolTriangle).size(100)(),
-     circle = d3.symbol().type(d3.symbolCircle).size(100)(),
-     diamond = d3.symbol().type(d3.symbolDiamond).size(100)();
+var triangle = d3.symbol().type(d3.symbolTriangle).size(200)(),
+     circle = d3.symbol().type(d3.symbolCircle).size(200)(),
+     diamond = d3.symbol().type(d3.symbolDiamond).size(200)();
 
 var display_type = d3.scaleOrdinal()
                      .domain(['protein', 'TF', 'metabolite'])
@@ -168,7 +168,7 @@ var outline = false;
 var highlight_color = "blue";
 var highlight_trans = 0.1;
 var default_node_color = "#ccc";
-var default_link_color = "#888";
+var default_link_color = "#aaa";
 var nominal_base_node_size = 8;
 var nominal_text_size = 10;
 var max_text_size = 24;
@@ -343,7 +343,7 @@ function drag_start(d) {
     set_focus(d);
     d.fx = d.x;
     d.fy = d.y;
-    if (shiftKey) {window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}
+    if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}
 }
 
 function drag_drag(d) {
