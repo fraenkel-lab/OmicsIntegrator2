@@ -720,7 +720,7 @@ def augment_with_subcellular_localization(nxgraph):
         subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
     except:
         # maybe need os.path.realpath(__file__)
-        subcellular = pd.read_pickle('../subcellular_compartments/subcellular.pickle')
+        subcellular = pd.read_pickle('../subcellular/subcellular.pickle')
 
     nx.set_node_attributes(nxgraph, subcellular.loc[list(nxgraph.nodes())].dropna(how='all').to_dict(orient='index'))
 
