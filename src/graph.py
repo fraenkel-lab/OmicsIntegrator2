@@ -837,8 +837,6 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         print('except')
         vizjinja = './viz.jinja'
 
-    print(vizjinja)
-
     graph_json = json.dumps(json_graph.node_link_data(nxgraph))
 
     nodes = nxgraph.nodes()
@@ -848,7 +846,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     min_max = lambda l: (min(l),max(l))
     numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
 
-    html_outputviz = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
+    html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
 
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
