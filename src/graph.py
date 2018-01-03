@@ -837,7 +837,11 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         print('except')
         vizjinja = './viz.jinja'
 
-    graph_json = json.dumps(json_graph.node_link_data(nxgraph))
+    graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
+
+    def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
+    graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
+    graph_json = json.dumps(graph_json)
 
     nodes = nxgraph.nodes()
 
