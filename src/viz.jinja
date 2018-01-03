@@ -174,7 +174,7 @@ var size = d3.scalePow()
 var show_only_solution_edges = false;
 var repulsion_strength = -300;
 var colorBy = 'prize';
-var groupBy = "louvainClusters";
+var groupBy = "location";
 var turnForceOff = false;
 
 var text_center = false;
@@ -236,10 +236,14 @@ var groups = {
 graph.nodes.forEach(function (v, i) {
     Object.keys(groups).forEach(function (key) {
         if (key in v) {
-            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':[v[key]], 'leaves':[]}; }
+            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':v[key], 'leaves':[]}; }
             groups[key][v[key]]['leaves'].push(i);
         }
     });
+});
+
+Object.keys(groups).forEach(function (key) {
+    groups[key] = Object.values(groups[key])
 });
 
 /////////////////////////////////////////////////////////////////////////////
@@ -277,12 +281,13 @@ var link = g.selectAll(".link")
 
 var node = g.selectAll(".node")
             .data(graph.nodes)
-            .enter().append("g")
+            .enter().append("circle")
+            .attr("r", 10)
             .attr("class", "node")
             .attr("id", function(d) { return d.id; })
 
 
-var circle = node.append("path")
+// var circle = node.append("path")
         .attr("d",d => display_type(d.type))
         // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
         .style(tocolor, function(d) {
@@ -292,6 +297,7 @@ var circle = node.append("path")
         .style("stroke-width", default_stroke_width)
         .style(towhite, "white")
         .call(cola.drag);
+
 
 var text = g.selectAll(".text")
             .data(graph.nodes)
@@ -332,7 +338,7 @@ if (text_center) {
 //                 .data(voronoi.polygons(graph.nodes))
 
 function recolor() {
-    circle.style(tocolor, function(d) {
+    node.style(tocolor, function(d) {
         if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
         else { return default_node_color; }
     });
@@ -393,7 +399,7 @@ function recolor() {
 
         cola.on('tick', function () {
 
-            node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+            // node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
             text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
             link.attr("x1", function (d) { return d.source.x; })
@@ -478,7 +484,7 @@ function set_highlight(d) {
     highlight_node = d;
 
     if (highlight_color != "white") {
-        circle.style(towhite, function(o) {
+        node.style(towhite, function(o) {
             return isConnected(d, o) ? highlight_color : "white";
         });
         text.style("font-weight", function(o) {
@@ -495,7 +501,7 @@ function remove_highlight() {
     if (focus_node === null) {
         svg.style("cursor", "move");
         if (highlight_color != "white") {
-            circle.style(towhite, "white");
+            node.style(towhite, "white");
             text.style("font-weight", "normal");
             link.style("stroke", function(o) {
                 return (isNumber(o.score) && o.score >= 0) ? color[colorBy](o.score) : default_link_color
@@ -510,7 +516,7 @@ function remove_highlight() {
 
 function set_focus(d) {
     if (highlight_trans < 1) {
-        circle.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
+        node.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
         text.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
         link.style("opacity", function(o) { return o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans; });
     }
@@ -518,7 +524,7 @@ function set_focus(d) {
 
 function remove_focus() {
     focus_node = null;
-    circle.style("opacity", 1);
+    node.style("opacity", 1);
     text.style("opacity", 1);
     link.style("opacity", 1);
     if (highlight_node === null) { remove_highlight(); }
