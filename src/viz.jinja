@@ -148,8 +148,6 @@ var color = {'prize': d3.scaleLinear().domain([0, {{numerical_node_attributes['p
              {% endfor %}
             };
 
-
-
 var group_color = d3.scaleOrdinal(d3.schemePastel1);
 
 var width = d3.scaleLinear()
@@ -261,7 +259,7 @@ graph.nodes.forEach(function (v, i) {
             .classed('group', true)
             .attr('rx',5)
             .attr('ry',5)
-            .style("fill", function (d) { console.log(d); return group_color(d.id); })
+            .style("fill", function (d) { return group_color(d.id); })
             .call(cola.drag);
 
 var link = g.selectAll(".link")
@@ -283,6 +281,7 @@ var node = g.selectAll(".node")
             .attr("class", "node")
             .attr("id", function(d) { return d.id; })
 
+
 var circle = node.append("path")
         .attr("d",d => display_type(d.type))
         // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
@@ -291,7 +290,8 @@ var circle = node.append("path")
             else { return default_node_color; }
         })
         .style("stroke-width", default_stroke_width)
-        .style(towhite, "white");
+        .style(towhite, "white")
+        .call(cola.drag);
 
 var text = g.selectAll(".text")
             .data(graph.nodes)
@@ -422,32 +422,32 @@ function recolor() {
                       ///////    Drag    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-var drag_handler = d3.drag()
-    .on("start", drag_start)
-    .on("drag", drag_drag)
-    .on("end", drag_end);
+// var drag_handler = d3.drag()
+//     .on("start", drag_start)
+//     .on("drag", drag_drag)
+//     .on("end", drag_end);
 
-drag_handler(node);
+// drag_handler(node);
 
-function drag_start(d) {
-    if (!d3.event.active) { cola.alphaTarget(0.3).restart(); }
-    set_focus(d);
-    d.fx = d.x;
-    d.fy = d.y;
-    if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}
-}
+// function drag_start(d) {
+//     if (!d3.event.active) { cola.alphaTarget(0.3).restart(); }
+//     set_focus(d);
+//     d.fx = d.x;
+//     d.fy = d.y;
+//     if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}
+// }
 
-function drag_drag(d) {
-  d.fx = d3.event.x;
-  d.fy = d3.event.y;
-}
+// function drag_drag(d) {
+//   d.fx = d3.event.x;
+//   d.fy = d3.event.y;
+// }
 
-function drag_end(d) {
-  if (!d3.event.active) { cola.alphaTarget(0); }
-  remove_focus(d)
-  d.fx = null;
-  d.fy = null;
-}
+// function drag_end(d) {
+//   if (!d3.event.active) { cola.alphaTarget(0); }
+//   remove_focus(d)
+//   d.fx = null;
+//   d.fy = null;
+// }
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Zoom    ///////
