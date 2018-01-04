@@ -173,7 +173,7 @@ var size = d3.scalePow()
 
 var show_only_solution_edges = false;
 var repulsion_strength = -300;
-var colorBy = 'prize';
+var colorBy = "prize";
 var groupBy = "location";
 var turnForceOff = false;
 
@@ -246,6 +246,11 @@ Object.keys(groups).forEach(function (key) {
     groups[key] = Object.values(groups[key])
 });
 
+graph.links.forEach(function (l) {
+    l.length = (200 - 150 * (graph.nodes[l.source][groupBy] === graph.nodes[l.target][groupBy]));
+});
+
+
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Draw Graph    ///////
 /////////////////////////////////////////////////////////////////////////////
@@ -254,6 +259,7 @@ Object.keys(groups).forEach(function (key) {
             .links(graph.links)
             .groups(groups[groupBy])
             .jaccardLinkLengths(100, 0.7)
+            .linkDistance(function (l) { return l.length })
             .avoidOverlaps(true)
             .start(50, 0, 50);
 

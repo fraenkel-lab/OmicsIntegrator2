@@ -172,7 +172,7 @@ var size = d3.scalePow()
 var show_only_solution_edges = false;
 var repulsion_strength = -300;
 var colorBy = 'prize';
-var groupBy = "location";
+var groupBy = "louvainClusters";
 var turnForceOff = false;
 
 var text_center = false;
@@ -248,10 +248,20 @@ Object.keys(groups).forEach(function (key) {
                       ///////    Draw Graph    ///////
 /////////////////////////////////////////////////////////////////////////////
 
+        graph.links.forEach(function (l) {
+            // console.log(l["source"]);
+            // console.log(l.target);
+
+
+
+            l.length = (200 - 150 * (graph.nodes[l.source][groupBy] === graph.nodes[l.target][groupBy]));
+        });
+
         cola.nodes(graph.nodes)
             .links(graph.links)
             .groups(groups[groupBy])
             .jaccardLinkLengths(100, 0.7)
+            .linkDistance(function (l) { console.log(l.length); return l.length })
             .avoidOverlaps(true)
             .start(50, 0, 50);
 
