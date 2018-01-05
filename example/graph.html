@@ -48,7 +48,7 @@ header > div > input {
 
         <!-- Search a specific node -->
         <div>
-            <input type="text" class="input" id="magic" list="nodes" placeholder="search..." />
+            <input type="text" class="input" id="search_node" list="nodes" placeholder="search..." />
             <datalist id="nodes">
                 <option value="SRC">SRC</option><option value="MAPK1">MAPK1</option><option value="SORBS1">SORBS1</option><option value="MAD2L1">MAD2L1</option><option value="KPNA2">KPNA2</option><option value="HSPA5">HSPA5</option><option value="VIM">VIM</option><option value="PC">PC</option><option value="HNRNPH3">HNRNPH3</option><option value="PCBP2">PCBP2</option><option value="HSPA9">HSPA9</option><option value="MAPK14">MAPK14</option><option value="PRKACA">PRKACA</option><option value="CNBP">CNBP</option><option value="ROGID:UHWLLG4HMJR1EJH9XTRIPHM+5VS9606">ROGID:UHWLLG4HMJR1EJH9XTRIPHM+5VS9606</option><option value="LMNA">LMNA</option><option value="EGFR">EGFR</option><option value="KRT8">KRT8</option><option value="TJP2">TJP2</option><option value="ENAH">ENAH</option><option value="LDHA">LDHA</option><option value="EZR">EZR</option><option value="MET">MET</option><option value="SF3B1">SF3B1</option><option value="DKFZP781L0540">DKFZP781L0540</option><option value="SNRPB2">SNRPB2</option><option value="ATG12">ATG12</option><option value="SNRPD2">SNRPD2</option><option value="PRPF31">PRPF31</option><option value="COL1A2">COL1A2</option><option value="SLC9A3R2">SLC9A3R2</option><option value="ITGB4">ITGB4</option><option value="CDH1">CDH1</option><option value="ERBB2">ERBB2</option><option value="PKD1">PKD1</option><option value="CTNNA1">CTNNA1</option><option value="UNIPROTKB:Q9UII7">UNIPROTKB:Q9UII7</option><option value="CTNND1">CTNND1</option><option value="PKP2">PKP2</option><option value="FYB">FYB</option><option value="DGCR14">DGCR14</option><option value="PXN">PXN</option><option value="NEDD9">NEDD9</option><option value="PTK2">PTK2</option><option value="SEPT9">SEPT9</option><option value="PA2G4">PA2G4</option><option value="CTGF">CTGF</option><option value="TLN1">TLN1</option><option value="UBB">UBB</option><option value="FLNA">FLNA</option><option value="PTPN11">PTPN11</option><option value="P4HB">P4HB</option><option value="CASP6">CASP6</option><option value="ITGAV">ITGAV</option><option value="BCAR1">BCAR1</option><option value="DLG3">DLG3</option><option value="ABI3">ABI3</option><option value="CD47">CD47</option><option value="MYO1D">MYO1D</option><option value="KRT19">KRT19</option><option value="EPB41L5">EPB41L5</option><option value="KRT18">KRT18</option><option value="SH2D3C">SH2D3C</option><option value="CYR61">CYR61</option><option value="PIK3C2A">PIK3C2A</option><option value="CDX2">CDX2</option><option value="MTNR1B">MTNR1B</option><option value="MAPK12">MAPK12</option><option value="PDCD6">PDCD6</option><option value="LCP1">LCP1</option><option value="TGFBI">TGFBI</option><option value="IGHM">IGHM</option><option value="POLI">POLI</option><option value="LMO7">LMO7</option><option value="PIK3CG">PIK3CG</option><option value="TNC">TNC</option><option value="LIMA1">LIMA1</option>
             </datalist>
@@ -61,15 +61,15 @@ header > div > input {
         </div>
 
         <!-- Which edges -->
-        <div>
+<!--         <div>
             <input type="checkbox" id="turnForceOff" name="turnForceOff" value="turnForceOff">
             <label for="turnForceOff">Turn Off Force</label>
-        </div>
+        </div> -->
 
         <!-- Amount of Force -->
         <div>
             <label for="solutionEdges">Force</label>
-            <input type="range" name="" min="10" max="800" step="1" value="300" onchange="repulsion_strength=-this.value;restart();">
+            <input type="range" name="" min="10" max="800" step="1" value="100" onchange="repulsion_strength=this.value;restart();">
         </div>
 
         <!-- Color By -->
@@ -170,7 +170,7 @@ var size = d3.scalePow()
 /////////////////////////////////////////////////////////////////////////////
 
 var show_only_solution_edges = false;
-var repulsion_strength = -300;
+var repulsion_strength = 100;
 var colorBy = "prize";
 var groupBy = null;
 var turnForceOff = false;
@@ -189,6 +189,7 @@ var max_stroke = 16;
 var max_base_node_size = 36;
 var min_zoom = 0.2;
 var max_zoom = 7;
+var group_boundary_margin = 40;
 
 var tocolor = "fill";
 var towhite = "stroke";
@@ -240,14 +241,12 @@ graph.nodes.forEach(function (v, i) {
     });
 });
 
-// Object.keys(groups).forEach(function (key) {
-//     groups[key] = Object.values(groups[key])
-// });
-
+Object.keys(groups).forEach(function (key) {
+    groups[key] = Object.values(groups[key])
+});
 
 graph.nodes.forEach(function (n) {
-    n.height = 40
-    n.width = 40
+    n.height = n.width = group_boundary_margin;
 });
 
 
@@ -316,17 +315,11 @@ function recolor() {
                   ///////    Force    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-// var force = d3.forceSimulation()
-//               .force("link", d3.forceLink().id(function(d) { return d.id; }) )
-//               .force("charge", d3.forceManyBody().strength(repulsion_strength))
-//               .force("center", d3.forceCenter(w / 2, h / 2));
-
 
 function restart() {
     // When we restart, we'd like to be able to change
     //  - which edges exist
     //  - what the grouping is
-    //  - whether there is any force at all
 
     // Changing which links exist
     links = show_only_solution_edges ? graph.links.filter(function (l) {return l.in_solution}) : graph.links;
@@ -348,7 +341,6 @@ function restart() {
 
     // Changing what the grouping is
     if (groupBy) {
-        // group.remove()
         group = group.data([])
         group.exit().remove()
         group = group.data(groups[groupBy])
@@ -361,9 +353,8 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
-            .groups(Object.values(groups[groupBy]))
-            .jaccardLinkLengths(100, 0.7)
-            // .linkDistance(function (l) { return l.length })
+            .groups(groups[groupBy])
+            .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
 
@@ -374,8 +365,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
-            .jaccardLinkLengths(100, 0.7)
-            // .linkDistance(function (l) { return l.length })
+            .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
     }
@@ -532,7 +522,7 @@ resize();
                 ///////    Additional Features    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-$("#magic").on('input', function () {
+$("#search_node").on('input', function () {
     var val = this.value;
     if ($('#nodes').find('option').filter(function() {
         return this.value.toUpperCase() === val.toUpperCase();

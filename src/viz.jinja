@@ -69,7 +69,7 @@ header > div > input {
         <!-- Amount of Force -->
         <div>
             <label for="solutionEdges">Force</label>
-            <input type="range" name="" min="10" max="800" step="1" value="300" onchange="repulsion_strength=-this.value;restart();">
+            <input type="range" name="" min="10" max="800" step="1" value="100" onchange="repulsion_strength=this.value;restart();">
         </div>
 
         <!-- Color By -->
@@ -172,7 +172,7 @@ var size = d3.scalePow()
 /////////////////////////////////////////////////////////////////////////////
 
 var show_only_solution_edges = false;
-var repulsion_strength = -300;
+var repulsion_strength = 100;
 var colorBy = "prize";
 var groupBy = null;
 var turnForceOff = false;
@@ -317,17 +317,11 @@ function recolor() {
                   ///////    Force    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-// var force = d3.forceSimulation()
-//               .force("link", d3.forceLink().id(function(d) { return d.id; }) )
-//               .force("charge", d3.forceManyBody().strength(repulsion_strength))
-//               .force("center", d3.forceCenter(w / 2, h / 2));
-
 
 function restart() {
     // When we restart, we'd like to be able to change
     //  - which edges exist
     //  - what the grouping is
-    //  - whether there is any force at all
 
     // Changing which links exist
     links = show_only_solution_edges ? graph.links.filter(function (l) {return l.in_solution}) : graph.links;
@@ -349,7 +343,6 @@ function restart() {
 
     // Changing what the grouping is
     if (groupBy) {
-        // group.remove()
         group = group.data([])
         group.exit().remove()
         group = group.data(groups[groupBy])
@@ -363,7 +356,7 @@ function restart() {
         cola.nodes(graph.nodes)
             .links(links)
             .groups(groups[groupBy])
-            .jaccardLinkLengths(100, 0.7)
+            .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
 
@@ -374,7 +367,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
-            .jaccardLinkLengths(100, 0.7)
+            .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
     }
