@@ -333,6 +333,64 @@ class Graph:
         return vertex_indices, edge_indices
 
 
+    def gslr(self, X, y, sparsity_low=100, sparsity_high=200, pruning="strong", verbosity_level=1):
+        """
+
+        Arguments:
+            X (np.array): the n x d data matrix (n examples in dimension d)
+            y (np.array): the n-dimensional label vector. Each entry is an integer between 0 and c-1 (inclusive), where c is the number of classes.
+        """
+
+        from gslr import gslr, GraphOpts
+
+        all = list(range(len(self.nodes)))
+        others = list(set(all) - set(self.terminals))
+
+        if self.params.dummy_mode == 'terminals': endpoints = self.terminals
+        elif self.params.dummy_mode == 'other': endpoints = others
+        elif self.params.dummy_mode == 'all': endpoints = all
+        else: sys.exit("Invalid dummy mode")
+
+        dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
+
+        # `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
+        edges = np.concatenate((self.edges, dummy_edges))
+        # `costs`: the edge costs as a 1D float64 array.
+        costs = np.concatenate((self.costs, dummy_costs))
+        # `num_clusters`: the number of connected components in the output.
+        num_clusters = 1
+        # `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
+
+        num_nodes = len(len(self.nodes)+1)
+        num_classes = len(np.bincount(y).unique())
+
+        # X (np.array): the n x d data matrix (n examples in dimension d)
+        # y (np.array): the n-dimensional label vector. Each entry is an integer between 0 and c-1 (inclusive), where c is the number of classes.
+        # W0 (np.array): the c x d weight matrix
+        W0 = np.zeros((num_classes, num_nodes))
+        # sparsity_low (int): the (approximate) lower bound for the output sparsity
+        # sparsity_high (int): the (approximate) upper bound for the output sparsity
+        # graph_opts (GraphOptions): passed directly to `pcst_fast`
+        graph_opts = gslr.GraphOptions(edges=edges, root=root, num_clusters=num_clusters, pruning=pruning)
+        # steps (np.array): the step size schedule, represented by a matrix of size num_steps x num_choices. In each iteration, the algorithm tries all current choices for the step size and chooses the one that makes largest progress.
+        num_steps = 25
+        possible_steps = np.array([0.03, 0.1, 0.3])
+        steps = np.tile(possible_steps, (num_steps, 1))
+        # verbosity_level (int): indicates whether intermediate output should be printed verbosity_level - 1 is being passed to pcst_fast
+        # graph_proj_max_num_iter (int): the maximum number of iterations in the graph-sparsity projection.
+        # edge_costs (np.array): a real vector with non-negative edge costs
+        # edge_costs_multiplier (np.array): a factor weighing edge costs vs prizes
+
+        W_hat, losses, edge_indices = gslr(X, y, W0, sparsity_low, sparsity_high, graph_opts, steps, verbosity_level, edge_costs=costs, edge_costs_multiplier=(1/self.params.b))
+
+        vertex_indices = W_hat[W_hat != 0]
+        # Remove the dummy node and dummy edges for convenience
+        vertex_indices = vertex_indices[vertex_indices != root]
+        edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
+
+        return vertex_indices, edge_indices, W_hat, losses
+
+
     def output_forest_as_networkx(self, vertex_indices, edge_indices):
         """
         Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)
