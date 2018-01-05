@@ -85,7 +85,7 @@ header > div > input {
             <label for="groupBy">Group nodes by</label>
             <select id="groupBy">
                 <option value="" selected>None</option>
-                <option value="location">location</option><option value="louvainClusters">louvainClusters</option>
+                <option value="louvainClusters">louvainClusters</option><option value="location">location</option>
             </select>
         </div>
 
@@ -171,8 +171,8 @@ var size = d3.scalePow()
 
 var show_only_solution_edges = false;
 var repulsion_strength = -300;
-var colorBy = 'prize';
-var groupBy = "louvainClusters";
+var colorBy = "prize";
+var groupBy = null;
 var turnForceOff = false;
 
 var text_center = false;
@@ -209,7 +209,7 @@ var cola = cola.d3adaptor(d3).size([w, h]);
 /////////////////////////////////////////////////////////////////////////////
 
 var linked = {};
-graph.links.forEach(function(d) { linked[d.source + "," + d.target] = true; });
+graph.links.forEach(function(d) { linked[d.source_name + "," + d.target_name] = true; });
 
 function isConnected(a, b) {
     return linked[a.id + "," + b.id] || linked[b.id + "," + a.id] || a.id == b.id;
@@ -229,7 +229,7 @@ function isNumber(n) {
 
 
 var groups = {
-    "location": [],"louvainClusters": [],
+    "louvainClusters": [],"location": [],
 };
 graph.nodes.forEach(function (v, i) {
     Object.keys(groups).forEach(function (key) {
@@ -240,39 +240,24 @@ graph.nodes.forEach(function (v, i) {
     });
 });
 
-Object.keys(groups).forEach(function (key) {
-    groups[key] = Object.values(groups[key])
+// Object.keys(groups).forEach(function (key) {
+//     groups[key] = Object.values(groups[key])
+// });
+
+
+graph.nodes.forEach(function (n) {
+    n.height = 40
+    n.width = 40
 });
+
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Draw Graph    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-        graph.links.forEach(function (l) {
-            // console.log(l["source"]);
-            // console.log(l.target);
 
+var group = g.selectAll('.group')
 
-
-            l.length = (200 - 150 * (graph.nodes[l.source][groupBy] === graph.nodes[l.target][groupBy]));
-        });
-
-        cola.nodes(graph.nodes)
-            .links(graph.links)
-            .groups(groups[groupBy])
-            .jaccardLinkLengths(100, 0.7)
-            .linkDistance(function (l) { console.log(l.length); return l.length })
-            .avoidOverlaps(true)
-            .start(50, 0, 50);
-
-     var group = g.selectAll('.group')
-            .data(groups[groupBy])
-            .enter().append('rect')
-            .classed('group', true)
-            .attr('rx',5)
-            .attr('ry',5)
-            .style("fill", function (d) { return group_color(d.id); })
-            .call(cola.drag);
 
 var link = g.selectAll(".link")
             .data(graph.links)
@@ -287,24 +272,22 @@ var link = g.selectAll(".link")
                 else { return default_link_color; }
             })
 
+
 var node = g.selectAll(".node")
             .data(graph.nodes)
-            .enter().append("circle")
-            .attr("r", 10)
+            .enter().append("path")
             .attr("class", "node")
             .attr("id", function(d) { return d.id; })
 
-
-// var circle = node.append("path")
-        .attr("d",d => display_type(d.type))
-        // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
-        .style(tocolor, function(d) {
-            if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
-            else { return default_node_color; }
-        })
-        .style("stroke-width", default_stroke_width)
-        .style(towhite, "white")
-        .call(cola.drag);
+            .attr("d",d => display_type(d.type))
+            // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
+            .style(tocolor, function(d) {
+                if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
+                else { return default_node_color; }
+            })
+            .style("stroke-width", default_stroke_width)
+            .style(towhite, "white")
+            .call(cola.drag);
 
 
 var text = g.selectAll(".text")
@@ -321,29 +304,6 @@ if (text_center) {
         .text(function(d) { return '\u2002' + d.id; });
 }
 
-// var group = g.selectAll('.group')
-//             .data(groups[groupBy])
-//             .enter().append('rect')
-//             .classed('group', true)
-//             .attr('rx',5)
-//             .attr('ry',5)
-//             .style("fill", function (d) { return group_color(d.id); })
-//             .call(cola.drag);
-
-
-// var voronoi = d3.voronoi()
-//                 .x(function(d) { return d.x; })
-//                 .y(function(d) { return d.y; })
-//                 .extent([[-1, -1], [w + 1, h + 1]]);
-
-// var cells = g.selectAll()
-//              .data(graph.nodes)
-//              .enter().insert("g", ".link")
-//              .attr("fill", function(d) { return group_color(d[groupBy]); })
-//              .attr("class", function(d) { return d[groupBy]; })
-
-// var cell = cells.append("path")
-//                 .data(voronoi.polygons(graph.nodes))
 
 function recolor() {
     node.style(tocolor, function(d) {
@@ -362,74 +322,89 @@ function recolor() {
 //               .force("center", d3.forceCenter(w / 2, h / 2));
 
 
-// function restart() {
+function restart() {
     // When we restart, we'd like to be able to change
     //  - which edges exist
-    //  - whether there is any force at all
     //  - what the grouping is
+    //  - whether there is any force at all
 
     // Changing which links exist
-    // links = show_only_solution_edges ? graph.links.filter(function (l) {return l.in_solution}) : graph.links;
-    // link = link.data(links);
-    // link.exit().remove();
-    // link = link.enter()
-    //            .insert("line", ".node") // insert before "node" so that nodes show up on top
-    //            .attr("class", "link")
-    //            .style("stroke-width", function(d) {
-    //                if (isNumber(d.cost) && d.cost >= 0) { return width(1-d.cost); }
-    //                else { return default_stroke_width; }
-    //            })
-    //            .style("stroke", function(d) {
-    //               if (isNumber(d.score) && d.score >= 0) { return color[colorBy](d.score); }
-    //                else { return default_link_color; }
-    //            })
-    //            .merge(link);
+    links = show_only_solution_edges ? graph.links.filter(function (l) {return l.in_solution}) : graph.links;
+    link = link.data(links);
+    link.exit().remove();
+    link = link.enter()
+               .insert("line", ".node") // insert before "node" so that nodes show up on top
+               .attr("class", "link")
+               .style("stroke-width", function(d) {
+                   if (isNumber(d.cost) && d.cost >= 0) { return width(1-d.cost); }
+                   else { return default_stroke_width; }
+               })
+               .style("stroke", function(d) {
+                  if (isNumber(d.score) && d.score >= 0) { return color[colorBy](d.score); }
+                   else { return default_link_color; }
+               })
+               .merge(link);
 
-        // force.force("link").links(links);
-        // force.force("charge", d3.forceManyBody().strength(repulsion_strength));
-        // force.alpha(1).restart();
 
-        // group = g.selectAll('.group')
-        //     .data(groups)
-        //     .enter().append('rect')
-        //     .classed('group', true)
-        //     .attr('rx',5)
-        //     .attr('ry',5)
-        //     .style("fill", function (d) { return group_color(d.id); })
-        //     .call(cola.drag);
+    // Changing what the grouping is
+    if (groupBy) {
+        // group.remove()
+        group = group.data([])
+        group.exit().remove()
+        group = group.data(groups[groupBy])
+                     .enter()
+                     .insert('rect', '.link')
+                     .attr('rx',5)
+                     .attr('ry',5)
+                     .style("fill", function (d) { return group_color(d.id); })
+                     .call(cola.drag);
 
-        // cola.nodes(graph.nodes)
-        //     .links(graph.links)
-        //     .groups(groups[groupBy])
-        //     .jaccardLinkLengths(40, 0.7)
-        //     .avoidOverlaps(true)
-        //     .start(50, 0, 50);
+        cola.nodes(graph.nodes)
+            .links(links)
+            .groups(Object.values(groups[groupBy]))
+            .jaccardLinkLengths(100, 0.7)
+            // .linkDistance(function (l) { return l.length })
+            .avoidOverlaps(true)
+            .start(50, 0, 50);
 
-        cola.on('tick', function () {
+    } else {
+        group = group.data([])
+        group.exit().remove()
+        cola.groups([]);
 
-            // node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-            text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        cola.nodes(graph.nodes)
+            .links(links)
+            .jaccardLinkLengths(100, 0.7)
+            // .linkDistance(function (l) { return l.length })
+            .avoidOverlaps(true)
+            .start(50, 0, 50);
+    }
 
-            link.attr("x1", function (d) { return d.source.x; })
-                .attr("y1", function (d) { return d.source.y; })
-                .attr("x2", function (d) { return d.target.x; })
-                .attr("y2", function (d) { return d.target.y; });
 
-            node.attr("cx", function (d) { return d.x; })
-                .attr("cy", function (d) { return d.y; });
+    cola.on('tick', function () {
 
-            if (groupBy) {
-                group.attr('x', function (d) { return d.bounds.x })
-                     .attr('y', function (d) { return d.bounds.y })
-                     .attr('width', function (d) { return d.bounds.width() })
-                     .attr('height', function(d) { return d.bounds.height() });
-            }
-        });
+        node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
-    // }
-// }
+        link.attr("x1", function (d) { return d.source.x; })
+            .attr("y1", function (d) { return d.source.y; })
+            .attr("x2", function (d) { return d.target.x; })
+            .attr("y2", function (d) { return d.target.y; });
 
-// restart();
+        node.attr("cx", function (d) { return d.x; })
+            .attr("cy", function (d) { return d.y; });
+
+        if (groupBy) {
+            group.attr('x', function (d) { return d.bounds.x })
+                 .attr('y', function (d) { return d.bounds.y })
+                 .attr('width', function (d) { return d.bounds.width() })
+                 .attr('height', function(d) { return d.bounds.height() });
+        }
+    });
+
+}
+
+restart();
 
 
 /////////////////////////////////////////////////////////////////////////////
