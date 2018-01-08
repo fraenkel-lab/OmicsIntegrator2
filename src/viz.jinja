@@ -475,7 +475,9 @@ function remove_highlight() {
                       ///////    Focus    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-node.on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
+// node.on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); }) // wait until I hear back
+
+node.on("click", function(d) {if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}});
 
 function set_focus(d) {
     // open new tab with node details
