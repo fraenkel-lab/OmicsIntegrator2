@@ -9,7 +9,6 @@ please see the Readme_. To report an issue, please refer to the Issues_.
 
 
 .. automodule:: graph
-
 	:members:
 	:member-order: bysource
 

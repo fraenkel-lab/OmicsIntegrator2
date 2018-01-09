@@ -782,6 +782,8 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the graph.
         filename (str): Filenames ending in .gz or .bz2 will be compressed.
+    Returns:
+        str: filepath to output
     """
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
@@ -796,6 +798,8 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the graph.
         filename (str): Filenames ending in .gz or .bz2 will be compressed.
+    Returns:
+        str: filepath to output
     """
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
@@ -809,6 +813,8 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
     Arguments:
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the file (named graph_json.json)
+    Returns:
+        str: filepath to output
     """
     import cytoscapejs as cy
 
@@ -828,6 +834,8 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     Arguments:
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the file
+    Returns:
+        str: filepath to output
     """
 
     try:
