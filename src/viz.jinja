@@ -136,10 +136,6 @@ var max_score = 4;
 var min_confidence = 0;
 var max_confidence = 1;
 
-// var color = d3.scaleLinear()
-//                     .domain([min_score, (min_score + max_score) / 2, max_score])
-                    // .range(["blue", "white", "red"]);
-
 var color = {'prize': d3.scaleLinear().domain([0, {{numerical_node_attributes['prize'].1}}]).range(["white", "red"]),
              'degree': d3.scaleLinear().domain([0, {{numerical_node_attributes['degree'].1}}]).range(["lightblue", "red"]),
              'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}}]).range(["purple", "orange"]),
@@ -288,8 +284,7 @@ var node = g.selectAll(".node")
             })
             .style("stroke-width", default_stroke_width)
             .style(towhite, "white")
-            // .on("click", function(d) { set_focus(d); })//.on("mouseup", function(d) { remove_focus(d); })
-            .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
+            // .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
             .call(cola.drag);
 
 
@@ -420,17 +415,12 @@ restart();
                       ///////    Zoom    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-function zoom_actions() { g.attr("transform", d3.event.transform) }
-var zoom_handler = d3.zoom().scaleExtent([min_zoom, max_zoom]).on("zoom", zoom_actions);
-zoom_handler(svg);
 
-node.on("dblclick.zoom", function(d) {
-    d3.event.stopPropagation();
-    var dcx = (window.innerWidth / 2 - d.x * zoom.scale());
-    var dcy = (window.innerHeight / 2 - d.y * zoom.scale());
-    zoom.translate([dcx, dcy]);
-    g.attr("transform", "translate(" + dcx + "," + dcy + ")scale(" + zoom.scale() + ")");
-});
+svg.call(d3.zoom()
+           .scaleExtent([1 / 2, 8])
+           .on("zoom", zoomed));
+
+function zoomed() { g.attr("transform", d3.event.transform); }
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -477,7 +467,7 @@ function remove_highlight() {
 
 // node.on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); }) // wait until I hear back
 
-node.on("click", function(d) {if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}});
+node.on("click", function(d) { if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);} });
 
 function set_focus(d) {
     // open new tab with node details
