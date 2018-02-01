@@ -69,49 +69,27 @@ def output_dataframe_to_tsv(dataframe, output_dir, filename):
     dataframe.to_csv(path, sep='\t', header=True, index=False)
 
 
-def output_networkx_graph_as_files(nxgraph, project_dir, tag, subfolder=""):
-    """
-    Output networkx graph in various formats.
-    """
-
-    os.makedirs(os.path.abspath(project_dir), exist_ok=True)
-    output_dir = os.path.join(os.path.abspath(project_dir), subfolder)
-
-
-    nxgraph_nodes_df, nxgraph_edges_df = get_networkx_graph_as_node_edge_dataframes(nxgraph)
-
-    output_networkx_graph_as_pickle(nxgraph, output_dir, tag+".gpickle")
-    output_dataframe_to_tsv(nxgraph_nodes_df, output_dir, tag+".nodes.tsv")
-    output_dataframe_to_tsv(nxgraph_edges_df, output_dir, tag+".edges.tsv")
-    output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, "{}.{}.json".format(tag, subfolder.replace("/", "")))
-
-    return output_dir
-
-
 def main():
 
     args = parser.parse_args()
 
     params = {"w":args.w, "b":args.b, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "exclude_terminals":args.exclude_terminals, "seed":args.seed,
               "noisy_edges_repetitions": args.noisy_edges_repetitions, "random_terminals_repetitions": args.random_terminals_repetitions}
+
     params = {param: value for param, value in params.items() if value is not None}
 
-    graph = Graph(args.edge_file, {})
+    graph = Graph(args.edge_file, params)
+    graph.prepare_prizes(args.prize_file)
 
-    # Parameter search
-    results = graph.grid_search_randomizations(args.prize_file, params)
+    if args.noisy_edges_repetitions + args.random_terminals_repetitions > 0:
+        forest, augmented_forest = graph.randomizations(args.noisy_edges_repetitions, args.random_terminals_repetitions)
 
-    for tag, forest, augmented_forest in results:
+    else:
+        vertex_indices, edge_indices = graph.pcsf()
+        forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-        robust_network = get_networkx_subgraph_from_randomizations(augmented_forest, max_size=400)
-
-        output_networkx_graph_as_files(forest,           args.output_dir, tag, subfolder="forest")
-        output_networkx_graph_as_files(augmented_forest, args.output_dir, tag, subfolder="augmented_forest")
-        output_networkx_graph_as_files(robust_network,   args.output_dir, tag, subfolder="robust_network")
-
-    output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir, 'output.gml')
-    # output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, args.output_dir)
-
+    output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir)
+    output_networkx_graph_as_interactive_html(augmented_forest, args.output_dir)
 
 if __name__ == '__main__':
     main()
