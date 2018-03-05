@@ -93,9 +93,9 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                 for node in forestFreq:
                     if node not in origP[s]:
                         if node in artificial_prizes:
-                            artificial_prizes[node] = artificial_prizes[node] + lbda*((s_c*forestFreq[node])**(alpha-d_c)) 
+                            artificial_prizes[node] = artificial_prizes[node] + lbda*((s_c*forestFreq[node])**alpha) 
                         else:
-                            artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
+                            artificial_prizes[node] = lbda*((s_c*forestFreq[node])**alpha)
                 #write new prizes + original prizes to a file
                 with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
                     with open(prizefiles[s].strip(), "r") as p:
