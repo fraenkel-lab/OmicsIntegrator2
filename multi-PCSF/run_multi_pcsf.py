@@ -11,7 +11,7 @@
 import argparse
 import sys, os
 import pickle
-from graph import Graph, output_networkx_graph_as_edgelist
+from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
 
 def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     #One straightforward application of PCSF
@@ -19,7 +19,7 @@ def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     graph.prepare_prizes(prizeFile)
     vertex_indices, edge_indices = graph.pcsf()
     forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
-    output_networkx_graph_as_edgelist(augmented_forest, outdir)
+    output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, outdir)
     return forest
 
 def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, alpha, lbda, outdir):
@@ -57,8 +57,7 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
     Similarity=[]             
 
     for i in range(0,len(Height)):
-        Similarity.append((1-(Height[i]-min(Height))/(max(Height)-min(Height)))+ 0.00001)
-
+        Similarity.append((1-(Height[i]-min(Height))/(max(Height)-min(Height)))+ 0.00001) #Need to account for all distances being the same
 
     #now interate over dendrogram, and at each merge, re-run PCSF for samples in that merge
     for i,c in enumerate(dendrogram):
@@ -84,7 +83,7 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                 if last_iter == -1:
                     artificial_prizes = {}
                 else:
-                    s_lastdir = outdir + 'iter%i/%s'%(last_iter,names[s])
+                    s_lastdir = outdir + '/iter%i/%s'%(last_iter,names[s])
                     with open('%s/artificial_prizes.txt'%(s_lastdir), 'r') as a:
                         artificial_prizes = {}
                         for line in a:
@@ -99,12 +98,13 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                             artificial_prizes[node] = lbda*((s_c*forestFreq[node])**(alpha-d_c))
                 #write new prizes + original prizes to a file
                 with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
+                    with open(prizefiles[s].strip(), "r") as p:
+                        f.writelines(p.readlines())
                     with open('%s/artificial_prizes.txt'%(s_outdir),'w') as a:
                         for item in artificial_prizes:
                             f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
                             a.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
-                    with open(prizefiles[s].strip(), "r") as p:
-                        f.writelines(p.readlines())
+                last_iteration_for_samples[s] = i
 
                 #submit new artificial prizes + orig prize list to run_single_pcsf
                 new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
