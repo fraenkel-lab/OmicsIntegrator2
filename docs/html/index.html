@@ -158,16 +158,293 @@
 <h1>OmicsIntegrator2<a class="headerlink" href="#omicsintegrator2" title="Permalink to this headline">¶</a></h1>
 <p>For more information about the scientific uses of OmicsIntegrator2,
 please see the <a class="reference external" href="https://github.com/fraenkel-lab/OmicsIntegrator2">Readme</a>. To report an issue, please refer to the <a class="reference external" href="https://github.com/fraenkel-lab/OmicsIntegrator2/issues">Issues</a>.</p>
-<span class="target" id="module-graph"></span><table class="docutils field-list" frame="void" rules="none">
+<span class="target" id="module-graph"></span><dl class="class">
+<dt id="graph.Graph">
+<em class="property">class </em><code class="descclassname">graph.</code><code class="descname">Graph</code><span class="sig-paren">(</span><em>interactome_file</em>, <em>params={}</em>, <em>skip_checks=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Graph object is a representation of a graph, with convenience methods for using the pcst_fast
+package, which approximately minimizes the Prize-Collecting Steiner Forest objective.</p>
+<dl class="method">
+<dt id="graph.Graph.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>interactome_file</em>, <em>params={}</em>, <em>skip_checks=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds a representation of a graph from an interactome file.</p>
+<p>From the interactome_file, populates
+- <cite>graph.interactome_dataframe</cite> (pandas.DataFrame)
+- <cite>graph.interactome_graph</cite> (networkx.Graph)
+- <cite>graph.nodes</cite> (pandas.Index),
+- <cite>graph.edges</cite> (list of pairs),
+- <cite>graph.costs</cite> and <cite>graph.edge_penalties</cite> (lists, such that the ordering is the same as in graph.edges),
+- <cite>graph.node_degrees</cite> (list, such that the ordering is the same as in graph.nodes).</p>
+<table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">members:</th><td class="field-body"></td>
-</tr>
-<tr class="field-even field"><th class="field-name">member-order:</th><td class="field-body">bysource</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>interactome_file</strong> (<em>str</em><em> or </em><em>FILE</em>) – tab-delimited text file containing edges in interactome and their weights formatted like “ProteinA  ProteinB        Cost”</li>
+<li><strong>params</strong> (<em>dict</em>) – params with which to run the program</li>
+</ul>
+</td>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.prepare_prizes">
+<code class="descname">prepare_prizes</code><span class="sig-paren">(</span><em>prize_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.prepare_prizes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.prepare_prizes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parses a prize file and adds prize-related attributes to the graph object.</p>
+<p>The file passed to this function must have at least two columns: node name and prize.
+Any additional columns will be assumed to be node attributes. However, in order to know
+the names of those attributes, this function requires the input file to contain headers,
+i.e. the first row of the tsv must be the names of the columns.</p>
+<p>Sets the graph attributes
+- <cite>graph.bare_prizes</cite> (numpy.array): properly indexed (same as <cite>graph.nodes</cite>) prizes from the file.
+- <cite>graph.prizes</cite> (numpy.array): properly indexed prizes, scaled by beta (<cite>graph.params.b</cite>)
+- <cite>graph.terminals</cite> (numpy.array): their indices
+- <cite>graph.node_attributes</cite> (pandas.DataFrame) Any node attributes passed in with the prize file (columns 3, …)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prize_file</strong> (<em>str</em><em> or </em><em>FILE</em>) – a filepath or file object containing a tsv <strong>with column headers</strong>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.pcsf">
+<code class="descname">pcsf</code><span class="sig-paren">(</span><em>pruning='strong'</em>, <em>verbosity_level=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.</p>
+<p>This function mostly defers to pcst_fast, but does one important pre-processing step: it
+adds a dummy node which will serve as the PCSF root and connects that dummy node to either
+terminals, non-terminals, or all other nodes with edges weighted by self.params.w.</p>
+<p>In order to interpret the results of this function, use <cite>output_forest_as_networkx</cite> with
+the results of this function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pruning</strong> (<em>str</em>) – a string value indicating the pruning method. Possible values are <cite>‘none’</cite>, <cite>‘simple’</cite>, <cite>‘gw’</cite>, and <cite>‘strong’</cite> (all literals are case-insensitive).</li>
+<li><strong>verbosity_level</strong> (<em>int</em>) – an integer indicating how much debug output the function should produce.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">indices of the selected vertices
+numpy.array: indices of the selected edges</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">numpy.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.output_forest_as_networkx">
+<code class="descname">output_forest_as_networkx</code><span class="sig-paren">(</span><em>vertex_indices</em>, <em>edge_indices</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.output_forest_as_networkx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.output_forest_as_networkx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>vertex_indices</strong> (<em>list</em>) – indices of the vertices selected in self.nodes</li>
+<li><strong>edge_indices</strong> (<em>list</em>) – indices of the edges selected in self.edges</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a networkx graph object</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.pcsf_objective_value">
+<code class="descname">pcsf_objective_value</code><span class="sig-paren">(</span><em>forest</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf_objective_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf_objective_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate PCSF objective function</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>forest</strong> (<em>networkx.Graph</em>) – a forest like the one returned by output_forest_as_networkx – Not an augmented forest!</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">PCSF objective function score</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.randomizations">
+<code class="descname">randomizations</code><span class="sig-paren">(</span><em>noisy_edges_reps</em>, <em>random_terminals_reps</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.randomizations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.randomizations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Macro function which performs randomizations and merges the results</p>
+<p>Note that these are additive, not multiplicative:
+<cite>noisy_edges_reps</cite> = 5 and <cite>random_terminals_reps</cite> = 5 makes 10 PCSF runs, not 25.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>noisy_edges_reps</strong> (<em>int</em>) – Number of “Noisy Edges” type randomizations to perform</li>
+<li><strong>random_terminals_reps</strong> (<em>int</em>) – Number of “Random Terminals” type randomizations to perform</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">forest
+networkx.Graph: augmented_forest</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.grid_search">
+<code class="descname">grid_search</code><span class="sig-paren">(</span><em>prize_file</em>, <em>Gs</em>, <em>Bs</em>, <em>Ws</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.grid_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.grid_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Macro function which performs grid search and merges the results.</p>
+<p>This function is under construction and subject to change.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>prize_file</strong> (<em>str</em>) – filepath</li>
+<li><strong>Gs</strong> (<em>list</em>) – Values of gamma</li>
+<li><strong>Bs</strong> (<em>list</em>) – Values of beta</li>
+<li><strong>Ws</strong> (<em>list</em>) – Values of omega</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">forest
+networkx.Graph: augmented_forest
+pd.DataFrame: parameters and node membership lists</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.get_networkx_graph_as_dataframe_of_nodes">
+<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_nodes</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes from the input graph and their attributes as a dataframe</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.get_networkx_graph_as_dataframe_of_edges">
+<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_edges</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_edges"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_edges" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">edges from the input graph and their attributes as a dataframe</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.output_networkx_graph_as_graphml_for_cytoscape">
+<code class="descclassname">graph.</code><code class="descname">output_networkx_graph_as_graphml_for_cytoscape</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>output_dir</em>, <em>filename='pscf_results.graphml.gz'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#output_networkx_graph_as_graphml_for_cytoscape"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.output_networkx_graph_as_graphml_for_cytoscape" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</li>
+<li><strong>output_dir</strong> (<em>str</em>) – the directory in which to output the graph.</li>
+<li><strong>filename</strong> (<em>str</em>) – Filenames ending in .gz or .bz2 will be compressed.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">filepath to output</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">str</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.output_networkx_graph_as_json_for_cytoscapejs">
+<code class="descclassname">graph.</code><code class="descname">output_networkx_graph_as_json_for_cytoscapejs</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>output_dir</em>, <em>filename='graph_json.json'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#output_networkx_graph_as_json_for_cytoscapejs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.output_networkx_graph_as_json_for_cytoscapejs" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</li>
+<li><strong>output_dir</strong> (<em>str</em>) – the directory in which to output the file (named graph_json.json)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">filepath to output</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">str</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.output_networkx_graph_as_interactive_html">
+<code class="descclassname">graph.</code><code class="descname">output_networkx_graph_as_interactive_html</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>output_dir</em>, <em>filename='graph.html'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#output_networkx_graph_as_interactive_html"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.output_networkx_graph_as_interactive_html" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</li>
+<li><strong>output_dir</strong> (<em>str</em>) – the directory in which to output the file</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">filepath to output</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">str</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
