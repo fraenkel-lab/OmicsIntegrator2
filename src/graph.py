@@ -807,6 +807,11 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
 
     return path
 
+class Encoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.int64):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
 
 def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
     """
