@@ -65,7 +65,6 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
         if num_samples_in_clade >= minClade:
             os.makedirs(outdir + '/iter%i'%i, exist_ok=True)
             s_c = float(Similarity[i])
-            d_c = 1-s_c
             sample1 = int(c[0])
             sample2 = int(c[1])
             samples_in_clade = calc_original_samples(sample1, N, dendrogram) + calc_original_samples(sample2, N, dendrogram)
@@ -99,10 +98,14 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                 #write new prizes + original prizes to a file
                 with open('%s/updated_prizes.txt'%(s_outdir),"w") as f:
                     with open(prizefiles[s].strip(), "r") as p:
-                        f.writelines(p.readlines())
+                        origprizes = p.readlines()
+                        nCol = len(origprizes[1].split('\t'))
+                        if origprizes[-1][-1] != '\n': 
+                            origprizes[-1] = origprizes[-1] + '\n'
+                        f.writelines(origprizes)
                     with open('%s/artificial_prizes.txt'%(s_outdir),'w') as a:
                         for item in artificial_prizes:
-                            f.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
+                            f.write("%s\t%s\t"%(str(item), str(artificial_prizes[item])) + '\t'.join(['0'] * (nCol-2)) + "\n" )
                             a.write("%s\t%s\n" % (str(item), str(artificial_prizes[item])))
                 last_iteration_for_samples[s] = i
 
