@@ -807,6 +807,11 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
 
     return path
 
+class Encoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.int64):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
 
 def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
     """
@@ -816,7 +821,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
     Returns:
         str: filepath to output
     """
-    import cytoscapejs as cy
+    from py2cytoscape import util as cy
 
     njs = cy.from_networkx(nxgraph)
     njs["data"]["name"] = filename.replace(".json", "")
@@ -824,7 +829,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
     with open(path,'w') as output_file:
-        output_file.write(json.dumps(njs, indent=4))
+        output_file.write(json.dumps(njs, cls=Encoder))
 
     return path
 
@@ -867,3 +872,16 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     return path
 
+def output_networkx_graph_as_edgelist(nxgraph, output_dir):
+	"""
+	Arguments:
+		nxgraph (networkx.Graph): any instance of networkx.Graph
+		output_dir (str): the directory in which to output the file (named graph_edgelist.txt)
+    Returns:
+        str: filepath to output
+	"""
+	os.makedirs(os.path.abspath(output_dir), exist_ok=True)
+	path = os.path.join(os.path.abspath(output_dir), 'graph_edgelist.txt')
+	nx.write_edgelist(nxgraph, path, data=False)
+
+    return path
