@@ -816,7 +816,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
     Returns:
         str: filepath to output
     """
-    import cytoscapejs as cy
+    from py2cytoscape import util as cy
 
     njs = cy.from_networkx(nxgraph)
     njs["data"]["name"] = filename.replace(".json", "")
@@ -824,7 +824,7 @@ def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename=
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
     with open(path,'w') as output_file:
-        output_file.write(json.dumps(njs, indent=4))
+        output_file.write(json.dumps(njs, cls=Encoder))
 
     return path
 
