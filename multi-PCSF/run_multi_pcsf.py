@@ -160,7 +160,7 @@ def main():
     parser.add_argument("-b", dest="b", default=1, type=float, help="Beta: scaling factor of prizes [default: 1]")
     parser.add_argument("-g", dest="g", default=0, type=float, help="Gamma: Edge penalty on hubs [default: 0]")
     parser.add_argument("-l", "--lambda",dest="lbda", default=1, type=float, help="Lambda: scaling factor on artificial prizes [default: 1]")
-    parser.add_argument("-a", "--alpha",dest="alpha", default=1, type=float, help="Alpha: non-linear scaling on artificial prizes [default: 1]")
+    parser.add_argument("-a", "--alpha",dest="alpha", default=0, type=float, help="Alpha: non-linear scaling on artificial prizes [default: 0]")
     
     args = parser.parse_args()
     paramDict = {'w':args.w, 'b':args.b, 'g':args.g}

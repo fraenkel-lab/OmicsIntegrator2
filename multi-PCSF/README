@@ -1,0 +1,11 @@
+Multi PCSF implements the algorithm for sharing information across patient samples to construct a network for each sample, by Anthony Gitter et. al., described here: https://www.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&retmode=ref&cmd=prlinks&id=24297532
+
+This algorithm has been extended to take into account a dendrogram created from clustering the patient samples and calculating a distance between each pair or group of samples.
+
+
+To run, create a prize file for each individual sample, and another file with a list of all the prize file names. Importantly, this file should list the samples in the same order used to create the dendrogram.
+The dendrogram should be a pickled Python object, containing a linkage matrix, i.e. created with SciPy's linkage function (https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html).
+
+Parameter options for run_multi_pcsf include the same as those for an individual Omics Integrator run (w, b, and g) and two additional parameters. Lambda (l) scales the artificial prizes linearly. Alpha (a) scales the artificial prizes exponentially. Increase lambda and alpha to increase the weight of shared information between networks. See Gitter et. al. for more information.
+
+Upon running run_multi_pcsf, several directories will be created in your out directory, named iter0, iter1, and so on. Within each directory, a directory for each sample will be created, named after the sample prize filename, containing the result from running PCSF on that sample with the current artificial prizes. Look at the results in the iter0 directory to see the networks resulting from running each sample independently, with no shared information, and the results in the last iteration directory to see the results after information has been shared between all samples.
