@@ -36,11 +36,11 @@ io_params.add_argument('-o', '--output', dest='output_dir', action=FullPaths, ty
 # Command parameters (specify what the algorithm does):
 pcsf_params = parser.add_argument_group("PCSF Parameters")
 
-pcsf_params.add_argument("-w", dest="w", nargs="*", type=float, required=False, default=[6],
+pcsf_params.add_argument("-w", dest="w", nargs="*", type=float, required=False, default=6,
     help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 6]")
-pcsf_params.add_argument("-b", dest="b", nargs="*", type=float, required=False, default=[1],
+pcsf_params.add_argument("-b", dest="b", nargs="*", type=float, required=False, default=1,
     help="Beta: scaling factor of prizes [default: 1]")
-pcsf_params.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=[20],
+pcsf_params.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=20,
     help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
 pcsf_params.add_argument("-noise", dest="noise", type=float, required=False, default=0.1,
     help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
@@ -88,7 +88,7 @@ def main():
         vertex_indices, edge_indices = graph.pcsf()
         forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
 
-    output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir)
+    #output_networkx_graph_as_graphml_for_cytoscape(augmented_forest, args.output_dir)
     output_networkx_graph_as_interactive_html(augmented_forest, args.output_dir)
 
 if __name__ == '__main__':

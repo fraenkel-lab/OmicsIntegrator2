@@ -105,7 +105,7 @@ class Graph:
                 self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
             else: del self.interactome_dataframe['temp']
 
-        self.interactome_graph = nx.from_pandas_dataframe(self.interactome_dataframe, 'source', 'target', edge_attr=self.interactome_dataframe.columns[2:].tolist())
+        self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'source', 'target', edge_attr=self.interactome_dataframe.columns[2:].tolist())
 
         # Convert the interactome dataframe from string interactor IDs to integer interactor IDs.
         # Do so by selecting the source and target columns from the interactome dataframe,
@@ -347,7 +347,7 @@ class Graph:
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
-        forest = nx.from_pandas_dataframe(edges, 'source', 'target', edge_attr=True)
+        forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
         # the above won't capture the singletons, so we'll add them here
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
@@ -365,6 +365,9 @@ class Graph:
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
         augment_with_subcellular_localization(augmented_forest)
+
+        if len(augmented_forest.nodes()) == 0:
+            logger.info("The resulting Forest is empty. Try different parameters.")
 
         return forest, augmented_forest
 
@@ -720,10 +723,12 @@ def augment_with_subcellular_localization(nxgraph):
         subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
     except:
         # maybe need os.path.realpath(__file__)
-        subcellular = pd.read_pickle('../subcellular/subcellular.pickle')
+        subcellular = pd.read_pickle(os.path.dirname(os.path.realpath(__file__))+'/../subcellular/subcellular.pickle')
 
-    nx.set_node_attributes(nxgraph, subcellular.loc[list(nxgraph.nodes())].dropna(how='all').to_dict(orient='index'))
-
+    try:
+        nx.set_node_attributes(nxgraph, subcellular.loc[list(nxgraph.nodes())].dropna(how='all').to_dict(orient='index'))
+    except KeyError:
+        logger.info('Not assigning subcellular locations. For that function use Gene Symbols.')
 
 def augment_with_biological_process_terms(nxgraph):
     """
@@ -848,25 +853,29 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     except:
         # maybe need os.path.realpath(__file__)
         print('except')
-        vizjinja = './viz.jinja'
+        vizjinja = os.path.dirname(os.path.realpath(__file__)) + '/viz.jinja'
 
     graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
 
     def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
     graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
-    graph_json = json.dumps(graph_json)
+    graph_json = json.dumps(graph_json, cls=Encoder)
 
     nodes = nxgraph.nodes()
 
-    numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
-    non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
-    min_max = lambda l: (min(l),max(l))
-    numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
-    html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
     path = os.path.join(os.path.abspath(output_dir), filename)
-    with open(path,'w') as output_file:
-        output_file.write(html_output)
+
+    if len(nodes) > 0:
+        numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
+        #print(numerical_node_attributes)
+        non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
+        min_max = lambda l: (min(l),max(l))
+        numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
+        #print(numerical_node_attributes)
+        html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
+        with open(path,'w') as output_file:
+            output_file.write(html_output)
 
     return path
 
