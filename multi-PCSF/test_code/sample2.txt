@@ -1,0 +1,4 @@
+node	prize	color
+A	0.9	blue
+B	0.5	blue
+F	0.9	red
