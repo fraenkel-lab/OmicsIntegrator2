@@ -879,7 +879,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     return path
 
-def output_networkx_graph_as_edgelist(nxgraph, output_dir):
+def output_networkx_graph_as_edgelist(nxgraph, output_dir, filename="graph_json.json"):
     """
     Arguments:
         nxgraph (networkx.Graph): any instance of networkx.Graph
@@ -888,7 +888,7 @@ def output_networkx_graph_as_edgelist(nxgraph, output_dir):
         str: filepath to output
     """
     os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), 'graph_edgelist.txt')
+    path = os.path.join(os.path.abspath(output_dir), filename)
     nx.write_edgelist(nxgraph, path, data=False)
 
     return path

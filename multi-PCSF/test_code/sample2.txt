@@ -2,3 +2,5 @@ node	prize	color
 A	0.9	blue
 B	0.5	blue
 F	0.9	red
+Y	0.8	gray
+Z	0.8	gray

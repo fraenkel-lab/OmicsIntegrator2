@@ -11,7 +11,9 @@
 import argparse
 import sys, os
 import pickle
-from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs
+import networkx as nx
+import pandas as pd
+from graph import Graph, output_networkx_graph_as_json_for_cytoscapejs, output_networkx_graph_as_edgelist
 
 def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     #One straightforward application of PCSF
@@ -19,10 +21,10 @@ def run_single_PCSF(prizeFile, edgeFile, paramDict, outdir):
     graph.prepare_prizes(prizeFile)
     vertex_indices, edge_indices = graph.pcsf()
     forest, augmented_forest = graph.output_forest_as_networkx(vertex_indices, edge_indices)
-    output_networkx_graph_as_json_for_cytoscapejs(augmented_forest, outdir)
+    output_networkx_graph_as_edgelist(augmented_forest, outdir)
     return forest
 
-def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, alpha, lbda, outdir):
+def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, alpha, lbda, outdir, precise):
     #Iterate through dendrogram, and at each clade, run forest for each sample, adding artificial prizes
     
     dendrogram = pickle.load(open(dendrogram,'rb'))
@@ -32,6 +34,12 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
     lastF = [[] for _ in range(N)] #list of N lists of nodes in latest version of each sample
     last_iteration_for_samples = [-1 for _ in range(N)] #keep track of last iteration where this sample appeared
     origP = [[] for _ in range(N)] #keep track of original prizes per sample so we know which are Steiners
+    #if --precise, need a nx object of the interactome
+    if precise:
+        interactome_dataframe = pd.read_csv(edgeFile, sep='\t')
+        interactome_dataframe.columns = ["source","target","cost"] + interactome_dataframe.columns[3:].tolist()
+        interactome_graph = nx.from_pandas_edgelist(interactome_dataframe, 'source', 'target', edge_attr=interactome_dataframe.columns[2:].tolist())
+
 
     #Run the first iteration with unaltered prizes and note which nodes are terminals
     os.makedirs(outdir + '/initial', exist_ok=True)
@@ -88,6 +96,10 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                         for line in a:
                             node, prize = line.strip().split('\t')
                             artificial_prizes[node] = float(prize)
+                    if os.path.isfile('%s/only_artificial_trees.txt'%(s_lastdir)):
+                        with open('%s/only_artificial_trees.txt'%(s_lastdir), 'r') as u:
+                            for line in u:
+                                artificial_prizes.pop(line.strip(), None)
                 #Calculate new artificial prizes for this iteration
                 for node in forestFreq:
                     if node not in origP[s]:
@@ -112,9 +124,26 @@ def run_multi_PCSF(dendrogram, prizefileslist, edgeFile, minClade, paramDict, al
                 #submit new artificial prizes + orig prize list to run_single_pcsf
                 new_forest = run_single_PCSF('%s/updated_prizes.txt'%(s_outdir), edgeFile, paramDict, s_outdir)
 
+                #With precise option, prune trees with only artificial prizes
+                if precise and len(new_forest.nodes()) > 0:
+                    nodes_to_remove = set()
+                    trees = list(nx.connected_components(new_forest))
+                    for tree in trees:
+                        contains_orig = False
+                        for node in tree:
+                            if node in origP[s]:
+                                contains_orig = True
+                        if not contains_orig:
+                            nodes_to_remove |= tree
+                    with open('%s/only_artificial_trees.txt'%(s_outdir),"w") as u:
+                        u.writelines([n+'\n' for n in nodes_to_remove])
+                    new_forest.remove_nodes_from(nodes_to_remove)
+                    augmented_forest = nx.compose(interactome_graph.subgraph(new_forest.nodes()), new_forest)
+                    output_networkx_graph_as_edgelist(augmented_forest, s_outdir, filename="precise_graph_edgelist.txt")
+
                 #update lastF
                 lastF[s] = new_forest.nodes()
-            
+
 def calc_original_samples(sample, N, Z):
     #recursively find all original samples in this merge
     #if the sample number is greater than N, this is a clade of several other samples
@@ -155,6 +184,8 @@ def main():
 	    help='Output directory path. Default current directory')
     parser.add_argument('-m', '--minClade', dest='minClade', default=2, type=int,
 	    help='Only calculate artificial prizes for clades that contain at least m samples. Default = all clades')
+    parser.add_argument('--keepall', dest='precise', action='store_false', default=True,
+        help='Turn off "precision mode", where at each iteration, we remove trees that only include artificial prizes and no original prizes for that sample. Use this flag to conserve run time or if you want to samples to share all information possible, not just info that connects samples-specific data.')
 
     parser.add_argument("-w", dest="w", default=5, type=float, help="Omega: the weight of the edges connecting the dummy node to the nodes selected by dummyMode [default: 5]")
     parser.add_argument("-b", dest="b", default=1, type=float, help="Beta: scaling factor of prizes [default: 1]")
@@ -165,7 +196,7 @@ def main():
     args = parser.parse_args()
     paramDict = {'w':args.w, 'b':args.b, 'g':args.g}
 
-    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, args.minClade, paramDict, args.alpha, args.lbda, args.output_dir)
+    run_multi_PCSF(args.dendrogram, args.prize_files, args.edge_file, args.minClade, paramDict, args.alpha, args.lbda, args.output_dir, args.precise)
 
 
 if __name__ == '__main__':
