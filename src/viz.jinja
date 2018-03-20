@@ -68,7 +68,7 @@ header > div > input {
 
         <!-- Amount of Force -->
         <div>
-            <label for="show_only_solution_edges">Force</label>
+            <label for="">Force</label>
             <input type="range" name="" min="10" max="800" step="1" value="100" onchange="repulsion_strength=this.value;restart();">
         </div>
 
@@ -197,6 +197,8 @@ var max_base_node_size = 36;
 var min_zoom = 0.2;
 var max_zoom = 7;
 var group_boundary_margin = 40;
+var group_compactness = 0.000001;
+var group_padding = 16;
 
 var tocolor = "fill";
 var towhite = "stroke";
@@ -210,7 +212,7 @@ var g = svg.append("g");
 svg.style("cursor", "move");
 
 var cola = cola.d3adaptor(d3).size([w, h]);
-
+cola.groupCompactness = group_compactness;
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////   Links Setup    ///////
@@ -244,13 +246,13 @@ var groups = {
     {% for attribute_name in non_numerical_node_attributes %}"{{attribute_name}}": {},{% endfor %}
 };
 
-if ("location" in groups) {groups['location']['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[]}}
+if ("location" in groups) {groups['location']['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[], 'padding':group_padding}}
 
 
 graph.nodes.forEach(function (v, i) {
     Object.keys(groups).forEach(function (key) {
         if (key in v) {
-            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':v[key], 'leaves':[], 'groups':[]}; }
+            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':v[key], 'leaves':[], 'groups':[], 'padding':group_padding}; }
             groups[key][v[key]]['leaves'].push(i);
         }
     });
@@ -271,6 +273,9 @@ graph.nodes.forEach(function (n) {
     n.height = n.width = group_boundary_margin;
 });
 
+groups['location'].forEach(function (g) {
+    g.padding = group_padding * (g.groups.length + 1);
+});
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -372,8 +377,14 @@ function restart() {
                      .insert('rect', '.link')
                      .attr('rx',5)
                      .attr('ry',5)
+                     // .attr('rx',30)
+                     // .attr('ry',30)
                      .style("fill", function (d) { return group_color(d.id); })
                      .style("opacity", function (d) { return 1/d.groups.length; })
+                     // .style("stroke", function (d) { return group_color(d.id); })
+                     // .style("stroke-width", function (d) { return 20; })
+                     // .style("stroke-dasharray", function (d) { return "5, 5"; })
+                     // .style("stroke-linecap", function (d) { return "round"; })
                      .call(cola.drag);
 
         label = label.data([]);
@@ -422,13 +433,13 @@ function restart() {
             .attr("cy", function (d) { return d.y; });
 
         if (groupBy) {
-            group.attr('x', function (d) { return d.bounds.x; })
-                 .attr('y', function (d) { return d.bounds.y; })
-                 .attr('width', function (d) { return d.bounds.width(); })
-                 .attr('height', function(d) { return d.bounds.height(); });
+            group.attr('x', function (d) { return d.bounds.x + d.padding / 2; })
+                 .attr('y', function (d) { return d.bounds.y + d.padding / 2; })
+                 .attr('width', function (d) { return d.bounds.width() - d.padding ; })
+                 .attr('height', function(d) { return d.bounds.height() - d.padding ; });
 
-            label.attr("x", function (d) { return d.bounds.x; })
-                 .attr("y", function (d) { return d.bounds.y; });
+            label.attr("x", function (d) { return d.bounds.x + d.padding / 2; })
+                 .attr("y", function (d) { return d.bounds.y + d.padding / 2; });
         }
     });
 

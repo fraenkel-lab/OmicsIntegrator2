@@ -196,7 +196,7 @@ var min_zoom = 0.2;
 var max_zoom = 7;
 var group_boundary_margin = 40;
 var group_compactness = 0.000001;
-var group_padding = 10;
+var group_padding = 16;
 
 var tocolor = "fill";
 var towhite = "stroke";
@@ -211,7 +211,6 @@ svg.style("cursor", "move");
 
 var cola = cola.d3adaptor(d3).size([w, h]);
 cola.groupCompactness = group_compactness;
-
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Setup    ///////
@@ -241,13 +240,13 @@ var groups = {
     "louvainClusters": {},"location": {},
 };
 
-if ("location" in groups) {groups['location']['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[]}}
+if ("location" in groups) {groups['location']['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[], 'padding':group_padding}}
 
 
 graph.nodes.forEach(function (v, i) {
     Object.keys(groups).forEach(function (key) {
         if (key in v) {
-            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':v[key], 'leaves':[], 'groups':[]}; }
+            if (!(v[key] in groups[key])) { groups[key][v[key]] = {'id':v[key], 'leaves':[], 'groups':[], 'padding':group_padding}; }
             groups[key][v[key]]['leaves'].push(i);
         }
     });
@@ -272,6 +271,7 @@ graph.nodes.forEach(function (n) {
 groups['location'].forEach(function (g) {
     g.padding = group_padding * (g.groups.length + 1);
 });
+
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Draw Graph    ///////
@@ -309,7 +309,7 @@ var node = g.selectAll(".node")
             })
             .style("stroke-width", default_stroke_width)
             .style(towhite, "white")
-            // .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
+            .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
             .call(cola.drag);
 
 
@@ -369,11 +369,17 @@ function restart() {
         group = group.data(groups[groupBy])
                      .enter()
                      .insert('rect', '.link')
-                     .attr('rx',5)
-                     .attr('ry',5)
+                     .attr('rx',10)
+                     .attr('ry',10)
+                     // .attr('rx',30)
+                     // .attr('ry',30)
                      .attr("class", ".group")
                      .style("fill", function (d) { return group_color(d.id); })
                      .style("opacity", function (d) { return 1/d.groups.length; })
+                     // .style("stroke", function (d) { return group_color(d.id); })
+                     // .style("stroke-width", function (d) { return 20; })
+                     // .style("stroke-dasharray", function (d) { return "5, 5"; })
+                     // .style("stroke-linecap", function (d) { return "round"; })
                      .call(cola.drag);
 
         label = label.data([]);
@@ -422,13 +428,13 @@ function restart() {
             .attr("cy", function (d) { return d.y; });
 
         if (groupBy) {
-            group.attr('x', function (d) { return d.bounds.x; })
-                 .attr('y', function (d) { return d.bounds.y; })
-                 .attr('width', function (d) { return d.bounds.width(); })
-                 .attr('height', function(d) { return d.bounds.height(); });
+            group.attr('x', function (d) { return d.bounds.x + d.padding / 2; })
+                 .attr('y', function (d) { return d.bounds.y + d.padding / 2; })
+                 .attr('width', function (d) { return d.bounds.width() - d.padding ; })
+                 .attr('height', function(d) { return d.bounds.height() - d.padding ; });
 
-            label.attr("x", function (d) { return d.bounds.x; })
-                 .attr("y", function (d) { return d.bounds.y; });
+            label.attr("x", function (d) { return d.bounds.x + d.padding / 2; })
+                 .attr("y", function (d) { return d.bounds.y + d.padding / 2; });
         }
     });
 
