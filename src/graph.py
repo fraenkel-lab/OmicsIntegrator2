@@ -354,8 +354,9 @@ class Graph:
         # Set node degrees as attributes on nodes in the netowrkx graph
         nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
 
-        # Set all othe attributes on graph
-        nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+        # Set all the attributes on graph
+        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0: 
+            nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
         # Create a new graph including all edges between all selected nodes, not just those edges selected by PCSF.
@@ -525,6 +526,10 @@ class Graph:
         else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
         ###########
+
+        if len(vertex_indices.node_index.values) == 0: 
+            return nx.empty_graph(0), nx.empty_graph(0)
+
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
@@ -644,7 +649,7 @@ class Graph:
         """
 
         self._reset_hyperparameters(params)
-        paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
+        paramstring = "G_{}_B_{}_W_{}".format(*[int(x) if int(x) == x else x for x in [params['g'], params['b'], params['w']]])
         logger.info("Randomizations for " + paramstring)
         logger.info(params)
 
