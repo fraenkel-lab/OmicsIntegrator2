@@ -597,7 +597,7 @@ class Graph:
         return results
 
 
-    def grid_search(self, prize_file, Gs, Bs, Ws):
+    def grid_search(self, prize_file, Gs, Bs, Ws, parallel=False):
         """
         Macro function which performs grid search and merges the results.
 
@@ -615,7 +615,10 @@ class Graph:
             pd.DataFrame: parameters and node membership lists
         """
 
-        results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
+        if parallel:
+            results = self._grid_pcsf_parallel(prize_file, Gs, Bs, Ws)
+        else:
+            results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
 
         ### GET THE REGULAR OUTPUT ###
         vertex_indices_df, edge_indices_df = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
