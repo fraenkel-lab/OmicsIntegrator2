@@ -638,6 +638,56 @@ class Graph:
         return forest, augmented_forest, params_by_nodes
 
 
+    def _eval_randomizations(self, params):
+        """
+        Convenience methods which sets parameters and performs PCSF
+        """
+
+        self._reset_hyperparameters(params)
+        paramstring = "w_{}_b_{}_g_{}".format(*[int(x) if int(x) == x else x for x in [params['w'], params['b'], params['g']]])
+        logger.info("Randomizations for " + paramstring)
+        logger.info(params)
+
+        forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
+        # prune_network_graph(forest); prune_network_graph(augmented_forest)
+        
+        return paramstring, forest, augmented_forest
+
+
+    def _grid_randomization(self, prize_file, params):
+        """
+        Internal function which executes pcsf at every point in a parameter grid.
+        Subroutine of `grid_search`.
+
+        Arguments:
+            prize_file (str): filepath
+            Ws (list): Values of omega
+            Bs (list): Values of beta
+            Gs (list): Values of gamma
+
+        Returns:
+            list: list of tuples of vertex indices and edge indices
+        """
+
+        # get number of cpus available to job
+        try:
+            n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
+        except KeyError:
+            n_cpus = multiprocessing.cpu_count()
+
+        pool = multiprocessing.Pool(n_cpus)
+
+        self.prepare_prizes(prize_file)
+
+        model_params = [{'w': w, 'b': b, 'g':g} for (w, b, g) in product(params['w'], params['b'], params['g'])]
+        other_params = {key: params[key] for key in params if key not in 'wbg'}
+        all_params = [{**model_param, **other_params} for model_param in model_params]
+
+        results = pool.map(self._eval_randomizations, all_params)
+
+        return results
+
+
 ###############################################################################
             #######          Subgraph Augmentation        #######
 ###############################################################################
