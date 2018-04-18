@@ -348,14 +348,14 @@ class Graph:
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
         forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
-        # the above won't capture the singletons, so we'll add them here
+        # the above won't capture the singletons, so we'll add them here (JL: Do we want singletons though?)
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
         # Set node degrees as attributes on nodes in the netowrkx graph
         nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
 
         # Set all the attributes on graph
-        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0: 
+        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0: # TODO: this is clunky. Probably better to reindex self.node_attributes 
             nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
