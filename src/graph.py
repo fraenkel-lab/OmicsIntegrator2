@@ -668,7 +668,7 @@ class Graph:
             Gs (list): Values of gamma
 
         Returns:
-            list: list of tuples of vertex indices and edge indices
+            results (dict)
         """
 
         # get number of cpus available to job
@@ -686,6 +686,8 @@ class Graph:
         all_params = [{**model_param, **other_params} for model_param in model_params]
 
         results = pool.map(self._eval_randomizations, all_params)
+        # Convert to dictionary format
+        results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
         return results
 
