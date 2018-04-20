@@ -355,7 +355,10 @@ class Graph:
         nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
 
         # Set all the attributes on graph
-        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0: # TODO: this is clunky. Probably better to reindex self.node_attributes 
+        # If there is no overlap between the two (i.e. no prizes are included in forest, 
+        # which can happen via randomizations), then the next line throws an error. So this is to check for that.
+        # This is clunky though - one solution is to reindex self.node_attributes 
+        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0:
             nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
@@ -527,6 +530,7 @@ class Graph:
 
         ###########
 
+        # Empty networks breaks `output_forest_as_networkx`. 
         if len(vertex_indices.node_index.values) == 0: 
             return nx.empty_graph(0), nx.empty_graph(0)
 
@@ -642,16 +646,14 @@ class Graph:
 
     def _eval_randomizations(self, params):
         """
-        Convenience methods which sets parameters and performs PCSF
+        Convenience method which sets parameters and performs PCSF
         """
 
         self._reset_hyperparameters(params)
         paramstring = "G_{}_B_{}_W_{}".format(*[int(x) if int(x) == x else x for x in [params['g'], params['b'], params['w']]])
         logger.info("Randomizations for " + paramstring)
-        logger.info(params)
 
         forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
-        # prune_network_graph(forest); prune_network_graph(augmented_forest)
         
         return paramstring, forest, augmented_forest
 
@@ -663,9 +665,7 @@ class Graph:
 
         Arguments:
             prize_file (str): filepath
-            Ws (list): Values of omega
-            Bs (list): Values of beta
-            Gs (list): Values of gamma
+            params (dict): params with which to run the program
 
         Returns:
             results (dict)
@@ -682,7 +682,7 @@ class Graph:
         self.prepare_prizes(prize_file)
 
         model_params = [{'w': w, 'b': b, 'g':g} for (w, b, g) in product(params['w'], params['b'], params['g'])]
-        other_params = {key: params[key] for key in params if key not in 'wbg'}
+        other_params = {key: params[key] for key in params if key not in 'wbg'} # `not in 'wbg'` is a shortened way of writing `key != 'w' & key != 'b' & key != 'g'`
         all_params = [{**model_param, **other_params} for model_param in model_params]
 
         results = pool.map(self._eval_randomizations, all_params)
