@@ -536,6 +536,9 @@ class Graph:
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
+        # Skip attribute setting if solution is empty
+        if forest.size() == 0: return forest, augmented_forest
+
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
         vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
@@ -549,7 +552,7 @@ class Graph:
                 #######          Grid Search          #######
     ###########################################################################
 
-    def _eval_randomizations(self, params):
+    def _eval_PCSF_runs(self, params):
         """
         Convenience method which sets parameters and performs PCSF randomizations.
 
@@ -564,7 +567,11 @@ class Graph:
 
         self._reset_hyperparameters(params=params)
         paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
-        logger.info("Randomizations for " + paramstring)
+
+        if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
+            logger.info("Single PCSF runs for " + paramstring)
+        else: 
+            logger.info("Randomizations for " + paramstring)
 
         forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
         
@@ -599,7 +606,7 @@ class Graph:
 
         model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
 
-        results = pool.map(self._eval_randomizations, model_params)
+        results = pool.map(self._eval_PCSF_runs, model_params)
         # Convert to dictionary format
         results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
