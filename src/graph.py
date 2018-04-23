@@ -248,7 +248,7 @@ class Graph:
 
         # Node attributes dataframe for all proteins in self.nodes
         self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
-        self.node_attributes["prizes"].fillna(0, inplace=True)
+        self.node_attributes["prize"].fillna(0, inplace=True)
         self.node_attributes["type"].fillna("steiner", inplace=True)
 
         # Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
@@ -347,6 +347,9 @@ class Graph:
         Returns:
             networkx.Graph: a networkx graph object
         """
+
+        if len(vertex_indices) == 0: 
+            return nx.empty_graph(0), nx.empty_graph(0)
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
@@ -528,10 +531,6 @@ class Graph:
         else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
         ###########
-
-        # Empty networks breaks `output_forest_as_networkx`. 
-        if len(vertex_indices.node_index.values) == 0: 
-            return nx.empty_graph(0), nx.empty_graph(0)
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
