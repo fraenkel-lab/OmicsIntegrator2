@@ -246,7 +246,10 @@ class Graph:
         logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
         prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None)
+        # Node attributes dataframe for all proteins in self.nodes
+        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
+        self.node_attributes["prizes"].fillna(0, inplace=True)
+        self.node_attributes["type"].fillna("steiner", inplace=True)
 
         # Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
         prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
@@ -355,11 +358,7 @@ class Graph:
         nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
 
         # Set all the attributes on graph
-        # If there is no overlap between the two (i.e. no prizes are included in forest, 
-        # which can happen via randomizations), then the next line throws an error. So this is to check for that.
-        # This is clunky though - one solution is to reindex self.node_attributes 
-        if len(set(self.node_attributes.index) & set(forest.nodes())) > 0:
-            nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+        nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
         # Create a new graph including all edges between all selected nodes, not just those edges selected by PCSF.
