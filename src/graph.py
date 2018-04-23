@@ -228,6 +228,8 @@ class Graph:
         prizes_dataframe = pd.read_csv(prize_file, sep='\t')
         prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
 
+        if "type" not in prizes_dataframe.columns: prizes_dataframe["type"] = "terminal"
+
         return self._prepare_prizes(prizes_dataframe)
 
 
@@ -354,7 +356,7 @@ class Graph:
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
         forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
-        # the above won't capture the singletons, so we'll add them here (JL: Do we want singletons though?)
+        # the above won't capture the singletons, so we'll add them here 
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
         # Set node degrees as attributes on nodes in the netowrkx graph
@@ -604,7 +606,7 @@ class Graph:
         return results
 
 
-    def grid_search(self, prize_file, Gs, Bs, Ws): 
+    def grid_search(self, prize_file, Ws, Bs, Gs): 
         """
         Macro function which performs grid search.
 
