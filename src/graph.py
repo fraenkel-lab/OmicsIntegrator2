@@ -547,101 +547,6 @@ class Graph:
                 #######          Grid Search          #######
     ###########################################################################
 
-    def _eval_pcsf(self, params):
-        """
-        Convenience methods which sets parameters and performs PCSF
-        """
-        self._reset_hyperparameters(params=params)
-        paramstring = 'G_'+str(self.params.g)+'_B_'+str(self.params.b)+'_W_'+str(self.params.w)
-        print(paramstring)
-        return (paramstring, self.pcsf())
-
-
-    def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
-        """
-        Internal function which executes pcsf at every point in a parameter grid.
-        Subroutine of `grid_search`.
-
-        Arguments:
-            prize_file (str): filepath
-            Gs (list): Values of gamma
-            Bs (list): Values of beta
-            Ws (list): Values of omega
-
-        Returns:
-            list: list of tuples of vertex indices and edge indices
-        """
-
-        self.prepare_prizes(prize_file)
-        parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
-        results = list(map(self._eval_pcsf, parameter_permutations))
-
-        return results
-
-
-    def _grid_pcsf_parallel(self, prize_file, Gs, Bs, Ws):
-        """
-        Internal function which executes pcsf at every point in a parameter grid.
-        Subroutine of `grid_search`. This version runs using python multiprocessing
-
-        Arguments:
-            prize_file (str): filepath
-            Gs (list): Values of gamma
-            Bs (list): Values of beta
-            Ws (list): Values of omega
-
-        Returns:
-            list: list of tuples of vertex indices and edge indices
-        """
-
-        # Create a Pool with available cpu resources
-        pool = multiprocessing.Pool(n_cpus)
-
-        self.prepare_prizes(prize_file)
-        parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
-        results = pool.map(self._eval_pcsf, parameter_permutations)
-
-        return results
-
-
-    def grid_search(self, prize_file, Gs, Bs, Ws):
-        """
-        Macro function which performs grid search and merges the results.
-
-        This function is under construction and subject to change.
-
-        Arguments:
-            prize_file (str): filepath
-            Gs (list): Values of gamma
-            Bs (list): Values of beta
-            Ws (list): Values of omega
-
-        Returns:
-            networkx.Graph: forest
-            networkx.Graph: augmented_forest
-            pd.DataFrame: parameters and node membership lists
-        """
-
-        results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
-
-        ### GET THE REGULAR OUTPUT ###
-        vertex_indices_df, edge_indices_df = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
-
-        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices_df.node_index.values, edge_indices_df.edge_index.values)
-
-        # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
-        vertex_indices_df.index = self.nodes[vertex_indices_df.node_index.values]
-
-        # vertex_indices_df contains the frequencies of occurrences of each of the nodes, which we want to set as node attibutes in our outputs
-        nx.set_node_attributes(forest,           vertex_indices_df.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
-        nx.set_node_attributes(augmented_forest, vertex_indices_df.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
-
-        ### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
-        params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
-
-        return forest, augmented_forest, params_by_nodes
-
-
     def _eval_randomizations(self, params):
         """
         Convenience method which sets parameters and performs PCSF randomizations.
@@ -664,13 +569,17 @@ class Graph:
         return paramstring, forest, augmented_forest
 
 
-    def _grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps=0, random_terminals_reps=0):
+    def grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
         """
         Macro function which performs grid search or randomizations or both. 
 
         Arguments:
             prize_file (str): filepath
-            params (dict): params with which to run the program
+            Gs (list): Values of gamma
+            Bs (list): Values of beta
+            Ws (list): Values of omega
+            noisy_edges_reps (int): Number of robustness experiments
+            random_terminals_reps (int): Number of specificity experiments
 
         Returns:
             results (dict)
@@ -686,13 +595,32 @@ class Graph:
 
         self.prepare_prizes(prize_file)
 
-        model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
+        model_params = [{'w': w, 'brandom_terminals_reps': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
 
         results = pool.map(self._eval_randomizations, model_params)
-        # Convert to dictionary format
+        # Transform to dictionary format
         results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
         return results
+
+
+    def grid_search(self, prize_file, Gs, Bs, Ws): 
+        """
+        Macro function which performs grid search.
+
+        Arguments:
+            prize_file (str): filepath
+            Gs (list): Values of gamma
+            Bs (list): Values of beta
+            Ws (list): Values of omega
+
+        Returns:
+            networkx.Graph: forest
+            networkx.Graph: augmented_forest
+            pd.DataFrame: parameters and node membership lists
+        """
+
+        return grid_randomization(prize_file, Ws, Bs, Gs, 0, 0)
 
 
 ###############################################################################
