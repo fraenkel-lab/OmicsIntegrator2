@@ -656,7 +656,7 @@ class Graph:
         """
 
         self._reset_hyperparameters(params)
-        paramstring = "G_{}_B_{}_W_{}".format(*[int(x) if int(x) == x else x for x in [params['g'], params['b'], params['w']]])
+        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(*[params['w'], params['b'], params['g']])
         logger.info("Randomizations for " + paramstring)
 
         forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
