@@ -655,19 +655,18 @@ class Graph:
             networkx.Graph: augmented_forest
         """
 
-        self._reset_hyperparameters(params)
-        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(*[params['w'], params['b'], params['g']])
+        self._reset_hyperparameters(params=params)
+        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
         logger.info("Randomizations for " + paramstring)
 
-        forest, augmented_forest = self.randomizations(params["noisy_edges_repetitions"], params["random_terminals_repetitions"])
+        forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
         
         return paramstring, forest, augmented_forest
 
 
-    def _grid_randomization(self, prize_file, params):
+    def _grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps=0, random_terminals_reps=0):
         """
-        Internal function which executes pcsf at every point in a parameter grid.
-        Subroutine of `grid_search`.
+        Macro function which performs grid search or randomizations or both. 
 
         Arguments:
             prize_file (str): filepath
@@ -687,11 +686,9 @@ class Graph:
 
         self.prepare_prizes(prize_file)
 
-        model_params = [{'w': w, 'b': b, 'g':g} for (w, b, g) in product(params['w'], params['b'], params['g'])]
-        other_params = {key: params[key] for key in params if key not in 'wbg'} # `not in 'wbg'` is a shortened way of writing `key != 'w' & key != 'b' & key != 'g'`
-        all_params = [{**model_param, **other_params} for model_param in model_params]
+        model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
 
-        results = pool.map(self._eval_randomizations, all_params)
+        results = pool.map(self._eval_randomizations, model_params)
         # Convert to dictionary format
         results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
