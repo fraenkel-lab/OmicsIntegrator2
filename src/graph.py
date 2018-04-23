@@ -620,7 +620,7 @@ class Graph:
             pd.DataFrame: parameters and node membership lists
         """
 
-        return grid_randomization(prize_file, Ws, Bs, Gs, 0, 0)
+        return self.grid_randomization(prize_file, Ws, Bs, Gs, 0, 0)
 
 
 ###############################################################################
