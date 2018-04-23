@@ -595,10 +595,10 @@ class Graph:
 
         self.prepare_prizes(prize_file)
 
-        model_params = [{'w': w, 'brandom_terminals_reps': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
+        model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
 
         results = pool.map(self._eval_randomizations, model_params)
-        # Transform to dictionary format
+        # Convert to dictionary format
         results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
         return results
