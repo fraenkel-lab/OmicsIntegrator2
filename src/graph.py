@@ -644,7 +644,15 @@ class Graph:
 
     def _eval_randomizations(self, params):
         """
-        Convenience method which sets parameters and performs PCSF
+        Convenience method which sets parameters and performs PCSF randomizations.
+
+        Arguments: 
+            params (dict): params with which to run the program
+
+        Returns: 
+            str: Parameter values in string format 
+            networkx.Graph: forest
+            networkx.Graph: augmented_forest
         """
 
         self._reset_hyperparameters(params)
