@@ -351,6 +351,7 @@ class Graph:
         """
 
         if len(vertex_indices) == 0: 
+            logger.info("The resulting Forest is empty. Try different parameters.")
             return nx.empty_graph(0), nx.empty_graph(0)
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
@@ -373,9 +374,6 @@ class Graph:
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
         augment_with_subcellular_localization(augmented_forest)
-
-        if len(augmented_forest.nodes()) == 0:
-            logger.info("The resulting Forest is empty. Try different parameters.")
 
         return forest, augmented_forest
 
@@ -536,8 +534,8 @@ class Graph:
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
-        # Skip attribute setting if solution is empty
-        if forest.size() == 0: return forest, augmented_forest
+        # Skip attribute setting if solution is empty. 
+        if forest.number_of_nodes() == 0: return forest, augmented_forest
 
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
         vertex_indices.index = self.nodes[vertex_indices.node_index.values]
