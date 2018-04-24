@@ -351,7 +351,6 @@ class Graph:
         """
 
         if len(vertex_indices) == 0: 
-            logger.info("The resulting Forest is empty. Try different parameters.")
             return nx.empty_graph(0), nx.empty_graph(0)
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
@@ -589,7 +588,7 @@ class Graph:
             random_terminals_reps (int): Number of specificity experiments
 
         Returns:
-            results (dict)
+            dict: Forest and augmented forest networkx graphs, keyed by parameter string 
         """
 
         # get number of cpus available to job
