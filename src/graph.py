@@ -35,7 +35,9 @@ __all__ = [ "Graph",
             "output_networkx_graph_as_json_for_cytoscapejs",
             "output_networkx_graph_as_interactive_html",
             "get_networkx_graph_as_dataframe_of_nodes",
-            "get_networkx_graph_as_dataframe_of_edges" ]
+            "get_networkx_graph_as_dataframe_of_edges",
+            "summarize_grid_search", 
+            "get_robust_subgraph_from_randomizations" ]
 
 templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
 templateEnv = jinja2.Environment(loader=templateLoader)
@@ -747,6 +749,103 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
         clustering (str): the column name of the clustering to perform GO enrichment with.
     """
     pass
+
+
+###############################################################################
+            #######            Results           #######
+###############################################################################
+
+def summarize_grid_search(results, mode, top_n=-1): 
+    """
+    Summarizes results of `_grid_randomization` into a matrix where each row is a gene 
+    and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
+    indicating whether or not a node appeared in each experiment. If summarizing "robustness"
+    or "specificity", entries indicate robustness or specificity values for each experiment. 
+    Also, node attributes columns are added for plotting purposes.
+
+    Arguments:
+        results (list of tuples): Results of `_grid_randomization` (paramstring, forest, augmented forest)
+        mode (str): Reported values "membership", "robustness", "specificity"
+        top_n (int): Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold
+
+    Returns:
+        pd.DataFrame: Values summarized across experiments, including node attributes columns
+    """
+    
+    # Exclude any degenerate results
+    results = {paramstring: graphs for paramstring, graphs in results.items() if graphs["augmented_forest"].number_of_nodes() > 0}
+    
+    if mode == "membership": # Summarize single-run parameter search
+        dfs = [(get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["degree"] > 0).astype(int) for graphs in results.values()]
+    elif mode == "robustness": # Summarize randomized robustness
+        dfs = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["robustness"] for graphs in results.values()]
+    elif mode == "specificity": # Summarize randomized specificity
+        dfs = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"] for graphs in results.values()] 
+    else:
+        logger.info("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
+        return
+    
+    df = pd.concat(dfs, axis=1).fillna(0)
+    df.columns = results.keys()
+    
+    # df can get quite large with many sparse entries, so let's filter for the top_n entries
+    if top_n == -1: return df
+    
+    if len(df) > top_n: 
+        cutoff = sorted(df.sum(axis=1).tolist(), reverse=True)[top_n]
+        df = df[df.sum(axis=1) > cutoff]
+    
+    return df
+
+
+def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
+    """
+    Given a graph with robustness attributes, take the top `max_size` robust nodes and
+    prune any "small" components. 
+
+    Arguments:
+        nxgraph (networkx.Graph): Network from randomization experiment
+        max_size (int): Max size of robust network
+
+    Returns: 
+        networkx.Graph: Robust network
+
+    TODO: Potential alternative approaches
+    Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
+    of size less than min_size, do not remove. 
+    Approach 2: select top max_size nodes based on robustness, then return subgraph. 
+    """
+    
+    if nxgraph.number_of_nodes() == 0: return nxgraph
+
+    if "robustness" not in node_attributes_df.columns: 
+        logger.info("WARNING: 'robustness' is not an attribute in subgraph.")
+        return None
+
+    # Get indices of top nodes sorted by high robustness, then low specificity. 
+    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph).sort_values(["robustness", "specificity"], ascending=[False, True])
+    top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
+
+    # Get robust subnetwork and remove small components.
+    robust_network = nxgraph.subgraph(top_hits)
+    robust_network = prune_network_graph(robust_network, min_component_size)
+
+    return robust_network
+
+
+def prune_network_graph(nxgraph, min_size=5): 
+    # Removes any components that are less than `min_size`. Set `min_size`=2 to remove only singletons
+    
+    tmp = nxgraph.copy()
+
+    if tmp is None: return None
+
+    small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=True) if g.number_of_nodes() < min_size]
+    nodes_to_remove = [item for sublist in small_components for item in sublist]
+    tmp.remove_nodes_from(nodes_to_remove)
+    
+    return tmp
+
 
 ###############################################################################
             #######              Export             #######
