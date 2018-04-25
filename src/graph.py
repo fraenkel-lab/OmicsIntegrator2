@@ -808,12 +808,10 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
 
     Returns: 
         networkx.Graph: Robust network
-
-    TODO: Potential alternative approaches
-    Approach 1: from entire network, attempt to remove lowest robustness node. If removal results in a component 
-    of size less than min_size, do not remove. 
-    Approach 2: select top max_size nodes based on robustness, then return subgraph. 
     """
+    
+    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node. 
+    # If removal results in a component of size less than min_size, do not remove. 
     
     if nxgraph.number_of_nodes() == 0: return nxgraph
 
