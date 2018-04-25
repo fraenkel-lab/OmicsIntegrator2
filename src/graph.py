@@ -785,7 +785,7 @@ def summarize_grid_search(results, mode, top_n=False):
     df = pd.concat(series, axis=1).fillna(0)
     
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
-    if ~top_n: return df
+    if not top_n: return df
     
     if len(df) > top_n: 
         cutoff = sorted(df.sum(axis=1).tolist(), reverse=True)[top_n]
