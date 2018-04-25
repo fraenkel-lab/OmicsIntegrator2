@@ -769,7 +769,7 @@ def summarize_grid_search(results, mode, top_n=-1):
         top_n (int): Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold
 
     Returns:
-        pd.DataFrame: Values summarized across experiments, including node attributes columns
+        pd.DataFrame: Columns correspond to each parameter experiment, indexed by nodes
     """
     
     # Exclude any degenerate results
