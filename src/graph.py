@@ -823,7 +823,8 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
         logger.warning("'robustness' is not an attribute in subgraph.")
         return None
 
-    # Get indices of top nodes sorted by high robustness, then low specificity. 
+    # Get indices of top nodes sorted by high robustness, then low specificity. Don't allow nodes with robustness = 0.
+    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > 0]
     node_attributes_df.sort_values(["robustness", "specificity"], ascending=[False, True], inplace=True)
     top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
 
