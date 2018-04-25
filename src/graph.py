@@ -251,8 +251,8 @@ class Graph:
         prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
         # Node attributes dataframe for all proteins in self.nodes. Default for non-prized nodes is Steiner.
-        degrees = pd.DataFrame(list({node: np.log2(len(self.interactome_graph[node])) for node in self.nodes}.items()), columns=["name","log_degree"]).set_index("name")
-        self.node_attributes = prizes_dataframe.set_index('name').merge(degrees, left_index=True, right_index=True, how="outer").rename_axis(None)
+        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
+        self.node_attributes["degree"] = self.node_degrees
         self.node_attributes["prize"].fillna(0, inplace=True)
         self.node_attributes["type"].fillna("steiner", inplace=True)
 
