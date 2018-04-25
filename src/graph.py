@@ -813,15 +813,12 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node. 
     # If removal results in a component of size less than min_size, do not remove. 
     
-    if nxgraph.number_of_nodes() == 0: return nxgraph
-
-    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph)
-
-    if "robustness" not in node_attributes_df.columns: 
-        logger.warning("'robustness' is not an attribute in subgraph.")
-        return None
+    if nxgraph.number_of_nodes() == 0: 
+        logger.info("Input graph is empty.")
+        return nxgraph
 
     # Get indices of top nodes sorted by high robustness, then low specificity. Don't allow nodes with robustness = 0.
+    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph)
     node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > 0]
     node_attributes_df.sort_values(["robustness", "specificity"], ascending=[False, True], inplace=True)
     top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
