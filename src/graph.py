@@ -776,16 +776,16 @@ def summarize_grid_search(results, mode, top_n=-1):
     results = {paramstring: graphs for paramstring, graphs in results.items() if graphs["augmented_forest"].number_of_nodes() > 0}
     
     if mode == "membership": # Summarize single-run parameter search
-        dfs = [pd.Series(1, index=graphs["augmented_forest"].nodes(), name=paramstring) for paramstring, graphs in results.items()]
+        series = [pd.Series(1, index=graphs["augmented_forest"].nodes(), name=paramstring) for paramstring, graphs in results.items()]
     elif mode == "robustness": # Summarize randomized robustness
-        dfs = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["robustness"].rename(paramstring) for paramstring, graphs in results.items()]
+        series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["robustness"].rename(paramstring) for paramstring, graphs in results.items()]
     elif mode == "specificity": # Summarize randomized specificity
-        dfs = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"].rename(paramstring) for paramstring, graphs in results.items()]
+        series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"].rename(paramstring) for paramstring, graphs in results.items()]
     else:
         logger.info("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
         return
     
-    df = pd.concat(dfs, axis=1).fillna(0)
+    df = pd.concat(series, axis=1).fillna(0)
     
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
     if top_n == -1: return df
