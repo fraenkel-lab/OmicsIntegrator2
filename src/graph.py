@@ -829,23 +829,22 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
 
     # Get robust subnetwork and remove small components.
     robust_network = nxgraph.subgraph(top_hits)
-    robust_network = prune_network_graph(robust_network, min_component_size)
+    robust_network = filter_graph_by_component_size(robust_network, min_component_size)
 
     return robust_network
 
 
-def prune_network_graph(nxgraph, min_size=5): 
+def filter_graph_by_component_size(nxgraph, min_size=5): 
     # Removes any components that are less than `min_size`. Set `min_size`=2 to remove only singletons
     
-    tmp = nxgraph.copy()
+    if nxgraph is None: return None
 
-    if tmp is None: return None
+    filtered_subgraph = nxgraph.copy()
 
     small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=True) if g.number_of_nodes() < min_size]
-    nodes_to_remove = [item for sublist in small_components for item in sublist]
-    tmp.remove_nodes_from(nodes_to_remove)
+    filtered_subgraph.remove_nodes_from(flatten(small_components))
     
-    return tmp
+    return filtered_subgraph
 
 
 ###############################################################################
