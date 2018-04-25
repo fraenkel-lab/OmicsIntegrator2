@@ -569,7 +569,7 @@ class Graph:
         paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
 
         if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
-            logger.info("Single PCSF runs for " + paramstring)
+            logger.info("Single PCSF run for " + paramstring)
         else: 
             logger.info("Randomizations for " + paramstring)
 
