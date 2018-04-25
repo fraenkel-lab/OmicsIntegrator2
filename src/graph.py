@@ -822,7 +822,6 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > 0]
     node_attributes_df.sort_values(["robustness", "specificity"], ascending=[False, True], inplace=True)
     top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
-
     # Get robust subnetwork and remove small components.
     robust_network = nxgraph.subgraph(top_hits)
     robust_network = filter_graph_by_component_size(robust_network, min_component_size)
