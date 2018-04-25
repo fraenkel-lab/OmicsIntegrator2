@@ -346,15 +346,15 @@ class Graph:
         Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)
 
         Arguments:
-            vertex_indices (list): indices of the vertices selected in self.nodes
+            vertex_indices (list): indices of the vertices selected in self.nodes. Note, this list must be of type int or boolean. Errors may arise from empty numpy arrays of dtype='object'
             edge_indices (list): indices of the edges selected in self.edges
 
         Returns:
             networkx.Graph: a networkx graph object
         """
 
-        if len(vertex_indices) == 0: 
-            return nx.empty_graph(0), nx.empty_graph(0)
+        if np.array(vertex_indices).dtype == "O": 
+            logger.warning("`vertex_indices` is of dtype Object. This may be caused by an empty dataframe with default Object types.")
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
@@ -534,7 +534,7 @@ class Graph:
 
         ###########
 
-        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
+        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values.astype(int), edge_indices.edge_index.values.astype(int))
 
         # Skip attribute setting if solution is empty. 
         if forest.number_of_nodes() == 0: return forest, augmented_forest
