@@ -362,9 +362,6 @@ class Graph:
         # the above won't capture the singletons, so we'll add them here 
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
-        # Set node degrees as attributes on nodes in the netowrkx graph
-        nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
-
         # Set all the attributes on graph
         nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
