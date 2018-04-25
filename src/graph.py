@@ -820,7 +820,7 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph)
 
     if "robustness" not in node_attributes_df.columns: 
-        logger.info("WARNING: 'robustness' is not an attribute in subgraph.")
+        logger.warning("'robustness' is not an attribute in subgraph.")
         return None
 
     # Get indices of top nodes sorted by high robustness, then low specificity. 
