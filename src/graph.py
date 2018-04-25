@@ -830,7 +830,16 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
 
 
 def filter_graph_by_component_size(nxgraph, min_size=5): 
-    # Removes any components that are less than `min_size`. Set `min_size`=2 to remove only singletons
+    """
+    Removes any components that are less than `min_size`. 
+
+    Arguments:
+        nxgraph (networkx.Graph): Network from randomization experiment
+        min_size (int): Min size of components in `nxgraph`. Set to 2 to remove singletons only.
+
+    Returns: 
+        networkx.Graph: Network with components less than specified size removed. 
+    """
     
     if nxgraph is None: return None
 
