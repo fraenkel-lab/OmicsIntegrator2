@@ -755,7 +755,7 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
             #######            Results           #######
 ###############################################################################
 
-def summarize_grid_search(results, mode, top_n=-1): 
+def summarize_grid_search(results, mode, top_n=False): 
     """
     Summarizes results of `_grid_randomization` into a matrix where each row is a gene 
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
@@ -788,7 +788,7 @@ def summarize_grid_search(results, mode, top_n=-1):
     df = pd.concat(series, axis=1).fillna(0)
     
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
-    if top_n == -1: return df
+    if ~top_n: return df
     
     if len(df) > top_n: 
         cutoff = sorted(df.sum(axis=1).tolist(), reverse=True)[top_n]
