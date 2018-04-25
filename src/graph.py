@@ -841,10 +841,6 @@ def filter_graph_by_component_size(nxgraph, min_size=5):
         networkx.Graph: Network with components less than specified size removed. 
     """
     
-    if nxgraph.number_of_nodes() == 0: 
-        logger.info("Graph contains no nodes with robustness > 0.")
-        return nxgraph
-
     filtered_subgraph = nxgraph.copy()
 
     small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
