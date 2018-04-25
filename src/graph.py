@@ -841,7 +841,7 @@ def filter_graph_by_component_size(nxgraph, min_size=5):
 
     filtered_subgraph = nxgraph.copy()
 
-    small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=True) if g.number_of_nodes() < min_size]
+    small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
     filtered_subgraph.remove_nodes_from(flatten(small_components))
     
     return filtered_subgraph
