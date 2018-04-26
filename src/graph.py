@@ -591,12 +591,6 @@ class Graph:
             dict: Forest and augmented forest networkx graphs, keyed by parameter string 
         """
 
-        # get number of cpus available to job
-        try:
-            n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
-        except KeyError:
-            n_cpus = multiprocessing.cpu_count()
-
         pool = multiprocessing.Pool(n_cpus)
 
         self.prepare_prizes(prize_file)
