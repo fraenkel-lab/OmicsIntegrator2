@@ -773,19 +773,19 @@ def summarize_grid_search(results, mode, top_n=False):
     elif mode == "specificity": # Summarize randomized specificity
         series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"].rename(paramstring) for paramstring, graphs in results.items()]
     else:
-        logger.info("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
+        logger.warning("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
         return
     
-    df = pd.concat(series, axis=1).fillna(0)
+    node_summary_df = pd.concat(series, axis=1).fillna(0)
     
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
-    if not top_n: return df
+    if not top_n: return node_summary_df
     
-    if len(df) > top_n: 
-        cutoff = sorted(df.sum(axis=1).tolist(), reverse=True)[top_n]
-        df = df[df.sum(axis=1) > cutoff]
+    if len(node_summary_df) > top_n: 
+        cutoff = sorted(node_summary_df.sum(axis=1).tolist(), reverse=True)[top_n]
+        node_summary_df = node_summary_df[node_summary_df.sum(axis=1) > cutoff]
     
-    return df
+    return node_summary_df
 
 
 def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
