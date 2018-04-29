@@ -744,7 +744,7 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
 
 
 ###############################################################################
-            #######            Results           #######
+            #######            Grid Search           #######
 ###############################################################################
 
 def summarize_grid_search(results, mode, top_n=False): 
