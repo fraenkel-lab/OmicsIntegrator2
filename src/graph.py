@@ -353,8 +353,9 @@ class Graph:
             networkx.Graph: a networkx graph object
         """
 
-        if np.array(vertex_indices).dtype == "O": 
-            logger.warning("`vertex_indices` is of dtype Object. This may be caused by an empty dataframe with default Object types.")
+        if len(vertex_indices) == 0:
+            logger.warning("The resulting Forest is empty. Try different parameters.")
+            return nx.empty_graph(0), nx.empty_graph(0)
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
@@ -531,7 +532,7 @@ class Graph:
 
         ###########
 
-        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values.astype(int), edge_indices.edge_index.values.astype(int))
+        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
         # Skip attribute setting if solution is empty. 
         if forest.number_of_nodes() == 0: return forest, augmented_forest
