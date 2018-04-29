@@ -805,7 +805,7 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     # If removal results in a component of size less than min_size, do not remove. 
     
     if nxgraph.number_of_nodes() == 0: 
-        logger.info("Augmented forest is empty.")
+        logger.warning("Augmented forest is empty.")
         return nxgraph
 
     # Get indices of top nodes sorted by high robustness, then low specificity. Don't allow nodes with robustness = 0.
