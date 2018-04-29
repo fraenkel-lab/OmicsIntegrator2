@@ -748,14 +748,14 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
 
 def summarize_grid_search(results, mode, top_n=False): 
     """
-    Summarizes results of `_grid_randomization` into a matrix where each row is a gene 
+    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene 
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
     indicating whether or not a node appeared in each experiment. If summarizing "robustness"
     or "specificity", entries indicate robustness or specificity values for each experiment. 
     Also, node attributes columns are added for plotting purposes.
 
     Arguments:
-        results (list of tuples): Results of `_grid_randomization` (paramstring, forest, augmented forest)
+        results (list of tuples): Results of `grid_randomization` or `grid_search` of form `{'paramstring': { 'forest': object, 'augmented forest': object}}`
         mode (str): Reported values "membership", "robustness", "specificity"
         top_n (int): Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold
 
