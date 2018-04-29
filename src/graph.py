@@ -752,7 +752,6 @@ def summarize_grid_search(results, mode, top_n=False):
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
     indicating whether or not a node appeared in each experiment. If summarizing "robustness"
     or "specificity", entries indicate robustness or specificity values for each experiment. 
-    Also, node attributes columns are added for plotting purposes.
 
     Arguments:
         results (list of tuples): Results of `grid_randomization` or `grid_search` of form `{'paramstring': { 'forest': object, 'augmented forest': object}}`
