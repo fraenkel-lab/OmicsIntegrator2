@@ -250,7 +250,7 @@ class Graph:
         logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
         prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-        # Node attributes dataframe for all proteins in self.nodes. Default for non-prized nodes is Steiner.
+        # Node attributes dataframe for all proteins in self.nodes. Type of nodes that are not included in prize file defualt to `steiner`.
         self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
         self.node_attributes["degree"] = self.node_degrees
         self.node_attributes["prize"].fillna(0, inplace=True)
