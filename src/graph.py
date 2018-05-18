@@ -264,7 +264,7 @@ class Graph:
         self.bare_prizes = self.node_attributes["prize"].values
         self.prizes = self.bare_prizes * self.params.b
 
-        self.terminals = pd.Series(self.prizes).nonzero()[0].tolist()
+        self.terminals = np.where(self.node_attributes["terminal"] == True)[0]
 
 
     ###########################################################################
@@ -314,7 +314,7 @@ class Graph:
         if self.params.dummy_mode == 'terminals': endpoints = self.terminals
         elif self.params.dummy_mode == 'other': endpoints = others
         elif self.params.dummy_mode == 'all': endpoints = all
-        else: sys.exit("Invalid dummy mode")
+        else: logger.critical("Invalid dummy mode, returning..."); return
 
         dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
 
