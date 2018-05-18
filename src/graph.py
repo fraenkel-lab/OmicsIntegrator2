@@ -255,7 +255,7 @@ class Graph:
         prizes_dataframe["type"] = prizes_dataframe.get("type", default="protein")
 
         # Node attributes dataframe for all proteins in self.nodes.
-        self.node_attributes = prizes_dataframe.reindex(self.nodes); del self.node_attributes["name"]  # we can delete the name column which is now in the index.
+        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
         self.node_attributes["degree"] = self.node_degrees
         self.node_attributes["prize"].fillna(0, inplace=True)
         self.node_attributes["type"].fillna("protein", inplace=True)

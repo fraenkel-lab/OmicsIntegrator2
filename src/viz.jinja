@@ -311,7 +311,7 @@ var node = g.selectAll(".node")
             .attr("d",d => display_type(d.type))
             // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
             .style(tocolor, function(d) {
-                if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
+                if (isNumber(d[colorBy])) { return color[colorBy](d[colorBy]); }
                 else { return default_node_color; }
             })
             .style("stroke-width", default_stroke_width)
@@ -337,7 +337,7 @@ if (text_center) {
 
 function recolor() {
     node.style(tocolor, function(d) {
-        if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
+        if (isNumber(d[colorBy])) { return color[colorBy](d[colorBy]); }
         else { return default_node_color; }
     });
 }
