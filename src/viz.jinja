@@ -147,9 +147,9 @@ var max_confidence = 1;
 
 var color = {'prize': d3.scaleLinear().domain([0, {{numerical_node_attributes['prize'].1}}]).range(["white", "red"]),
              'degree': d3.scaleLinear().domain([0, {{numerical_node_attributes['degree'].1}}]).range(["lightblue", "red"]),
-             'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}}]).range(["purple", "orange"]),
+             'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}} ]).range(["purple", "orange"]),
              {% for attribute_name, (min, max) in numerical_node_attributes.items() if attribute_name not in ["prize","degree","betweenness"] %}
-             '{{attribute_name}}':d3.scaleLinear().domain([{{min}}, {{max}}]).range(["blue","red"]),
+             '{{attribute_name}}':d3.scaleLinear().domain([ {{min}} , {{max}} ]).range(["blue","red"]),
              {% endfor %}
             };
 
@@ -648,17 +648,17 @@ svg.select(".betweennessLegend").style("opacity",0);
 {% for attribute_name, (min, max) in numerical_node_attributes.items() if attribute_name not in ["prize","degree","betweenness"] %}
 
 svg.append("g")
-   .attr("class", "legendLinear {{attribute_name}}Legend")
+   .attr("class", 'legendLinear {{ attribute_name | replace("()[]_- ", "") }}Legend')
    .attr("transform", "translate(20,20)");
 
-var {{attribute_name}}Legend = d3.legendColor()
+var {{ attribute_name | replace("()[]_- ", "") }}Legend = d3.legendColor()
                      .shapeWidth(30)
                      .orient('vertical')
-                     .scale(color['{{attribute_name}}'])
-                     .title("{{attribute_name}}");
+                     .scale(color["{{ attribute_name}}"])
+                     .title("{{ attribute_name}}");
 
-svg.select(".{{attribute_name}}Legend").call({{attribute_name}}Legend)
-svg.select(".{{attribute_name}}Legend").style("opacity",0);
+svg.select('.{{ attribute_name | replace("()[]_- ", "") }}Legend').call({{ attribute_name | replace("()[]_- ", "") }}Legend)
+svg.select('.{{ attribute_name | replace("()[]_- ", "") }}Legend').style("opacity",0);
 
 {% endfor %}
 
@@ -699,7 +699,6 @@ svg.select(".legendSymbol").call(legendPath);
 /////////////////////////////////////////////////////////////////////////////
 
 d3.select("#download").on("click", function() {
-    console.log(d3.select("#graph-container").html());
     d3.select(this)
       .attr("href", 'data:application/octet-stream;base64,' + btoa(unescape(encodeURIComponent(d3.select("#graph-container").html()))))
       .attr("download", "interactome.svg")

@@ -36,7 +36,7 @@ __all__ = [ "Graph",
             "output_networkx_graph_as_interactive_html",
             "get_networkx_graph_as_dataframe_of_nodes",
             "get_networkx_graph_as_dataframe_of_edges",
-            "summarize_grid_search", 
+            "summarize_grid_search",
             "get_robust_subgraph_from_randomizations" ]
 
 templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +57,8 @@ except KeyError: n_cpus = multiprocessing.cpu_count()
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
 def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
+
+def safe_string(unsafe_string): return ''.join(e for e in unsafe_string if e.isalnum())
 
 class Options(object):
     def __init__(self, options):
@@ -104,7 +106,7 @@ class Graph:
             logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
             logger.info(duplicated_edges)
             if len(duplicated_edges) > 0:
-                self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]
+                self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]  # TODO: this is a bug, it throws away additional columns.
             else: del self.interactome_dataframe['temp']
 
         self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'source', 'target', edge_attr=self.interactome_dataframe.columns[2:].tolist())
@@ -166,7 +168,7 @@ class Graph:
             nodes_to_penalize (pandas.DataFrame): 2 columns: 'name' and 'penalty' with entries in [0, 1)
         """
 
-        # Here's we're indexing the penalized nodes by the indices we used for nodes during initialization
+        # Find the indices of the nodes to be penalized
         nodes_to_penalize.index = graph.nodes.get_indexer(nodes_to_penalize['name'].values)
 
         # there will be some nodes in the penalty dataframe which we don't have in our interactome
@@ -175,24 +177,24 @@ class Graph:
         nodes_to_penalize.drop(-1, inplace=True, errors='ignore')
 
         if not nodes_to_penalize['penalty_coefficient'].between(0, 1).all():
-            logger.info("The node penalty coefficients must lie in [0, 1]. Skipping penalization..."); return
+            logger.info("The node penalty coefficients must lie in [0, 1]. Skipping all penalization..."); return
 
         nodes_to_knockout = nodes_to_penalize[nodes_to_penalize.penalty_coefficient == 1]
         logger.info("penalty coefficients of 1 are treated as knockouts. Proteins to knock out from interactome:")
         logger.info(nodes_to_knockout.name.tolist())
         self._knockout(nodes_to_knockout.name.values)
-        nodes_to_penalize= nodes_to_penalize[nodes_to_penalize.penalty_coefficient < 1]
+        nodes_to_penalize = nodes_to_penalize[nodes_to_penalize.penalty_coefficient < 1]
 
         self.additional_costs = np.zeros(self.costs.shape)
 
         # Iterate through the rows of the nodes_to_penalize dataframe
-        for index, name, penalty_coefficient in nodes_to_penalize.itertuples():
+        for index, name, penalty_coefficient in nodes_to_penalize.itertuples():  # this can be better written, since we already have the indicies, we should be able to index into the edges df more easily than this
             # For each protein we'd like to penalize, get the indicies of the edges connected to that node
             edge_indices = self.interactome_dataframe[(self.interactome_dataframe.source == name) | (self.interactome_dataframe.target == name)].index
             # And compute an additional cost on those edges.
             self.additional_costs[edge_indices] += self.edge_costs[edge_indices] / (1 - penalty_coefficient)
-        # Apply those additional costs by calling _reset_hyperparameters.
-        self._reset_hyperparameters()
+
+        self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
 
 
     def _knockout(self, nodes_to_knockout):
@@ -210,7 +212,7 @@ class Graph:
 
     def prepare_prizes(self, prize_file):
         """
-        Parses a prize file and adds prize-related attributes to the graph object.
+        Parses a prize file and adds prizes and other attributes to the graph object.
 
         The file passed to this function must have at least two columns: node name and prize.
         Any additional columns will be assumed to be node attributes. However, in order to know
@@ -230,19 +232,17 @@ class Graph:
         prizes_dataframe = pd.read_csv(prize_file, sep='\t')
         prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
 
-        if "type" not in prizes_dataframe.columns: prizes_dataframe["type"] = "terminal"
-
         return self._prepare_prizes(prizes_dataframe)
 
 
     def _prepare_prizes(self, prizes_dataframe):
 
-        # Some files have duplicated genes, sometimes with different prizes. Keep the max prize.
+        # Some files have duplicated genes with different prizes. Keep the max prize.
         logger.info("Duplicated gene symbols in the prize file (we'll keep the max prize):")
         logger.info(prizes_dataframe[prizes_dataframe.set_index('name').index.duplicated()]['name'].tolist())
         prizes_dataframe = prizes_dataframe.groupby('name').max().reset_index()
 
-        # Here's we're indexing the terminal nodes and associated prizes by the indices we used for nodes
+        # Find the indices of the nodes being assigned prizes
         prizes_dataframe.set_index(self.nodes.get_indexer(prizes_dataframe['name']), inplace=True)
 
         # there will be some nodes in the prize file which we don't have in our interactome
@@ -250,16 +250,18 @@ class Graph:
         logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
         prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-        # Node attributes dataframe for all proteins in self.nodes. Type of nodes that are not included in prize file defualt to `steiner`.
-        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
+        # All nodes in the prizes dataframe are defined to be terminals.
+        prizes_dataframe["terminal"] = True
+        prizes_dataframe["type"] = prizes_dataframe.get("type", default="protein")
+
+        # Node attributes dataframe for all proteins in self.nodes.
+        self.node_attributes = prizes_dataframe.reindex(self.nodes); del self.node_attributes["name"]  # we can delete the name column which is now in the index.
         self.node_attributes["degree"] = self.node_degrees
         self.node_attributes["prize"].fillna(0, inplace=True)
-        self.node_attributes["type"].fillna("steiner", inplace=True)
+        self.node_attributes["type"].fillna("protein", inplace=True)
+        self.node_attributes["terminal"].fillna(False, inplace=True)
 
-        # Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
-        prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
-        # Our return value is a 1D array, where each entry is a node's prize, indexed as above
-        self.bare_prizes = prizes_dataframe['prize'].values
+        self.bare_prizes = self.node_attributes["prize"].values
         self.prizes = self.bare_prizes * self.params.b
 
         self.terminals = pd.Series(self.prizes).nonzero()[0].tolist()
@@ -360,7 +362,7 @@ class Graph:
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
         forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
-        # the above won't capture the singletons, so we'll add them here 
+        # the above won't capture the singletons, so we'll add them here
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
         # Set all the attributes on graph
@@ -534,7 +536,7 @@ class Graph:
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
-        # Skip attribute setting if solution is empty. 
+        # Skip attribute setting if solution is empty.
         if forest.number_of_nodes() == 0: return forest, augmented_forest
 
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
@@ -554,11 +556,11 @@ class Graph:
         """
         Convenience method which sets parameters and performs PCSF randomizations.
 
-        Arguments: 
+        Arguments:
             params (dict): params with which to run the program
 
-        Returns: 
-            str: Parameter values in string format 
+        Returns:
+            str: Parameter values in string format
             networkx.Graph: forest
             networkx.Graph: augmented_forest
         """
@@ -568,17 +570,17 @@ class Graph:
 
         if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
             logger.info("Single PCSF run for " + paramstring)
-        else: 
+        else:
             logger.info("Randomizations for " + paramstring)
 
         forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
-        
+
         return paramstring, forest, augmented_forest
 
 
     def grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
         """
-        Macro function which performs grid search or randomizations or both. 
+        Macro function which performs grid search or randomizations or both.
 
         Arguments:
             prize_file (str): filepath
@@ -589,7 +591,7 @@ class Graph:
             random_terminals_reps (int): Number of specificity experiments
 
         Returns:
-            dict: Forest and augmented forest networkx graphs, keyed by parameter string 
+            dict: Forest and augmented forest networkx graphs, keyed by parameter string
         """
 
         pool = multiprocessing.Pool(n_cpus)
@@ -605,7 +607,7 @@ class Graph:
         return results
 
 
-    def grid_search(self, prize_file, Ws, Bs, Gs): 
+    def grid_search(self, prize_file, Ws, Bs, Gs):
         """
         Macro function which performs grid search.
 
@@ -747,12 +749,12 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
             #######            Results           #######
 ###############################################################################
 
-def summarize_grid_search(results, mode, top_n=False): 
+def summarize_grid_search(results, mode, top_n=False):
     """
-    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene 
+    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
     indicating whether or not a node appeared in each experiment. If summarizing "robustness"
-    or "specificity", entries indicate robustness or specificity values for each experiment. 
+    or "specificity", entries indicate robustness or specificity values for each experiment.
 
     Arguments:
         results (list of tuples): Results of `grid_randomization` or `grid_search` of form `{'paramstring': { 'forest': object, 'augmented forest': object}}`
@@ -762,10 +764,10 @@ def summarize_grid_search(results, mode, top_n=False):
     Returns:
         pd.DataFrame: Columns correspond to each parameter experiment, indexed by nodes
     """
-    
+
     # Exclude any degenerate results
     results = {paramstring: graphs for paramstring, graphs in results.items() if graphs["augmented_forest"].number_of_nodes() > 0}
-    
+
     if mode == "membership": # Summarize single-run parameter search
         series = [pd.Series(1, index=graphs["augmented_forest"].nodes(), name=paramstring) for paramstring, graphs in results.items()]
     elif mode == "robustness": # Summarize randomized robustness
@@ -775,36 +777,36 @@ def summarize_grid_search(results, mode, top_n=False):
     else:
         logger.warning("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
         return
-    
+
     node_summary_df = pd.concat(series, axis=1).fillna(0)
-    
+
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
     if not top_n: return node_summary_df
-    
-    if len(node_summary_df) > top_n: 
+
+    if len(node_summary_df) > top_n:
         cutoff = sorted(node_summary_df.sum(axis=1).tolist(), reverse=True)[top_n]
         node_summary_df = node_summary_df[node_summary_df.sum(axis=1) > cutoff]
-    
+
     return node_summary_df
 
 
-def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
+def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5):
     """
     Given a graph with robustness attributes, take the top `max_size` robust nodes and
-    prune any "small" components. 
+    prune any "small" components.
 
     Arguments:
         nxgraph (networkx.Graph): Network from randomization experiment
         max_size (int): Max size of robust network
 
-    Returns: 
+    Returns:
         networkx.Graph: Robust network
     """
-    
-    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node. 
-    # If removal results in a component of size less than min_size, do not remove. 
-    
-    if nxgraph.number_of_nodes() == 0: 
+
+    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node.
+    # If removal results in a component of size less than min_size, do not remove.
+
+    if nxgraph.number_of_nodes() == 0:
         logger.warning("Augmented forest is empty.")
         return nxgraph
 
@@ -820,23 +822,23 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     return robust_network
 
 
-def filter_graph_by_component_size(nxgraph, min_size=5): 
+def filter_graph_by_component_size(nxgraph, min_size=5):
     """
-    Removes any components that are less than `min_size`. 
+    Removes any components that are less than `min_size`.
 
     Arguments:
         nxgraph (networkx.Graph): Network from randomization experiment
         min_size (int): Min size of components in `nxgraph`. Set to 2 to remove singletons only.
 
-    Returns: 
-        networkx.Graph: Network with components less than specified size removed. 
+    Returns:
+        networkx.Graph: Network with components less than specified size removed.
     """
-    
+
     filtered_subgraph = nxgraph.copy()
 
     small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
     filtered_subgraph.remove_nodes_from(flatten(small_components))
-    
+
     return filtered_subgraph
 
 
@@ -956,11 +958,11 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     if len(nodes) > 0:
         numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
-        #print(numerical_node_attributes)
         non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
-        min_max = lambda l: (min(l),max(l))
+        min_max = lambda l: (min([x for x in l if str(x) != 'nan']),max([x for x in l if str(x) != 'nan']))
         numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
-        #print(numerical_node_attributes)
+
+
         html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
         with open(path,'w') as output_file:
             output_file.write(html_output)
