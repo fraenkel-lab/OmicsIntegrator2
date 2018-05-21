@@ -30,7 +30,6 @@ import jinja2
 # Lab modules
 from pcst_fast import pcst_fast
 
-
 templateLoader = jinja2.FileSystemLoader(Path.cwd())
 templateEnv = jinja2.Environment(loader=templateLoader)
 
@@ -913,26 +912,6 @@ class Encoder(json.JSONEncoder):
         if isinstance(obj, np.int64):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): any instance of networkx.Graph
-        output_dir (str): the directory in which to output the file (named graph_json.json)
-    Returns:
-        str: filepath to output
-    """
-    from py2cytoscape import util as cy
-
-    njs = cy.from_networkx(nxgraph)
-    njs["data"]["name"] = filename.replace(".json", "")
-
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
-    with open(path,'w') as output_file:
-        output_file.write(json.dumps(njs, cls=Encoder))
-
-    return path
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="graph.html"):
