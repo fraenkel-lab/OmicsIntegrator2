@@ -32,11 +32,10 @@ from pcst_fast import pcst_fast
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
             "output_networkx_graph_as_graphml_for_cytoscape",
-            "output_networkx_graph_as_json_for_cytoscapejs",
             "output_networkx_graph_as_interactive_html",
             "get_networkx_graph_as_dataframe_of_nodes",
             "get_networkx_graph_as_dataframe_of_edges",
-            "summarize_grid_search", 
+            "summarize_grid_search",
             "get_robust_subgraph_from_randomizations" ]
 
 templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
@@ -360,7 +359,7 @@ class Graph:
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
         forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
-        # the above won't capture the singletons, so we'll add them here 
+        # the above won't capture the singletons, so we'll add them here
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
         # Set all the attributes on graph
@@ -534,7 +533,7 @@ class Graph:
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
 
-        # Skip attribute setting if solution is empty. 
+        # Skip attribute setting if solution is empty.
         if forest.number_of_nodes() == 0: return forest, augmented_forest
 
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
@@ -554,11 +553,11 @@ class Graph:
         """
         Convenience method which sets parameters and performs PCSF randomizations.
 
-        Arguments: 
+        Arguments:
             params (dict): params with which to run the program
 
-        Returns: 
-            str: Parameter values in string format 
+        Returns:
+            str: Parameter values in string format
             networkx.Graph: forest
             networkx.Graph: augmented_forest
         """
@@ -568,17 +567,17 @@ class Graph:
 
         if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
             logger.info("Single PCSF run for " + paramstring)
-        else: 
+        else:
             logger.info("Randomizations for " + paramstring)
 
         forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
-        
+
         return paramstring, forest, augmented_forest
 
 
     def grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
         """
-        Macro function which performs grid search or randomizations or both. 
+        Macro function which performs grid search or randomizations or both.
 
         Arguments:
             prize_file (str): filepath
@@ -589,7 +588,7 @@ class Graph:
             random_terminals_reps (int): Number of specificity experiments
 
         Returns:
-            dict: Forest and augmented forest networkx graphs, keyed by parameter string 
+            dict: Forest and augmented forest networkx graphs, keyed by parameter string
         """
 
         pool = multiprocessing.Pool(n_cpus)
@@ -605,7 +604,7 @@ class Graph:
         return results
 
 
-    def grid_search(self, prize_file, Ws, Bs, Gs): 
+    def grid_search(self, prize_file, Ws, Bs, Gs):
         """
         Macro function which performs grid search.
 
@@ -747,12 +746,12 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
             #######            Results           #######
 ###############################################################################
 
-def summarize_grid_search(results, mode, top_n=False): 
+def summarize_grid_search(results, mode, top_n=False):
     """
-    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene 
+    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
     indicating whether or not a node appeared in each experiment. If summarizing "robustness"
-    or "specificity", entries indicate robustness or specificity values for each experiment. 
+    or "specificity", entries indicate robustness or specificity values for each experiment.
 
     Arguments:
         results (list of tuples): Results of `grid_randomization` or `grid_search` of form `{'paramstring': { 'forest': object, 'augmented forest': object}}`
@@ -762,10 +761,10 @@ def summarize_grid_search(results, mode, top_n=False):
     Returns:
         pd.DataFrame: Columns correspond to each parameter experiment, indexed by nodes
     """
-    
+
     # Exclude any degenerate results
     results = {paramstring: graphs for paramstring, graphs in results.items() if graphs["augmented_forest"].number_of_nodes() > 0}
-    
+
     if mode == "membership": # Summarize single-run parameter search
         series = [pd.Series(1, index=graphs["augmented_forest"].nodes(), name=paramstring) for paramstring, graphs in results.items()]
     elif mode == "robustness": # Summarize randomized robustness
@@ -775,36 +774,36 @@ def summarize_grid_search(results, mode, top_n=False):
     else:
         logger.warning("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
         return
-    
+
     node_summary_df = pd.concat(series, axis=1).fillna(0)
-    
+
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
     if not top_n: return node_summary_df
-    
-    if len(node_summary_df) > top_n: 
+
+    if len(node_summary_df) > top_n:
         cutoff = sorted(node_summary_df.sum(axis=1).tolist(), reverse=True)[top_n]
         node_summary_df = node_summary_df[node_summary_df.sum(axis=1) > cutoff]
-    
+
     return node_summary_df
 
 
-def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5): 
+def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5):
     """
     Given a graph with robustness attributes, take the top `max_size` robust nodes and
-    prune any "small" components. 
+    prune any "small" components.
 
     Arguments:
         nxgraph (networkx.Graph): Network from randomization experiment
         max_size (int): Max size of robust network
 
-    Returns: 
+    Returns:
         networkx.Graph: Robust network
     """
-    
-    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node. 
-    # If removal results in a component of size less than min_size, do not remove. 
-    
-    if nxgraph.number_of_nodes() == 0: 
+
+    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node.
+    # If removal results in a component of size less than min_size, do not remove.
+
+    if nxgraph.number_of_nodes() == 0:
         logger.warning("Augmented forest is empty.")
         return nxgraph
 
@@ -820,23 +819,23 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
     return robust_network
 
 
-def filter_graph_by_component_size(nxgraph, min_size=5): 
+def filter_graph_by_component_size(nxgraph, min_size=5):
     """
-    Removes any components that are less than `min_size`. 
+    Removes any components that are less than `min_size`.
 
     Arguments:
         nxgraph (networkx.Graph): Network from randomization experiment
         min_size (int): Min size of components in `nxgraph`. Set to 2 to remove singletons only.
 
-    Returns: 
-        networkx.Graph: Network with components less than specified size removed. 
+    Returns:
+        networkx.Graph: Network with components less than specified size removed.
     """
-    
+
     filtered_subgraph = nxgraph.copy()
 
     small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
     filtered_subgraph.remove_nodes_from(flatten(small_components))
-    
+
     return filtered_subgraph
 
 
@@ -905,26 +904,6 @@ class Encoder(json.JSONEncoder):
         if isinstance(obj, np.int64):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): any instance of networkx.Graph
-        output_dir (str): the directory in which to output the file (named graph_json.json)
-    Returns:
-        str: filepath to output
-    """
-    from py2cytoscape import util as cy
-
-    njs = cy.from_networkx(nxgraph)
-    njs["data"]["name"] = filename.replace(".json", "")
-
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
-    with open(path,'w') as output_file:
-        output_file.write(json.dumps(njs, cls=Encoder))
-
-    return path
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="graph.html"):
