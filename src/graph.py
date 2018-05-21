@@ -366,7 +366,7 @@ class Graph:
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
         # Set all the attributes on graph
-        nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
+        nx.set_node_attributes(forest, self.node_attributes.reindex(list(forest.nodes())).dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
         # Create a new graph including all edges between all selected nodes, not just those edges selected by PCSF.
@@ -542,8 +542,8 @@ class Graph:
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
         vertex_indices.index = self.nodes[vertex_indices.node_index.values]
 
-        nx.set_node_attributes(forest,           vertex_indices.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
-        nx.set_node_attributes(augmented_forest, vertex_indices.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
+        nx.set_node_attributes(forest,           vertex_indices.reindex(list(forest.nodes())).dropna(how='all').to_dict(orient='index'))
+        nx.set_node_attributes(augmented_forest, vertex_indices.reindex(list(augmented_forest.nodes())).dropna(how='all').to_dict(orient='index'))
 
         return forest, augmented_forest
 
@@ -717,10 +717,8 @@ def augment_with_subcellular_localization(nxgraph):
         # maybe need os.path.realpath(__file__)
         subcellular = pd.read_pickle(os.path.dirname(os.path.realpath(__file__))+'/../subcellular/subcellular.pickle')
 
-    try:
-        nx.set_node_attributes(nxgraph, subcellular.loc[list(nxgraph.nodes())].dropna(how='all').to_dict(orient='index'))
-    except KeyError:
-        logger.info('Not assigning subcellular locations. For that function use Gene Symbols.')
+    nx.set_node_attributes(nxgraph, subcellular.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
+
 
 def augment_with_biological_process_terms(nxgraph):
     """
@@ -957,6 +955,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     path = os.path.join(os.path.abspath(output_dir), filename)
 
     if len(nodes) > 0:
+        # TODO cast booleans as ints
         numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
         non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
         min_max = lambda l: (min([x for x in l if str(x) != 'nan']),max([x for x in l if str(x) != 'nan']))
