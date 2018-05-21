@@ -13,6 +13,7 @@ import math
 import argparse
 from collections import Counter
 from itertools import product
+from pathlib import Path
 from copy import copy
 import json
 from pkg_resources import resource_filename as get_path
@@ -29,24 +30,15 @@ import jinja2
 # Lab modules
 from pcst_fast import pcst_fast
 
-# list of classes and methods we'd like to export:
-__all__ = [ "Graph",
-            "output_networkx_graph_as_graphml_for_cytoscape",
-            "output_networkx_graph_as_json_for_cytoscapejs",
-            "output_networkx_graph_as_interactive_html",
-            "get_networkx_graph_as_dataframe_of_nodes",
-            "get_networkx_graph_as_dataframe_of_edges",
-            "summarize_grid_search",
-            "get_robust_subgraph_from_randomizations" ]
 
-templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
+templateLoader = jinja2.FileSystemLoader(Path.cwd())
 templateEnv = jinja2.Environment(loader=templateLoader)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter('%(asctime)s - Graph: %(levelname)s - %(message)s', "%I:%M:%S"))
+handler.setFormatter(logging.Formatter('%(asctime)s - OI2: %(levelname)s - %(message)s', "%I:%M:%S"))
 logger.addHandler(handler)
 
 # Count the number of available CPUs for potential use in multiprocessing code
@@ -152,15 +144,15 @@ class Graph:
 
         self.costs = (self.edge_costs + self.edge_penalties)
 
-        # In case specific nodes are penalized, we'd like to update the costs accordingly
+        # If specific nodes are penalized, we'd like to update the costs accordingly
         if hasattr(self, "additional_costs"): self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
 
-        # if this instance of graph has bare_prizes set, then presumably resetting the
+        # If this instance of graph has bare_prizes set, then presumably resetting the
         # hyperparameters should also reset the scaled prizes
         if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
 
 
-    def _penalize_nodes(self, nodes_to_penalize):
+    def penalize_nodes(self, nodes_to_penalize):
         """
         Penalize a set of nodes by penalizing the edges connected to that node by some coefficient.
 
@@ -197,7 +189,7 @@ class Graph:
         self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
 
 
-    def _knockout(self, nodes_to_knockout):
+    def knockout(self, nodes_to_knockout):
         """
         Knock out a set of nodes from the interactome, effectively removing them from results.
 
@@ -714,8 +706,7 @@ def augment_with_subcellular_localization(nxgraph):
     try:
         subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
     except:
-        # maybe need os.path.realpath(__file__)
-        subcellular = pd.read_pickle(os.path.dirname(os.path.realpath(__file__))+'/../subcellular/subcellular.pickle')
+        subcellular = pd.read_pickle(Path('.').parent / 'subcellular' / 'subcellular.pickle')
 
     nx.set_node_attributes(nxgraph, subcellular.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 
@@ -869,6 +860,22 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
     return intermediate[['protein1', 'protein2']]
 
 
+def output_networkx_graph_as_edgelist(nxgraph, output_dir, filename="graph_json.json"):
+    """
+    Arguments:
+        nxgraph (networkx.Graph): any instance of networkx.Graph
+        output_dir (str): the directory in which to output the file (named graph_edgelist.txt)
+    Returns:
+        str: filepath to output
+    """
+
+    path = Path(output_dir) / filename
+    path.mkdir(exist_ok=True, parents=True)
+    nx.write_edgelist(nxgraph, path, data=False)
+
+    return path
+
+
 def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.pickle"):
     """
     Arguments:
@@ -878,8 +885,9 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
     Returns:
         str: filepath to output
     """
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
+
+    path = Path(output_dir) / filename
+    path.mkdir(exist_ok=True, parents=True)
     nx.write_gpickle(nxgraph, path)
 
     return path
@@ -894,8 +902,8 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
     Returns:
         str: filepath to output
     """
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
+    path = Path(output_dir) / filename
+    path.mkdir(exist_ok=True, parents=True)
     nx.write_graphml(nxgraph, path)
 
     return path
@@ -939,9 +947,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     try:
         vizjinja = get_path('OmicsIntegrator', 'viz.jinja')
     except:
-        # maybe need os.path.realpath(__file__)
-        print('except')
-        vizjinja = os.path.dirname(os.path.realpath(__file__)) + '/viz.jinja'
+        vizjinja = Path.cwd() / 'viz.jinja'
 
     graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
 
@@ -951,8 +957,8 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     nodes = nxgraph.nodes()
 
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
+    path = Path(output_dir) / filename
+    path.mkdir(exist_ok=True, parents=True)
 
     if len(nodes) > 0:
         # TODO cast booleans as ints
@@ -968,16 +974,3 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     return path
 
-def output_networkx_graph_as_edgelist(nxgraph, output_dir, filename="graph_json.json"):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): any instance of networkx.Graph
-        output_dir (str): the directory in which to output the file (named graph_edgelist.txt)
-    Returns:
-        str: filepath to output
-    """
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
-    nx.write_edgelist(nxgraph, path, data=False)
-
-    return path
