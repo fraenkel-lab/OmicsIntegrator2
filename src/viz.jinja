@@ -149,8 +149,7 @@ var color = {'prize': d3.scaleLinear().domain([0, {{numerical_node_attributes['p
              'degree': d3.scaleLinear().domain([0, {{numerical_node_attributes['degree'].1}}]).range(["lightblue", "red"]),
              'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}} ]).range(["purple", "orange"]),
              {% for attribute_name, (min, max) in numerical_node_attributes.items() if attribute_name not in ["prize","degree","betweenness"] %}
-             '{{attribute_name}}':d3.scaleLinear().domain([ {{min}} , {{max}} ]).range(["blue","red"]),
-             {% endfor %}
+             '{{attribute_name}}':d3.scaleLinear().domain([ {{min}} , {{max}} ]).range(["blue","red"]),{% endfor %}
             };
 
 var group_color = d3.scaleOrdinal(d3.schemePastel1);
@@ -282,6 +281,8 @@ if ("location" in groups) {
 graph.nodes.forEach(function (n) {
     n.height = n.width = group_boundary_margin;
 });
+
+// function padding(group) {}
 
 
 
@@ -535,7 +536,7 @@ function remove_focus() {
     node.style("opacity", 1);
     text.style("opacity", 1);
     link.style("opacity", edge_opacity);
-    group.style("opacity", 1);
+    group.style("opacity", 0.6);
     label.style("opacity", 1);
     if (highlight_node === null) { remove_highlight(); }
 }
