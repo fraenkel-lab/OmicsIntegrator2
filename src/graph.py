@@ -30,8 +30,6 @@ import jinja2
 # Lab modules
 from pcst_fast import pcst_fast
 
-templateLoader = jinja2.FileSystemLoader(Path.cwd())
-templateEnv = jinja2.Environment(loader=templateLoader)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -135,7 +133,7 @@ class Graph:
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
         # Knockout any proteins from the interactome
-        self._knockout(self.params.knockout)
+        self.knockout(self.params.knockout)
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
         self.edge_penalties = self.params.g * np.array([self.node_degrees[a] * self.node_degrees[b] /
@@ -173,7 +171,7 @@ class Graph:
         nodes_to_knockout = nodes_to_penalize[nodes_to_penalize.penalty_coefficient == 1]
         logger.info("penalty coefficients of 1 are treated as knockouts. Proteins to knock out from interactome:")
         logger.info(nodes_to_knockout.name.tolist())
-        self._knockout(nodes_to_knockout.name.values)
+        self.knockout(nodes_to_knockout.name.values)
         nodes_to_penalize = nodes_to_penalize[nodes_to_penalize.penalty_coefficient < 1]
 
         self.additional_costs = np.zeros(self.costs.shape)
@@ -705,7 +703,7 @@ def augment_with_subcellular_localization(nxgraph):
     try:
         subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
     except:
-        subcellular = pd.read_pickle(Path('.').parent / 'subcellular' / 'subcellular.pickle')
+        subcellular = pd.read_pickle(Path.cwd().parent / 'subcellular' / 'subcellular.pickle')
 
     nx.set_node_attributes(nxgraph, subcellular.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 
@@ -859,22 +857,6 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
     return intermediate[['protein1', 'protein2']]
 
 
-def output_networkx_graph_as_edgelist(nxgraph, output_dir, filename="graph_json.json"):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): any instance of networkx.Graph
-        output_dir (str): the directory in which to output the file (named graph_edgelist.txt)
-    Returns:
-        str: filepath to output
-    """
-
-    path = Path(output_dir) / filename
-    path.mkdir(exist_ok=True, parents=True)
-    nx.write_edgelist(nxgraph, path, data=False)
-
-    return path
-
-
 def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.pickle"):
     """
     Arguments:
@@ -885,8 +867,9 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
         str: filepath to output
     """
 
-    path = Path(output_dir) / filename
+    path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
+    path = path / filename
     nx.write_gpickle(nxgraph, path)
 
     return path
@@ -901,8 +884,9 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
     Returns:
         str: filepath to output
     """
-    path = Path(output_dir) / filename
+    path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
+    path = path / filename
     nx.write_graphml(nxgraph, path)
 
     return path
@@ -923,10 +907,9 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
         str: filepath to output
     """
 
-    try:
-        vizjinja = get_path('OmicsIntegrator', 'viz.jinja')
-    except:
-        vizjinja = Path.cwd() / 'viz.jinja'
+    templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
+    templateEnv = jinja2.Environment(loader=templateLoader)
+
 
     graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
 
@@ -936,11 +919,12 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
     nodes = nxgraph.nodes()
 
-    path = Path(output_dir) / filename
+    path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
+    path = path / filename
 
     if len(nodes) > 0:
-        # TODO cast booleans as ints
+        # TODO booleans need to be lowercased or cast as ints
         numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
         non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
         min_max = lambda l: (min([x for x in l if str(x) != 'nan']),max([x for x in l if str(x) != 'nan']))
@@ -948,8 +932,7 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
 
 
         html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
-        with open(path,'w') as output_file:
-            output_file.write(html_output)
+        path.write_text(html_output)
 
     return path
 
