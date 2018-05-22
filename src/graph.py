@@ -32,10 +32,11 @@ from pcst_fast import pcst_fast
 # list of classes and methods we'd like to export:
 __all__ = [ "Graph",
             "output_networkx_graph_as_graphml_for_cytoscape",
-            "output_networkx_graph_as_json_for_cytoscapejs",
             "output_networkx_graph_as_interactive_html",
             "get_networkx_graph_as_dataframe_of_nodes",
-            "get_networkx_graph_as_dataframe_of_edges" ]
+            "get_networkx_graph_as_dataframe_of_edges",
+            "summarize_grid_search",
+            "get_robust_subgraph_from_randomizations" ]
 
 templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
 templateEnv = jinja2.Environment(loader=templateLoader)
@@ -228,6 +229,8 @@ class Graph:
         prizes_dataframe = pd.read_csv(prize_file, sep='\t')
         prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
 
+        if "type" not in prizes_dataframe.columns: prizes_dataframe["type"] = "terminal"
+
         return self._prepare_prizes(prizes_dataframe)
 
 
@@ -246,7 +249,11 @@ class Graph:
         logger.info(prizes_dataframe[prizes_dataframe.index == -1]['name'].tolist())
         prizes_dataframe.drop(-1, inplace=True, errors='ignore')
 
-        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None)
+        # Node attributes dataframe for all proteins in self.nodes. Type of nodes that are not included in prize file defualt to `steiner`.
+        self.node_attributes = prizes_dataframe.set_index('name').rename_axis(None).reindex(self.nodes)
+        self.node_attributes["degree"] = self.node_degrees
+        self.node_attributes["prize"].fillna(0, inplace=True)
+        self.node_attributes["type"].fillna("steiner", inplace=True)
 
         # Here we're making a dataframe with all the nodes as keys and the prizes from above or 0
         prizes_dataframe = pd.DataFrame(self.nodes, columns=["name"]).merge(prizes_dataframe, on="name", how="left").fillna(0)
@@ -338,12 +345,16 @@ class Graph:
         Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)
 
         Arguments:
-            vertex_indices (list): indices of the vertices selected in self.nodes
+            vertex_indices (list): indices of the vertices selected in self.nodes. Note, this list must be of type int or boolean. Errors may arise from empty numpy arrays of dtype='object'
             edge_indices (list): indices of the edges selected in self.edges
 
         Returns:
             networkx.Graph: a networkx graph object
         """
+
+        if len(vertex_indices) == 0:
+            logger.warning("The resulting Forest is empty. Try different parameters.")
+            return nx.empty_graph(0), nx.empty_graph(0)
 
         # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
@@ -351,10 +362,7 @@ class Graph:
         # the above won't capture the singletons, so we'll add them here
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
-        # Set node degrees as attributes on nodes in the netowrkx graph
-        nx.set_node_attributes(forest, pd.DataFrame(self.node_degrees, index=self.nodes, columns=['degree']).loc[list(forest.nodes())].astype(int).to_dict(orient='index'))
-
-        # Set all othe attributes on graph
+        # Set all the attributes on graph
         nx.set_node_attributes(forest, self.node_attributes.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
         # Set a flag on all the edges which were selected by PCSF (before augmenting the forest)
         nx.set_edge_attributes(forest, True, name='in_solution')
@@ -365,9 +373,6 @@ class Graph:
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
         augment_with_subcellular_localization(augmented_forest)
-
-        if len(augmented_forest.nodes()) == 0:
-            logger.info("The resulting Forest is empty. Try different parameters.")
 
         return forest, augmented_forest
 
@@ -525,7 +530,11 @@ class Graph:
         else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
 
         ###########
+
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
+
+        # Skip attribute setting if solution is empty.
+        if forest.number_of_nodes() == 0: return forest, augmented_forest
 
         # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
         vertex_indices.index = self.nodes[vertex_indices.node_index.values]
@@ -540,68 +549,64 @@ class Graph:
                 #######          Grid Search          #######
     ###########################################################################
 
-    def _eval_pcsf(self, params):
+    def _eval_PCSF_runs(self, params):
         """
-        Convenience methods which sets parameters and performs PCSF
+        Convenience method which sets parameters and performs PCSF randomizations.
+
+        Arguments:
+            params (dict): params with which to run the program
+
+        Returns:
+            str: Parameter values in string format
+            networkx.Graph: forest
+            networkx.Graph: augmented_forest
         """
+
         self._reset_hyperparameters(params=params)
-        paramstring = 'G_'+str(self.params.g)+'_B_'+str(self.params.b)+'_W_'+str(self.params.w)
-        print(paramstring)
-        return (paramstring, self.pcsf())
+        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
+
+        if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
+            logger.info("Single PCSF run for " + paramstring)
+        else:
+            logger.info("Randomizations for " + paramstring)
+
+        forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
+
+        return paramstring, forest, augmented_forest
 
 
-    def _grid_pcsf(self, prize_file, Gs, Bs, Ws):
+    def grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
         """
-        Internal function which executes pcsf at every point in a parameter grid.
-        Subroutine of `grid_search`.
+        Macro function which performs grid search or randomizations or both.
 
         Arguments:
             prize_file (str): filepath
             Gs (list): Values of gamma
             Bs (list): Values of beta
             Ws (list): Values of omega
+            noisy_edges_reps (int): Number of robustness experiments
+            random_terminals_reps (int): Number of specificity experiments
 
         Returns:
-            list: list of tuples of vertex indices and edge indices
+            dict: Forest and augmented forest networkx graphs, keyed by parameter string
         """
 
-        self.prepare_prizes(prize_file)
-        parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
-        results = list(map(self._eval_pcsf, parameter_permutations))
-
-        return results
-
-
-    def _grid_pcsf_parallel(self, prize_file, Gs, Bs, Ws):
-        """
-        Internal function which executes pcsf at every point in a parameter grid.
-        Subroutine of `grid_search`. This version runs using python multiprocessing
-
-        Arguments:
-            prize_file (str): filepath
-            Gs (list): Values of gamma
-            Bs (list): Values of beta
-            Ws (list): Values of omega
-
-        Returns:
-            list: list of tuples of vertex indices and edge indices
-        """
-
-        # Create a Pool with available cpu resources
         pool = multiprocessing.Pool(n_cpus)
 
         self.prepare_prizes(prize_file)
-        parameter_permutations = [{'g':g,'b':b,'w':w} for (g, b, w) in product(Gs, Bs, Ws)]
-        results = pool.map(self._eval_pcsf, parameter_permutations)
+
+        model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
+
+        results = pool.map(self._eval_PCSF_runs, model_params)
+        # Convert to dictionary format
+        results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
         return results
 
 
-    def grid_search(self, prize_file, Gs, Bs, Ws):
+    def grid_search(self, prize_file, Ws, Bs, Gs):
         """
-        Macro function which performs grid search and merges the results.
-
-        This function is under construction and subject to change.
+        Macro function which performs grid search.
 
         Arguments:
             prize_file (str): filepath
@@ -615,24 +620,8 @@ class Graph:
             pd.DataFrame: parameters and node membership lists
         """
 
-        results = self._grid_pcsf(prize_file, Gs, Bs, Ws)
+        return self.grid_randomization(prize_file, Ws, Bs, Gs, 0, 0)
 
-        ### GET THE REGULAR OUTPUT ###
-        vertex_indices_df, edge_indices_df = self._aggregate_pcsf(list(dict(results).values()), 'frequency')
-
-        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices_df.node_index.values, edge_indices_df.edge_index.values)
-
-        # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
-        vertex_indices_df.index = self.nodes[vertex_indices_df.node_index.values]
-
-        # vertex_indices_df contains the frequencies of occurrences of each of the nodes, which we want to set as node attibutes in our outputs
-        nx.set_node_attributes(forest,           vertex_indices_df.loc[list(forest.nodes())].dropna(how='all').to_dict(orient='index'))
-        nx.set_node_attributes(augmented_forest, vertex_indices_df.loc[list(augmented_forest.nodes())].dropna(how='all').to_dict(orient='index'))
-
-        ### GET THE OUTPUT NEEDED BY TOBI'S VISUALIZATION ###
-        params_by_nodes = pd.DataFrame({paramstring: dict(zip(self.nodes[vertex_indices], self.node_degrees[vertex_indices])) for paramstring, (vertex_indices, edge_indices) in results}).fillna(0)
-
-        return forest, augmented_forest, params_by_nodes
 
 
 ###############################################################################
@@ -752,6 +741,104 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
     """
     pass
 
+
+###############################################################################
+            #######            Results           #######
+###############################################################################
+
+def summarize_grid_search(results, mode, top_n=False):
+    """
+    Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene
+    and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
+    indicating whether or not a node appeared in each experiment. If summarizing "robustness"
+    or "specificity", entries indicate robustness or specificity values for each experiment.
+
+    Arguments:
+        results (list of tuples): Results of `grid_randomization` or `grid_search` of form `{'paramstring': { 'forest': object, 'augmented forest': object}}`
+        mode (str): Reported values "membership", "robustness", "specificity"
+        top_n (int): Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold
+
+    Returns:
+        pd.DataFrame: Columns correspond to each parameter experiment, indexed by nodes
+    """
+
+    # Exclude any degenerate results
+    results = {paramstring: graphs for paramstring, graphs in results.items() if graphs["augmented_forest"].number_of_nodes() > 0}
+
+    if mode == "membership": # Summarize single-run parameter search
+        series = [pd.Series(1, index=graphs["augmented_forest"].nodes(), name=paramstring) for paramstring, graphs in results.items()]
+    elif mode == "robustness": # Summarize randomized robustness
+        series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["robustness"].rename(paramstring) for paramstring, graphs in results.items()]
+    elif mode == "specificity": # Summarize randomized specificity
+        series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"].rename(paramstring) for paramstring, graphs in results.items()]
+    else:
+        logger.warning("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
+        return
+
+    node_summary_df = pd.concat(series, axis=1).fillna(0)
+
+    # df can get quite large with many sparse entries, so let's filter for the top_n entries
+    if not top_n: return node_summary_df
+
+    if len(node_summary_df) > top_n:
+        cutoff = sorted(node_summary_df.sum(axis=1).tolist(), reverse=True)[top_n]
+        node_summary_df = node_summary_df[node_summary_df.sum(axis=1) > cutoff]
+
+    return node_summary_df
+
+
+def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5):
+    """
+    Given a graph with robustness attributes, take the top `max_size` robust nodes and
+    prune any "small" components.
+
+    Arguments:
+        nxgraph (networkx.Graph): Network from randomization experiment
+        max_size (int): Max size of robust network
+
+    Returns:
+        networkx.Graph: Robust network
+    """
+
+    # TODO: Potential alternative approach - from entire network, attempt to remove lowest robustness node.
+    # If removal results in a component of size less than min_size, do not remove.
+
+    if nxgraph.number_of_nodes() == 0:
+        logger.warning("Augmented forest is empty.")
+        return nxgraph
+
+    # Get indices of top nodes sorted by high robustness, then low specificity. Don't allow nodes with robustness = 0.
+    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph)
+    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > 0]
+    node_attributes_df.sort_values(["robustness", "specificity"], ascending=[False, True], inplace=True)
+    top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
+    # Get robust subnetwork and remove small components.
+    robust_network = nxgraph.subgraph(top_hits)
+    robust_network = filter_graph_by_component_size(robust_network, min_component_size)
+
+    return robust_network
+
+
+def filter_graph_by_component_size(nxgraph, min_size=5):
+    """
+    Removes any components that are less than `min_size`.
+
+    Arguments:
+        nxgraph (networkx.Graph): Network from randomization experiment
+        min_size (int): Min size of components in `nxgraph`. Set to 2 to remove singletons only.
+
+    Returns:
+        networkx.Graph: Network with components less than specified size removed.
+    """
+
+    filtered_subgraph = nxgraph.copy()
+
+    small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
+    filtered_subgraph.remove_nodes_from(flatten(small_components))
+
+    return filtered_subgraph
+
+
 ###############################################################################
             #######              Export             #######
 ###############################################################################
@@ -817,26 +904,6 @@ class Encoder(json.JSONEncoder):
         if isinstance(obj, np.int64):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
-
-def output_networkx_graph_as_json_for_cytoscapejs(nxgraph, output_dir, filename="graph_json.json"):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): any instance of networkx.Graph
-        output_dir (str): the directory in which to output the file (named graph_json.json)
-    Returns:
-        str: filepath to output
-    """
-    from py2cytoscape import util as cy
-
-    njs = cy.from_networkx(nxgraph)
-    njs["data"]["name"] = filename.replace(".json", "")
-
-    os.makedirs(os.path.abspath(output_dir), exist_ok=True)
-    path = os.path.join(os.path.abspath(output_dir), filename)
-    with open(path,'w') as output_file:
-        output_file.write(json.dumps(njs, cls=Encoder))
-
-    return path
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="graph.html"):
