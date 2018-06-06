@@ -510,7 +510,7 @@ function remove_highlight() {
 node.on("click", function(d) { if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);} });
 
 function set_focus(d) {
-    d3.event.stopPropagation();
+    // d3.event.stopPropagation();
 
     if (shiftKey) {shiftKey = false; console.log('here'); window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);}
     if (highlight_trans < 1) {
@@ -523,7 +523,7 @@ function set_focus(d) {
 }
 
 function remove_focus() {
-    d3.event.stopPropagation();
+    // d3.event.stopPropagation();
 
     focus_node = null;
     node.style("opacity", 1);
