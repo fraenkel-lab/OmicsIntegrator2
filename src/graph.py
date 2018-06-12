@@ -474,7 +474,7 @@ class Graph:
         Convenience method which sets parameters and performs PCSF randomizations.
 
         Arguments:
-            params (dict): params with which to run the program
+            params (dict): dictionary with regular OI2 parameters _AND_ noisy_edge_reps and random_terminals_reps
 
         Returns:
             str: Parameter values in string format
@@ -485,10 +485,8 @@ class Graph:
         self._reset_hyperparameters(params=params)
         paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
 
-        if params["noisy_edge_reps"] + params["random_terminals_reps"] == 0:
-            logger.info("Single PCSF run for " + paramstring)
-        else:
-            logger.info("Randomizations for " + paramstring)
+        if params["noisy_edge_reps"] == params["random_terminals_reps"] == 0: logger.info("Single PCSF run for " + paramstring)
+        else: logger.info("Randomizations for " + paramstring)
 
         forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
 
@@ -515,11 +513,11 @@ class Graph:
 
         self.prepare_prizes(prize_file)
 
-        model_params = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
+        param_sets = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
 
-        results = pool.map(self._eval_PCSF_runs, model_params)
+        results = pool.map(self._eval_PCSF_runs, param_sets)
         # Convert to dictionary format
-        results = { paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
+        results = {paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
         return results
 
@@ -663,7 +661,7 @@ def perform_GO_enrichment_on_clusters(nxgraph, clustering):
             #######            Results           #######
 ###############################################################################
 
-def summarize_grid_search(results, mode, top_n=False):
+def summarize_grid_search(results, mode, top_n=np.Infinity):
     """
     Summarizes results of `grid_randomization` or `grid_search` into a matrix where each row is a gene
     and each column is a parameter run. If summarizing "membership", entries will be 0 or 1
@@ -695,8 +693,6 @@ def summarize_grid_search(results, mode, top_n=False):
     node_summary_df = pd.concat(series, axis=1).fillna(0)
 
     # df can get quite large with many sparse entries, so let's filter for the top_n entries
-    if not top_n: return node_summary_df
-
     if len(node_summary_df) > top_n:
         cutoff = sorted(node_summary_df.sum(axis=1).tolist(), reverse=True)[top_n]
         node_summary_df = node_summary_df[node_summary_df.sum(axis=1) > cutoff]
@@ -779,10 +775,7 @@ def get_networkx_graph_as_dataframe_of_edges(nxgraph):
         pd.DataFrame: edges from the input graph and their attributes as a dataframe
     """
 
-    intermediate = pd.DataFrame(nxgraph.edges(data=True))
-    intermediate.columns = ['protein1', 'protein2'] + intermediate.columns[2:].tolist()
-    # TODO: in the future, get the other attributes out into columns
-    return intermediate[['protein1', 'protein2']]
+    return nx.to_pandas_edgelist(nxgraph, 'protein1', 'protein2')
 
 
 def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.pickle"):
