@@ -12,8 +12,6 @@ def gslr_macro(graph, dataset, sparsity_low=100, sparsity_high=200, num_steps=25
     """
     Graph-Sparse Logistic Regression
 
-
-
     Arguments:
         graph (OmicsIntegrator.Graph): an OmicsIntegrator Graph object
         dataset (pd.DataFrame): the n x d data matrix (n examples in dimension d). The column headers are geneSymbols and the index is the class label.
@@ -23,7 +21,6 @@ def gslr_macro(graph, dataset, sparsity_low=100, sparsity_high=200, num_steps=25
         pruning (str): a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
         verbosity_level (int): an integer indicating how much debug output the function should produce.
     """
-
 
     # Create root and dummy edges
     all_nodes = list(range(len(graph.nodes)))

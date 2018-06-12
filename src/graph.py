@@ -796,7 +796,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
     return path
 
 
-def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename="pscf_results.graphml.gz"):
+def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename="pcsf_results.graphml.gz"):
     """
     Arguments:
         nxgraph (networkx.Graph): any instance of networkx.Graph
