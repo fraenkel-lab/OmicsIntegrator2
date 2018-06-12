@@ -84,17 +84,17 @@ class Graph:
         """
 
         self.interactome_dataframe = pd.read_pickle(interactome_file)
-        self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'source', 'target', edge_attr=self.interactome_dataframe.columns[2:].tolist())
+        self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'protein1', 'protein2', edge_attr=self.interactome_dataframe.columns[2:].tolist())
 
         # Convert the interactome dataframe from string interactor IDs to integer interactor IDs.
-        # Do so by selecting the source and target columns from the interactome dataframe,
+        # Do so by selecting the protein1 and protein2 columns from the interactome dataframe,
         # then unstacking them, which (unintuitively) stacks them into one column, allowing us to use factorize.
         # Factorize builds two datastructures, a unique pd.Index which maps each ID string to an integer ID,
         # and the datastructure we passed in with string IDs replaced with those integer IDs.
         # We place those in self.nodes and self.edges respectively, but self.edges will need reshaping.
-        (self.edges, self.nodes) = pd.factorize(self.interactome_dataframe[["source","target"]].unstack())
+        (self.edges, self.nodes) = pd.factorize(self.interactome_dataframe[["protein1","protein2"]].unstack())
         # Here we do the inverse operation of "unstack" above, which gives us an interpretable edges datastructure
-        self.edges = self.edges.reshape(self.interactome_dataframe[["source","target"]].shape, order='F')
+        self.edges = self.edges.reshape(self.interactome_dataframe[["protein1","protein2"]].shape, order='F')
 
         self.edge_costs = self.interactome_dataframe['cost'].astype(float).values
 
@@ -114,12 +114,10 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        defaults = {"w": 6, "b": 1, "g": 3, "noise": 0.1, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
+        defaults = {"w": 6, "b": 1, "g": 3, "noise": 0.1, "dummy_mode": "terminals", "seed": None}
 
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
-        # Knockout any proteins from the interactome
-        self.knockout(self.params.knockout)
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
         self.edge_penalties = (10**self.params.g) * np.array([self.node_degrees[a] * self.node_degrees[b] /
@@ -127,62 +125,9 @@ class Graph:
 
         self.costs = (self.edge_costs + self.edge_penalties)
 
-        # If specific nodes are penalized, we'd like to update the costs accordingly
-        if hasattr(self, "additional_costs"): self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
-
         # If this instance of graph has bare_prizes set, then presumably resetting the
         # hyperparameters should also reset the scaled prizes
         if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
-
-
-    def penalize_nodes(self, nodes_to_penalize):
-        """
-        Penalize a set of nodes by penalizing the edges connected to that node by some coefficient.
-
-        Arguments:
-            nodes_to_penalize (pandas.DataFrame): 2 columns: 'name' and 'penalty' with entries in [0, 1)
-        """
-
-        # Find the indices of the nodes to be penalized
-        nodes_to_penalize.index = graph.nodes.get_indexer(nodes_to_penalize['name'].values)
-
-        # there will be some nodes in the penalty dataframe which we don't have in our interactome
-        logger.info("Members of the penalty dataframe not present in the interactome (we'll need to drop these):")
-        logger.info(nodes_to_penalize[nodes_to_penalize.index == -1]['name'].tolist())
-        nodes_to_penalize.drop(-1, inplace=True, errors='ignore')
-
-        if not nodes_to_penalize['penalty_coefficient'].between(0, 1).all():
-            logger.info("The node penalty coefficients must lie in [0, 1]. Skipping all penalization..."); return
-
-        nodes_to_knockout = nodes_to_penalize[nodes_to_penalize.penalty_coefficient == 1]
-        logger.info("penalty coefficients of 1 are treated as knockouts. Proteins to knock out from interactome:")
-        logger.info(nodes_to_knockout.name.tolist())
-        self.knockout(nodes_to_knockout.name.values)
-        nodes_to_penalize = nodes_to_penalize[nodes_to_penalize.penalty_coefficient < 1]
-
-        self.additional_costs = np.zeros(self.costs.shape)
-
-        # Iterate through the rows of the nodes_to_penalize dataframe
-        for index, name, penalty_coefficient in nodes_to_penalize.itertuples():  # this can be better written, since we already have the indicies, we should be able to index into the edges df more easily than this
-            # For each protein we'd like to penalize, get the indicies of the edges connected to that node
-            edge_indices = self.interactome_dataframe[(self.interactome_dataframe.source == name) | (self.interactome_dataframe.target == name)].index
-            # And compute an additional cost on those edges.
-            self.additional_costs[edge_indices] += self.edge_costs[edge_indices] / (1 - penalty_coefficient)
-
-        self.costs = (self.edge_costs + self.edge_penalties + self.additional_costs)
-
-
-    def knockout(self, nodes_to_knockout):
-        """
-        Knock out a set of nodes from the interactome, effectively removing them from results.
-
-        Arguments:
-            nodes_to_knockout (numpy.array): Array of string IDs of nodes to knock out.
-        """
-        if len(nodes_to_knockout) > 0:
-            logger.info("The knockout function has yet to be implemented, passing...");
-
-        return
 
 
     def prepare_prizes(self, prize_file):
@@ -334,9 +279,9 @@ class Graph:
             logger.warning("The resulting Forest is empty. Try different parameters.")
             return nx.empty_graph(0), nx.empty_graph(0)
 
-        # Replace the edge indices with the actual edges (source name, target name) by indexing into the interactome
+        # Replace the edge indices with the actual edges (protein1 name, protein2 name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
-        forest = nx.from_pandas_edgelist(edges, 'source', 'target', edge_attr=True)
+        forest = nx.from_pandas_edgelist(edges, 'protein1', 'protein2', edge_attr=True)
         # the above won't capture the singletons, so we'll add them here
         forest.add_nodes_from(list(set(self.nodes[vertex_indices]) - set(forest.nodes())))
 
@@ -388,7 +333,7 @@ class Graph:
 
     def _random_terminals(self):
         """
-        Switches the terminams with random nodes with a similar degree.
+        Switches the terminals with random nodes with a similar degree.
 
         Returns:
             numpy.array: new prizes
@@ -409,7 +354,7 @@ class Graph:
         return new_prizes, np.unique(new_terminals)
 
 
-    def _aggregate_pcsf(self, results, frequency_attribute_name):
+    def _aggregate_pcsf(self, results, frequency_attribute_name="frequency"):
         """
         Merge multiple PCSF results into one DataFrame
 
@@ -421,6 +366,8 @@ class Graph:
             pandas.DataFrame: vertex indices and their fractional rate of occurrence in the PCSF results
             pandas.DataFrame: edge indices and their fractional rate of occurrence in the PCSF results
         """
+
+        if len(results) == 0: return pd.DataFrame(), pd.DataFrame()
 
         # Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
         vertex_indices, edge_indices = zip(*results)
@@ -438,11 +385,49 @@ class Graph:
         return vertex_indices_df, edge_indices_df
 
 
-    def randomizations(self, noisy_edges_reps, random_terminals_reps):
+    def _noisy_edges_reps(self, reps):
+        """
+        Perform PCSF and collect results for some number of noisy edges randomizations
+        """
+
+        results = []
+
+        true_edge_costs = copy(self.costs)
+
+        for noisy_edge_costs in [self._noisy_edges() for rep in range(reps)]:
+            self.costs = noisy_edge_costs
+            results.append(self.pcsf())
+
+        self.costs = true_edge_costs
+
+        return self._aggregate_pcsf(results, 'robustness')
+
+
+    def _random_terminal_reps(self, reps):
+        """
+        Perform PCSF and collect results for some number of random_terminal randomizations
+        """
+        results = []
+
+        true_prizes = self.prizes
+        true_terminals = self.terminals
+
+        for random_prizes, terminals in [self._random_terminals() for rep in range(reps)]:
+            self.prizes = random_prizes
+            self.terminals = terminals
+            results.append(self.pcsf())
+
+        self.prizes = true_prizes
+        self.terminals = true_terminals
+
+        return self._aggregate_pcsf(results, 'specificity')
+
+
+    def randomizations(self, noisy_edges_reps=0, random_terminals_reps=0):
         """
         Macro function which performs randomizations and merges the results
 
-        Note that these are additive, not multiplicative:
+        Note that thee parameters are additive, not multiplicative:
         `noisy_edges_reps` = 5 and `random_terminals_reps` = 5 makes 10 PCSF runs, not 25.
 
         Arguments:
@@ -460,62 +445,19 @@ class Graph:
         if noisy_edges_reps == random_terminals_reps == 0:
             return self.output_forest_as_networkx(*self.pcsf())
 
-        #### NOISY EDGES ####
-        if noisy_edges_reps > 0:
+        robust_vertices,   robust_edges   = _noisy_edges_reps(noisy_edges_reps)
+        specific_vertices, specific_edges = _random_terminal_reps(random_terminals_reps)
 
-            results = []
+        vertex_indices = pd.concat([robust_vertices.set_index('node_index'), specific_vertices.set_index('node_index')], axis=1).fillna(0)
+        edge_indices = pd.concat([robust_edges.set_index('edge_index'), specific_edges.set_index('edge_index')], axis=1).fillna(0)
 
-            true_edge_costs = copy(self.costs)
-
-            for noisy_edge_costs in [self._noisy_edges() for rep in range(noisy_edges_reps)]:
-                self.costs = noisy_edge_costs
-                results.append(self.pcsf())
-
-            self.costs = true_edge_costs
-
-            robust_vertices, robust_edges = self._aggregate_pcsf(results, 'robustness')
-
-        #### RANDOM TERMINALS ####
-        if random_terminals_reps > 0:
-
-            results = []
-
-            true_prizes = self.prizes
-            true_terminals = self.terminals
-
-            for random_prizes, terminals in [self._random_terminals() for rep in range(random_terminals_reps)]:
-                self.prizes = random_prizes
-                self.terminals = terminals
-                results.append(self.pcsf())
-
-            self.prizes = true_prizes
-            self.terminals = true_terminals
-
-            specific_vertices, specific_edges = self._aggregate_pcsf(results, 'specificity')
-
-        ###########
-
-        if random_terminals_reps == 0 and noisy_edges_reps > 0:
-            vertex_indices = robust_vertices; edge_indices = robust_edges;
-
-        elif noisy_edges_reps == 0 and random_terminals_reps > 0:
-            vertex_indices = specific_vertices; edge_indices = specific_edges;
-
-        elif noisy_edges_reps > 0 and random_terminals_reps > 0:
-            vertex_indices = robust_vertices.merge(specific_vertices, how='outer', on='node_index').fillna(0)
-            edge_indices = robust_edges.merge(specific_edges, how='outer', on='edge_index').fillna(0)
-
-        else: sys.exit("Randomizations was called with invalid noisy_edges_reps and random_terminals_reps.")
-
-        ###########
-
-        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.node_index.values, edge_indices.edge_index.values)
+        forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.index.values, edge_indices.index.values)
 
         # Skip attribute setting if solution is empty.
         if forest.number_of_nodes() == 0: return forest, augmented_forest
 
-        # reindex `vertex_indices_df` by name: basically we "dereference" the vertex indices to vertex names
-        vertex_indices.index = self.nodes[vertex_indices.node_index.values]
+        # reindex `vertex_indices` by name: basically we "dereference" the vertex indices to vertex names
+        vertex_indices.index = self.nodes[vertex_indices.index.values]
 
         nx.set_node_attributes(forest,           vertex_indices.reindex(list(forest.nodes())).dropna(how='all').to_dict(orient='index'))
         nx.set_node_attributes(augmented_forest, vertex_indices.reindex(list(augmented_forest.nodes())).dropna(how='all').to_dict(orient='index'))
