@@ -66,7 +66,7 @@ class Graph:
                 #######          Initialization            #######
     ###########################################################################
 
-    def __init__(self, interactome_file, params={}, skip_checks=False):
+    def __init__(self, interactome_file, params={}):
         """
         Builds a representation of a graph from an interactome file.
 
@@ -83,21 +83,7 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t')
-        self.interactome_dataframe.columns = ["source","target","cost"] + self.interactome_dataframe.columns[3:].tolist()  # TODO: error handling
-
-        if not skip_checks:
-            # Handle the case of possible duplicate edges.
-            # Do so by creating a string column of both interactors, e.g. "ABCD1EFGR" and remove duplicates
-            # This operation is time consuming, especially if there do exist duplicates. TODO: optimize this code.
-            self.interactome_dataframe['temp'] = self.interactome_dataframe.apply(lambda row: ''.join(sorted([row['source'], row['target']])), axis=1)
-            duplicated_edges = self.interactome_dataframe[self.interactome_dataframe.set_index('temp').index.duplicated()][['source','target']].values.tolist()
-            logger.info("Duplicated edges in the interactome file (we'll keep the max cost):")
-            logger.info(duplicated_edges)
-            if len(duplicated_edges) > 0:
-                self.interactome_dataframe = self.interactome_dataframe.groupby('temp').max().reset_index()[["source","target","cost"]]  # TODO: this is a bug, it throws away additional columns.
-            else: del self.interactome_dataframe['temp']
-
+        self.interactome_dataframe = pd.read_pickle(interactome_file)
         self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'source', 'target', edge_attr=self.interactome_dataframe.columns[2:].tolist())
 
         # Convert the interactome dataframe from string interactor IDs to integer interactor IDs.
@@ -128,7 +114,7 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        defaults = {"w": 6, "b": 1, "g": 1000, "noise": 0.1, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
+        defaults = {"w": 6, "b": 1, "g": 3, "noise": 0.1, "exclude_terminals": False, "dummy_mode": "terminals", "knockout": [], "seed": None}
 
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
@@ -136,7 +122,7 @@ class Graph:
         self.knockout(self.params.knockout)
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
-        self.edge_penalties = self.params.g * np.array([self.node_degrees[a] * self.node_degrees[b] /
+        self.edge_penalties = (10**self.params.g) * np.array([self.node_degrees[a] * self.node_degrees[b] /
                             ((N - self.node_degrees[a] - 1) * (N - self.node_degrees[b] - 1) + self.node_degrees[a] * self.node_degrees[b]) for a, b in self.edges])
 
         self.costs = (self.edge_costs + self.edge_penalties)
