@@ -114,10 +114,11 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        defaults = {"w": 6, "b": 1, "g": 3, "noise": 0.1, "dummy_mode": "terminals", "seed": None}
+        defaults = {"w": 5, "b": 1, "g": 3, "noise": 0.1, "dummy_mode": "terminals", "seed": None, "skip_checks": False}
 
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
+
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
         self.edge_penalties = (10**self.params.g) * np.array([self.node_degrees[a] * self.node_degrees[b] /
@@ -201,11 +202,53 @@ class Graph:
         return dummy_edges, dummy_costs, dummy_id, dummy_prize
 
 
-    def _check_validity_of_instance(self, edges, prizes, costs):
+    def _check_validity_of_instance(self, edges, prizes, costs, root, num_clusters, pruning, verbosity_level):
         """
         Assert that the parammeters and files passed to this program are valid, log useful error messages otherwise.
         """
-        pass
+
+        if not (isinstance(edges, np.ndarray) and len(edges.shape) == 2 and edges.shape[1] == 2):
+            logger.critical("This graph's edges appear to be malformed.")
+            logger.critical("   Edges is a numpy array: " + isinstance(edges, np.ndarray))
+            logger.critical("   Edges is 2D: " + len(edges.shape) == 2)
+            logger.critical("   Edges has 2 columns: " + edges.shape[1] == 2)
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (isinstance(prizes, np.ndarray) and len(prizes.shape) == 1 and len(prizes) == len(np.unique(edges.flatten()))):
+            logger.critical("This graph's prizes appear to be malformed.")
+            logger.critical("   Prizes is a numpy array: " + isinstance(prizes, np.ndarray))
+            logger.critical("   Prizes is 1D: " + len(prizes.shape) == 1)
+            logger.critical("   Number of prizes == the number of nodes: " + len(prizes) == len(np.unique(edges.flatten())))
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (isinstance(costs, np.ndarray) and len(costs.shape) == 1 and len(costs) == len(edges)):
+            logger.critical("This graph's edge costs appear to be malformed.")
+            logger.critical("   Costs is a numpy array: " + isinstance(costs, np.ndarray))
+            logger.critical("   Costs is 1D: " + len(costs.shape) == 1)
+            logger.critical("   Number of Costs == the number of edges: " + len(costs) == len(edges))
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (isinstance(root, int) and root >=0 and root <= len(prizes)):
+            logger.critical("The selected root appears to be invalid")
+            logger.critical("   root is an integer: " + isinstance(root, int))
+            logger.critical("   root index is within bounds: " + root >=0 and root <= len(prizes))
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (isinstance(num_clusters, int) and num_clusters > 0):
+            logger.critical("The selected desired number of clusters appears to be invalid")
+            logger.critical("   num_clusters is an integer: " + isinstance(num_clusters, int))
+            logger.critical("   num_clusters > 0: " + num_clusters > 0)
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (pruning in ['none', 'simple', 'gw', 'strong']):
+            logger.critical("The selected pruning method appears to be invalid")
+            logger.critical("   pruning one of 'none', 'simple', 'gw', 'strong': " + (pruning in ['none', 'simple', 'gw', 'strong']))
+            logger.critical("Exiting..."); sys.exit(1);
+
+        if not (verbosity_level in [0, 1, 2, 3]):
+            logger.critical("The selected verbosity_level appears to be invalid")
+            logger.critical("   verbosity_level one of 0, 1, 2, 3: " + (verbosity_level in [0, 1, 2, 3]))
+            logger.critical("Exiting..."); sys.exit(1);
 
 
     def pcsf(self, pruning="strong", verbosity_level=0):
@@ -250,7 +293,7 @@ class Graph:
         # `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
         # `verbosity_level`: an integer indicating how much debug output the function should produce.
 
-        self._check_validity_of_instance(edges, prizes, costs)
+        if not self.params.skip_checks: self._check_validity_of_instance(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
 
         vertex_indices, edge_indices = pcst_fast(edges, prizes, costs, root, num_clusters, pruning, verbosity_level)
         # `vertex_indices`: indices of the vertices in the solution as a 1D int64 array.
@@ -295,7 +338,7 @@ class Graph:
         # Post-processing
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
-        augment_with_subcellular_localization(augmented_forest)
+        augment_with_all_GO_terms(augmented_forest)
 
         return forest, augmented_forest
 
@@ -354,37 +397,6 @@ class Graph:
         return new_prizes, np.unique(new_terminals)
 
 
-    def _aggregate_pcsf(self, results, frequency_attribute_name="frequency"):
-        """
-        Merge multiple PCSF results into one DataFrame
-
-        Arguments:
-            results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.
-            frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.
-
-        Returns:
-            pandas.DataFrame: vertex indices and their fractional rate of occurrence in the PCSF results
-            pandas.DataFrame: edge indices and their fractional rate of occurrence in the PCSF results
-        """
-
-        if len(results) == 0: return pd.DataFrame(), pd.DataFrame()
-
-        # Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
-        vertex_indices, edge_indices = zip(*results)
-
-        # These next steps are just data transformation/aggregation.
-        # 1. Flatten the lists of lists of edge indices and vertex indices
-        # 2. Count the occurrences of each edge and vertex index
-        # 3. Transform from Counter object to DataFrame through list
-        vertex_indices_df = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index',frequency_attribute_name])
-        edge_indices_df = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index',frequency_attribute_name])
-        # 4. Convert occurrences to fractions
-        vertex_indices_df[frequency_attribute_name] /= len(results)
-        edge_indices_df[frequency_attribute_name] /= len(results)
-
-        return vertex_indices_df, edge_indices_df
-
-
     def _noisy_edges_reps(self, reps):
         """
         Perform PCSF and collect results for some number of noisy edges randomizations
@@ -423,6 +435,37 @@ class Graph:
         return self._aggregate_pcsf(results, 'specificity')
 
 
+    def _aggregate_pcsf(self, results, frequency_attribute_name="frequency"):
+        """
+        Merge multiple PCSF results into one DataFrame
+
+        Arguments:
+            results (list): a list of [(vertex_indices, edge_indices),...] from multiple PCSF runs.
+            frequency_attribute_name (str): Name of the attribute relating to the frequency of occurrence of components in the results.
+
+        Returns:
+            pandas.DataFrame: vertex indices and their fractional rate of occurrence in the PCSF results
+            pandas.DataFrame: edge indices and their fractional rate of occurrence in the PCSF results
+        """
+
+        if len(results) == 0: return pd.DataFrame(), pd.DataFrame()
+
+        # Transposes a list from [(vertex_indices, edge_indices),...] to ([vertex_indices,...], [edge_indices,...])
+        vertex_indices, edge_indices = zip(*results)
+
+        # These next steps are just data transformation/aggregation.
+        # 1. Flatten the lists of lists of edge indices and vertex indices
+        # 2. Count the occurrences of each edge and vertex index
+        # 3. Transform from Counter object to DataFrame through list
+        vertex_indices_df = pd.DataFrame(list(Counter(flatten(vertex_indices)).items()), columns=['node_index',frequency_attribute_name]).set_index('node_index')
+        edge_indices_df = pd.DataFrame(list(Counter(flatten(edge_indices)).items()), columns=['edge_index',frequency_attribute_name]).set_index('edge_index')
+        # 4. Convert occurrences to fractions
+        vertex_indices_df[frequency_attribute_name] /= len(results)
+        edge_indices_df[frequency_attribute_name] /= len(results)
+
+        return vertex_indices_df, edge_indices_df
+
+
     def randomizations(self, noisy_edges_reps=0, random_terminals_reps=0):
         """
         Macro function which performs randomizations and merges the results
@@ -445,11 +488,11 @@ class Graph:
         if noisy_edges_reps == random_terminals_reps == 0:
             return self.output_forest_as_networkx(*self.pcsf())
 
-        robust_vertices,   robust_edges   = _noisy_edges_reps(noisy_edges_reps)
-        specific_vertices, specific_edges = _random_terminal_reps(random_terminals_reps)
+        robust_vertices,   robust_edges   = self._noisy_edges_reps(noisy_edges_reps)
+        specific_vertices, specific_edges = self._random_terminal_reps(random_terminals_reps)
 
-        vertex_indices = pd.concat([robust_vertices.set_index('node_index'), specific_vertices.set_index('node_index')], axis=1).fillna(0)
-        edge_indices = pd.concat([robust_edges.set_index('edge_index'), specific_edges.set_index('edge_index')], axis=1).fillna(0)
+        vertex_indices = pd.concat([robust_vertices, specific_vertices], axis=1).fillna(0)
+        edge_indices = pd.concat([robust_edges, specific_edges], axis=1).fillna(0)
 
         forest, augmented_forest = self.output_forest_as_networkx(vertex_indices.index.values, edge_indices.index.values)
 
@@ -493,7 +536,7 @@ class Graph:
         return paramstring, forest, augmented_forest
 
 
-    def grid_randomization(self, prize_file, Ws, Bs, Gs, noisy_edges_reps, random_terminals_reps):
+    def grid_randomization(self, prize_file, Ws=[5], Bs=[1], Gs=[3], noisy_edges_reps=0, random_terminals_reps=0):
         """
         Macro function which performs grid search or randomizations or both.
 
@@ -568,30 +611,24 @@ def louvain_clustering(nxgraph):
     """
     nx.set_node_attributes(nxgraph, {node: {'louvainClusters':str(cluster)} for node,cluster in community.best_partition(nxgraph).items()})
 
-def edge_betweenness_clustering(nxgraph):
-    """
-    Compute "Edge-betweenness"/"Girvan-Newman" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
-
-    The Girvan–Newman algorithm detects communities by progressively removing edges from the original graph.
-    The algorithm removes the “most valuable” edge, traditionally the edge with the highest betweenness centrality, at each step.
-    As the graph breaks down into pieces, the tightly knit community structure is exposed and the result can be depicted as a dendrogram.
-
-    TODO: currently, we're removing a single edge, which has no effect, so this isn't a real clustering method yet.
-
-    Arguments:
-        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-    """
-    nx.set_node_attributes(nxgraph, {node: {'edgeBetweennessClusters':str(cluster)} for node,cluster in invert(next(nx.algorithms.community.centrality.girvan_newman(nxgraph)))})
 
 def k_clique_clustering(nxgraph, k):
     """
     Compute "k-Clique" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
 
+    See the [networkx docs](https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.kclique.k_clique_communities.html#networkx.algorithms.community.kclique.k_clique_communities)
 
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
-    nx.set_node_attributes(nxgraph, {node: {'kCliqueClusters':str(cluster)} for node,cluster in invert(nx.algorithms.community.kclique.k_clique_communities(nxgraph, k)).items()})
+
+    if k < 2: logger.critical("K-Clique Clustering requires that k be an integer larger than 1."); sys.exit(1);
+
+    clustering = pd.Series(invert(nx.algorithms.community.kclique.k_clique_communities(nxgraph, k)), name='kCliqueClusters').astype(str).reindex(nxgraph.nodes())
+    nx.set_node_attributes(nxgraph, clustering.to_frame().to_dict(orient='index'))
+
+
+
 
 def spectral_clustering(nxgraph, k):
     """
@@ -603,7 +640,7 @@ def spectral_clustering(nxgraph, k):
     """
     adj_matrix = nx.to_pandas_adjacency(nxgraph)
     clustering =  SpectralClustering(k, affinity='precomputed', n_init=100, assign_labels='discretize').fit_predict(adj_matrix.values)
-    nx.set_node_attributes(nxgraph, {node: {'spectral_clusters':str(cluster)} for node,cluster in zip(adj_matrix.index, clustering)})
+    nx.set_node_attributes(nxgraph, {node: {'spectralClusters':str(cluster)} for node,cluster in zip(adj_matrix.index, clustering)})
 
 
 ###############################################################################
@@ -615,12 +652,12 @@ def augment_with_all_GO_terms(nxgraph):
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
-    augment_with_subcellular_localization(nxgraph)
-    augment_with_biological_process_terms(nxgraph)
-    augment_with_molecular_function_terms(nxgraph)
+    _augment_with_subcellular_localization(nxgraph)
+    _augment_with_biological_process_terms(nxgraph)
+    _augment_with_molecular_function_terms(nxgraph)
 
 
-def augment_with_subcellular_localization(nxgraph):
+def _augment_with_subcellular_localization(nxgraph):
     """
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
@@ -634,25 +671,17 @@ def augment_with_subcellular_localization(nxgraph):
     nx.set_node_attributes(nxgraph, subcellular.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 
 
-def augment_with_biological_process_terms(nxgraph):
+def _augment_with_biological_process_terms(nxgraph):
     """
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
     pass
 
-def augment_with_molecular_function_terms(nxgraph):
+def _augment_with_molecular_function_terms(nxgraph):
     """
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-    """
-    pass
-
-def perform_GO_enrichment_on_clusters(nxgraph, clustering):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-        clustering (str): the column name of the clustering to perform GO enrichment with.
     """
     pass
 
