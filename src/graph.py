@@ -43,6 +43,7 @@ try: n_cpus = int(os.environ["SLURM_JOB_CPUS_PER_NODE"])
 except KeyError: n_cpus = multiprocessing.cpu_count()
 
 # Helpers
+
 def flatten(list_of_lists): return [item for sublist in list_of_lists for item in sublist]
 
 def invert(list_of_lists): return {item: i for i, list in enumerate(list_of_lists) for item in list}
@@ -151,7 +152,8 @@ class Graph:
         """
 
         prizes_dataframe = pd.read_csv(prize_file, sep='\t')
-        prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()  # TODO: error handling
+        prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
+        prizes_dataframe['prize'] = pd.to_numeric(prizes_dataframe['prize'])
 
         return self._prepare_prizes(prizes_dataframe)
 
@@ -207,48 +209,29 @@ class Graph:
         Assert that the parammeters and files passed to this program are valid, log useful error messages otherwise.
         """
 
-        if not (isinstance(edges, np.ndarray) and len(edges.shape) == 2 and edges.shape[1] == 2):
-            logger.critical("This graph's edges appear to be malformed.")
-            logger.critical("   Edges is a numpy array: " + isinstance(edges, np.ndarray))
-            logger.critical("   Edges is 2D: " + len(edges.shape) == 2)
-            logger.critical("   Edges has 2 columns: " + edges.shape[1] == 2)
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (isinstance(edges, np.ndarray)): raise ValueError("edges must be a numpy array, type was: "+str(type(edges)))
+        if not (len(edges.shape) == 2): raise ValueError("edges must be an array of dimension 2, dimension was: "+str(len(edges.shape)))
+        if not (edges.shape[1] == 2): raise ValueError("edges array must have two columns, number of columns was: "+str(edges.shape[1]))
 
-        if not (isinstance(prizes, np.ndarray) and len(prizes.shape) == 1 and len(prizes) == len(np.unique(edges.flatten()))):
-            logger.critical("This graph's prizes appear to be malformed.")
-            logger.critical("   Prizes is a numpy array: " + isinstance(prizes, np.ndarray))
-            logger.critical("   Prizes is 1D: " + len(prizes.shape) == 1)
-            logger.critical("   Number of prizes == the number of nodes: " + len(prizes) == len(np.unique(edges.flatten())))
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (isinstance(prizes, np.ndarray)): raise ValueError("prizes must be a numpy array, type was: "+str(type(prizes)))
+        if not (len(prizes.shape) == 1): raise ValueError("prizes must be an array of dimension 1, dimension was: "+str(len(prizes.shape)))
+        if not (len(prizes) == len(np.unique(edges.flatten()))): raise ValueError("there must be as many prizes as nodes. # prizes: "+str(len(prizes))+", # nodes: "+str(len(np.unique(edges.flatten()))))
 
-        if not (isinstance(costs, np.ndarray) and len(costs.shape) == 1 and len(costs) == len(edges)):
-            logger.critical("This graph's edge costs appear to be malformed.")
-            logger.critical("   Costs is a numpy array: " + isinstance(costs, np.ndarray))
-            logger.critical("   Costs is 1D: " + len(costs.shape) == 1)
-            logger.critical("   Number of Costs == the number of edges: " + len(costs) == len(edges))
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (isinstance(costs, np.ndarray)): raise ValueError("costs must be a numpy array, type was: "+str(type(costs)))
+        if not (len(costs.shape) == 1): raise ValueError("costs must be an array of dimension 1, dimension was: "+str(len(costs.shape)))
+        if not (len(costs) == len(edges)): raise ValueError("there must be as many costs as edges. # costs: "+str(len(costs))+", # edges: "+str(len(edges)))
 
-        if not (isinstance(root, int) and root >=0 and root <= len(prizes)):
-            logger.critical("The selected root appears to be invalid")
-            logger.critical("   root is an integer: " + isinstance(root, int))
-            logger.critical("   root index is within bounds: " + root >=0 and root <= len(prizes))
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (isinstance(root, int)): raise ValueError("root must be an int, type was: "+str(type(root)))
+        if not (0 <= root < len(prizes)): raise ValueError("root must be one of the nodes in the graph. root: "+str(root)+", nodes: [0, "+str(len(prizes-1))+"]")
 
-        if not (isinstance(num_clusters, int) and num_clusters > 0):
-            logger.critical("The selected desired number of clusters appears to be invalid")
-            logger.critical("   num_clusters is an integer: " + isinstance(num_clusters, int))
-            logger.critical("   num_clusters > 0: " + num_clusters > 0)
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (isinstance(num_clusters, int)): raise ValueError("num_clusters must be an int, type was: "+str(type(num_clusters)))
+        if not (0 < num_clusters < len(prizes)): raise ValueError("num_clusters must be greater than 0, and less than the number of nodes. num_clusters was: "+str(num_clusters)+"# nodes was: "+str(len(prizes)))
 
-        if not (pruning in ['none', 'simple', 'gw', 'strong']):
-            logger.critical("The selected pruning method appears to be invalid")
-            logger.critical("   pruning one of 'none', 'simple', 'gw', 'strong': " + (pruning in ['none', 'simple', 'gw', 'strong']))
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (pruning in ['none', 'simple', 'gw', 'strong']): raise ValueError("pruning must be one of ['none', 'simple', 'gw', 'strong']. pruning was: "+str(pruning))
 
-        if not (verbosity_level in [0, 1, 2, 3]):
-            logger.critical("The selected verbosity_level appears to be invalid")
-            logger.critical("   verbosity_level one of 0, 1, 2, 3: " + (verbosity_level in [0, 1, 2, 3]))
-            logger.critical("Exiting..."); sys.exit(1);
+        if not (verbosity_level in [0, 1, 2, 3]): raise ValueError("verbosity_level must be an integer, any of [0, 1, 2, 3]. verbosity_level was: "+str(verbosity_level))
+
+        return True
 
 
     def pcsf(self, pruning="strong", verbosity_level=0):
@@ -277,7 +260,7 @@ class Graph:
         if self.params.dummy_mode == 'terminals': endpoints = self.terminals
         elif self.params.dummy_mode == 'other': endpoints = others
         elif self.params.dummy_mode == 'all': endpoints = all
-        else: logger.critical("Invalid dummy mode, returning..."); return
+        else: logger.critical("dummy_mode must be one of 'terminals', 'other', or 'all'"); raise ValueError("Improper input to PCSF")
 
         dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
 
@@ -622,7 +605,7 @@ def k_clique_clustering(nxgraph, k):
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
 
-    if k < 2: logger.critical("K-Clique Clustering requires that k be an integer larger than 1."); sys.exit(1);
+    if k < 2: logger.critical("K-Clique Clustering requires that k be an integer larger than 1."); raise ValueError("Improper input to k_clique_clustering")
 
     clustering = pd.Series(invert(nx.algorithms.community.kclique.k_clique_communities(nxgraph, k)), name='kCliqueClusters').astype(str).reindex(nxgraph.nodes())
     nx.set_node_attributes(nxgraph, clustering.to_frame().to_dict(orient='index'))
@@ -716,8 +699,7 @@ def summarize_grid_search(results, mode, top_n=np.Infinity):
     elif mode == "specificity": # Summarize randomized specificity
         series = [get_networkx_graph_as_dataframe_of_nodes(graphs["augmented_forest"])["specificity"].rename(paramstring) for paramstring, graphs in results.items()]
     else:
-        logger.warning("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'.")
-        return
+        logger.critical("`mode` must be one of the following: 'membership', 'robustness', or 'specificity'."); raise ValueError("Improper input to summarize_grid_search")
 
     node_summary_df = pd.concat(series, axis=1).fillna(0)
 
@@ -820,7 +802,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
     path = path / filename
-    nx.write_gpickle(nxgraph, path)
+    nx.write_gpickle(nxgraph, path.open('wb'))
 
     return path
 
@@ -840,6 +822,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
     nx.write_graphml(nxgraph, path)
 
     return path
+
 
 class Encoder(json.JSONEncoder):
     def default(self, obj):
