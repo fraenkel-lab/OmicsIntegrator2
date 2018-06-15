@@ -84,7 +84,7 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        self.interactome_dataframe = pd.read_pickle(interactome_file)
+        self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t')
         self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'protein1', 'protein2', edge_attr=self.interactome_dataframe.columns[2:].tolist())
 
         # Convert the interactome dataframe from string interactor IDs to integer interactor IDs.
@@ -321,7 +321,7 @@ class Graph:
         # Post-processing
         betweenness(augmented_forest)
         louvain_clustering(augmented_forest)
-        augment_with_all_GO_terms(augmented_forest)
+        annotate_graph_nodes(augmented_forest)
 
         return forest, augmented_forest
 
@@ -611,8 +611,6 @@ def k_clique_clustering(nxgraph, k):
     nx.set_node_attributes(nxgraph, clustering.to_frame().to_dict(orient='index'))
 
 
-
-
 def spectral_clustering(nxgraph, k):
     """
     Compute "spectral" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
@@ -626,47 +624,18 @@ def spectral_clustering(nxgraph, k):
     nx.set_node_attributes(nxgraph, {node: {'spectralClusters':str(cluster)} for node,cluster in zip(adj_matrix.index, clustering)})
 
 
-###############################################################################
-            #######            GO Enrichment          #######
-###############################################################################
-
-def augment_with_all_GO_terms(nxgraph):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-    """
-    _augment_with_subcellular_localization(nxgraph)
-    _augment_with_biological_process_terms(nxgraph)
-    _augment_with_molecular_function_terms(nxgraph)
-
-
-def _augment_with_subcellular_localization(nxgraph):
+def annotate_graph_nodes(nxgraph):
     """
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
 
     try:
-        subcellular = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
+        annotation = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
     except:
-        subcellular = pd.read_pickle(Path.cwd().parent / 'subcellular' / 'subcellular.pickle')
+        annotation = pd.read_pickle(Path.cwd().parent / 'subcellular' / 'subcellular.pickle')
 
-    nx.set_node_attributes(nxgraph, subcellular.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
-
-
-def _augment_with_biological_process_terms(nxgraph):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-    """
-    pass
-
-def _augment_with_molecular_function_terms(nxgraph):
-    """
-    Arguments:
-        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
-    """
-    pass
+    nx.set_node_attributes(nxgraph, annotation.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 
 
 ###############################################################################
@@ -802,7 +771,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
     path = path / filename
-    nx.write_gpickle(nxgraph, path.open('wb'))
+    nx.write_gpickle(nxgraph, open(path, 'wb'))
 
     return path
 

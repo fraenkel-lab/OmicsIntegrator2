@@ -7,7 +7,6 @@ from pathlib import Path
 import logging
 import pytest
 
-
 # python external libraries
 import numpy as np
 import pandas as pd
@@ -43,7 +42,7 @@ class Test_Oi2(object):
         self.df = nx.to_pandas_edgelist(self.g, 'protein1', 'protein2')
         self.number_of_edges = self.df.shape[0]
         self.df['cost'] = np.random.uniform(0, 1, self.number_of_edges)
-        self.df.to_pickle(self.tmp_interactome_filepath)
+        self.df.to_csv(self.tmp_interactome_filepath, sep='\t', index=False)
 
         self.prizes = pd.Series(np.random.uniform(0, 3, self.number_of_nodes)).to_frame().sample(self.number_of_prized_nodes)
         self.terminals = self.prizes.index.values
@@ -55,7 +54,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_init(self):
-        print("test_init", end='')
+        print("test_init")
         self.graph = oi.Graph(self.tmp_interactome_filepath, {})
 
         assert hasattr(self.graph, "interactome_dataframe")
@@ -73,7 +72,7 @@ class Test_Oi2(object):
 
 
     def test__reset_hyperparameters(self):
-        print("test__reset_hyperparameters", end='')
+        print("test__reset_hyperparameters")
         params = {"w":5, "b":2, "g":2, "noise":0.1, "dummy_mode":"terminals", "seed":0}
         self.graph._reset_hyperparameters(params)
 
@@ -91,7 +90,7 @@ class Test_Oi2(object):
 
 
     def test_prepare_prizes(self):
-        print("test_prepare_prizes", end='')
+        print("test_prepare_prizes")
         self.graph.prepare_prizes(self.tmp_prize_filepath)
 
         assert hasattr(self.graph, "node_attributes")
@@ -107,7 +106,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test__add_dummy_node(self):
-        print("test__add_dummy_node", end='')
+        print("test__add_dummy_node")
         dummy_edges, dummy_costs, dummy_id, dummy_prize = self.graph._add_dummy_node(connected_to=self.terminals)
 
         assert dummy_id <= self.number_of_nodes
@@ -118,7 +117,7 @@ class Test_Oi2(object):
 
 
     def test__check_validity_of_instance(self):
-        print("test__check_validity_of_instance", end='')
+        print("test__check_validity_of_instance")
 
         edges = self.graph.edges
         prizes = self.graph.prizes
@@ -174,7 +173,7 @@ class Test_Oi2(object):
 
 
     def test_pcsf(self):
-        print("test_pcsf", end='')
+        print("test_pcsf")
         self.vertex_indices, self.edge_indices = self.graph.pcsf()
 
 
@@ -191,13 +190,11 @@ class Test_Oi2(object):
 
 
     def test_output_forest_as_networkx(self):
-        print("test_output_forest_as_networkx", end='')
+        print("test_output_forest_as_networkx")
         self.forest, self.augmented_forest = self.graph.output_forest_as_networkx(*self.graph.pcsf())
 
         assert isinstance(self.forest, nx.Graph)
         assert isinstance(self.augmented_forest, nx.Graph)
-
-        print(self.forest.nodes())
 
         assert set(self.forest.nodes()) == set(self.graph.nodes[self.vertex_indices])
         assert set(self.augmented_forest.nodes()) == set(self.graph.nodes[self.vertex_indices])
@@ -206,7 +203,7 @@ class Test_Oi2(object):
 
 
     def test_pcsf_objective_value(self):
-        print("test_pcsf_objective_value", end='')
+        print("test_pcsf_objective_value")
         objective_value = self.graph.pcsf_objective_value(self.forest)
 
         assert objective_value >= 0
@@ -219,14 +216,14 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_randomizations(self):
-        print("test_randomizations", end='')
+        print("test_randomizations")
         forest, augmented_forest = self.graph.randomizations(noisy_edges_reps=3, random_terminals_reps=3)
 
         assert isinstance(forest, nx.Graph)
         assert isinstance(augmented_forest, nx.Graph)
 
-        print(nx.get_node_attributes(forest,           "robustness"))
-        print(set(self.graph.nodes))
+        # print(nx.get_node_attributes(forest,                "robustness").keys())
+        # print(set(self.graph.nodes))
 
         assert set(nx.get_node_attributes(forest,           "robustness").keys())  == set(self.graph.nodes)
         assert set(nx.get_node_attributes(augmented_forest, "robustness").keys())  == set(self.graph.nodes)
@@ -239,22 +236,22 @@ class Test_Oi2(object):
         assert isinstance(forest, nx.Graph)
         assert isinstance(augmented_forest, nx.Graph)
 
-        assert set(nx.get_node_attributes(forest,           "robustness").keys())  == set(self.graph.nodes)
-        assert set(nx.get_node_attributes(augmented_forest, "robustness").keys())  == set(self.graph.nodes)
+        assert set(nx.get_node_attributes(forest,           "robustness").keys())  == set()
+        assert set(nx.get_node_attributes(augmented_forest, "robustness").keys())  == set()
 
-        assert set(nx.get_node_attributes(forest,           "specificity").keys()) == set()
-        assert set(nx.get_node_attributes(augmented_forest, "specificity").keys()) == set()
+        assert set(nx.get_node_attributes(forest,           "specificity").keys()) == set(self.graph.nodes)
+        assert set(nx.get_node_attributes(augmented_forest, "specificity").keys()) == set(self.graph.nodes)
 
         forest, augmented_forest = self.graph.randomizations(noisy_edges_reps=3, random_terminals_reps=0)
 
         assert isinstance(forest, nx.Graph)
         assert isinstance(augmented_forest, nx.Graph)
 
-        assert set(nx.get_node_attributes(forest,           "robustness").keys())  == set()
-        assert set(nx.get_node_attributes(augmented_forest, "robustness").keys())  == set()
+        assert set(nx.get_node_attributes(forest,           "robustness").keys())  == set(self.graph.nodes)
+        assert set(nx.get_node_attributes(augmented_forest, "robustness").keys())  == set(self.graph.nodes)
 
-        assert set(nx.get_node_attributes(forest,           "specificity").keys()) == set(self.graph.nodes)
-        assert set(nx.get_node_attributes(augmented_forest, "specificity").keys()) == set(self.graph.nodes)
+        assert set(nx.get_node_attributes(forest,           "specificity").keys()) == set()
+        assert set(nx.get_node_attributes(augmented_forest, "specificity").keys()) == set()
 
         forest, augmented_forest = self.graph.randomizations(noisy_edges_reps=0, random_terminals_reps=0)
 
@@ -275,7 +272,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_grid_randomization(self):
-        print("test_grid_randomization", end='')
+        print("test_grid_randomization")
         Ws = [4,5]
         Bs = [1,2]
         Gs = [3,4]
@@ -285,7 +282,7 @@ class Test_Oi2(object):
 
 
     def test_grid_search(self):
-        print("test_grid_search", end='')
+        print("test_grid_search")
         Ws = [4,5]
         Bs = [1,2]
         Gs = [3,4]
@@ -299,7 +296,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_betweenness(self):
-        print("test_betweenness", end='')
+        print("test_betweenness")
         oi.betweenness(self.g)
         assert set(nx.get_node_attributes(self.g, "betweenness").keys()) == set(self.g.nodes())
         assert all([isinstance(betweenness, float) for betweenness in nx.get_node_attributes(self.g, "betweenness").values()])
@@ -308,7 +305,7 @@ class Test_Oi2(object):
 
 
     def test_louvain_clustering(self):
-        print("test_louvain_clustering", end='')
+        print("test_louvain_clustering")
         oi.louvain_clustering(self.g)
         assert set(nx.get_node_attributes(self.g, "louvainClusters").keys()) == set(self.g.nodes())
         assert all([isinstance(louvainClusters, str) for louvainClusters in nx.get_node_attributes(self.g, "louvainClusters").values()])
@@ -317,7 +314,7 @@ class Test_Oi2(object):
 
 
     def test_k_clique_clustering(self):
-        print("test_k_clique_clustering", end='')
+        print("test_k_clique_clustering")
         oi.k_clique_clustering(self.g, 3)
         assert set(nx.get_node_attributes(self.g, "kCliqueClusters").keys()) == set(self.g.nodes())
         assert all([isinstance(kCliqueClusters, str) for kCliqueClusters in nx.get_node_attributes(self.g, "kCliqueClusters").values()])
@@ -326,7 +323,7 @@ class Test_Oi2(object):
 
 
     def test_spectral_clustering(self):
-        print("test_spectral_clustering", end='')
+        print("test_spectral_clustering")
         oi.spectral_clustering(self.g, 10)
         assert set(nx.get_node_attributes(self.g, "spectralClusters").keys()) == set(self.g.nodes())
         assert all([isinstance(spectralClusters, str) for spectralClusters in nx.get_node_attributes(self.g, "spectralClusters").values()])
@@ -334,9 +331,9 @@ class Test_Oi2(object):
         print("...pass")
 
 
-    def test_augment_with_all_GO_terms(self):
-        print("test_augment_with_all_GO_terms", end='')
-        oi.augment_with_all_GO_terms(self.g)
+    def test_annotate_graph_nodes(self):
+        print("test_annotate_graph_nodes")
+        oi.annotate_graph_nodes(self.g)
         # unknown what should be tested here
         print("...pass")
 
@@ -346,7 +343,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_summarize_grid_search(self):
-        print("test_summarize_grid_search", end='')
+        print("test_summarize_grid_search")
         node_summary_df = oi.summarize_grid_search(self.results, "membership")
         node_summary_df = oi.summarize_grid_search(self.results, "robustness")
         node_summary_df = oi.summarize_grid_search(self.results, "specificity")
@@ -355,14 +352,14 @@ class Test_Oi2(object):
 
 
     def test_get_robust_subgraph_from_randomizations(self):
-        print("test_get_robust_subgraph_from_randomizations", end='')
+        print("test_get_robust_subgraph_from_randomizations")
         oi.get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5)
         # unknown what should be tested here
         print("...pass")
 
 
     def test_filter_graph_by_component_size(self):
-        print("test_filter_graph_by_component_size", end='')
+        print("test_filter_graph_by_component_size")
         oi.filter_graph_by_component_size(nxgraph, min_size=5)
         # unknown what should be tested here
         print("...pass")
@@ -373,7 +370,7 @@ class Test_Oi2(object):
     ###########################################################################
 
     def test_get_networkx_graph_as_dataframe_of_nodes(self):
-        print("test_get_networkx_graph_as_dataframe_of_nodes", end='')
+        print("test_get_networkx_graph_as_dataframe_of_nodes")
         df = oi.get_networkx_graph_as_dataframe_of_nodes(self.augmented_forest)
 
         assert len(df) == len(self.augmented_forest.nodes())
@@ -386,7 +383,7 @@ class Test_Oi2(object):
 
 
     def test_get_networkx_graph_as_dataframe_of_edges(self):
-        print("test_get_networkx_graph_as_dataframe_of_edges", end='')
+        print("test_get_networkx_graph_as_dataframe_of_edges")
         df = oi.get_networkx_graph_as_dataframe_of_edges(self.augmented_forest)
 
 
@@ -398,34 +395,38 @@ class Test_Oi2(object):
 
 
     def test_output_networkx_graph_as_pickle(self):
-        print("test_output_networkx_graph_as_pickle", end='')
+        print("test_output_networkx_graph_as_pickle")
         path = oi.output_networkx_graph_as_pickle(self.augmented_forest, ".", filename="pcsf_results.pickle")
         self.tmp_files.append(path)
 
-        # stat the file, assert it exists
+        # assert nx.read_gpickle(path) == self.augmented_forest
+
         print("...pass")
 
 
     def test_output_networkx_graph_as_graphml_for_cytoscape(self):
-        print("test_output_networkx_graph_as_graphml_for_cytoscape", end='')
+        print("test_output_networkx_graph_as_graphml_for_cytoscape")
+
+        # for node, data in self.augmented_forest.nodes(data=True):
+        #     for key, val in data.items():
+        #         if isinstance(val, np.float64):
+        #             print(node, key)
+        # print('done')
+
         path = oi.output_networkx_graph_as_graphml_for_cytoscape(self.augmented_forest, ".", filename="pcsf_results.graphml.gz")
         self.tmp_files.append(path)
 
-        # stat the file, assert it exists
+        # assert nx.read_graphml(path) == self.augmented_forest
+
         print("...pass")
 
 
     def test_output_networkx_graph_as_interactive_html(self):
-        print("test_output_networkx_graph_as_interactive_html", end='')
+        print("test_output_networkx_graph_as_interactive_html")
         path = oi.output_networkx_graph_as_interactive_html(self.augmented_forest, ".", filename="graph.html")
         self.tmp_files.append(path)
 
-        # stat the file, assert it exists
         print("...pass")
-
-
-
-
 
 
 
@@ -455,28 +456,28 @@ if __name__ == '__main__':
         test.test_pcsf_objective_value()
 
         ###  Randomziations
-        test.test_randomizations()
+        # test.test_randomizations()
 
         ###  Grid Search
-        test.test_grid_randomization()
-        test.test_grid_search()
+        # test.test_grid_randomization()
+        # test.test_grid_search()
 
         ###  Subgraph Augmentation
-        test.test_betweenness()
-        test.test_louvain_clustering()
-        test.test_k_clique_clustering()
-        test.test_spectral_clustering()
-        test.test_augment_with_all_GO_terms()
+        # test.test_betweenness()
+        # test.test_louvain_clustering()
+        # test.test_k_clique_clustering()
+        # test.test_spectral_clustering()
+        # test.test_annotate_graph_nodes()
 
         ###  Results
-        test.test_summarize_grid_search()
-        test.test_get_robust_subgraph_from_randomizations()
-        test.test_filter_graph_by_component_size()
+        # test.test_summarize_grid_search()
+        # test.test_get_robust_subgraph_from_randomizations()
+        # test.test_filter_graph_by_component_size()
 
         ###  Export
-        test.test_get_networkx_graph_as_dataframe_of_nodes()
-        test.test_get_networkx_graph_as_dataframe_of_edges()
-        test.test_output_networkx_graph_as_pickle()
+        # test.test_get_networkx_graph_as_dataframe_of_nodes()
+        # test.test_get_networkx_graph_as_dataframe_of_edges()
+        # test.test_output_networkx_graph_as_pickle()
         test.test_output_networkx_graph_as_graphml_for_cytoscape()
         test.test_output_networkx_graph_as_interactive_html()
 
