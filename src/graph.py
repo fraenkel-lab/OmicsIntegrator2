@@ -115,10 +115,18 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        defaults = {"w": 5, "b": 1, "g": 3, "noise": 0.1, "dummy_mode": "terminals", "seed": None, "skip_checks": False}
+        defaults = {"w": 5, "b": 1, "g": 3, "edge_noise": 0.1, "dummy_mode": "terminals", "seed": None, "skip_checks": False}
 
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
+
+        if not (isinstance(self.params.w, numbers.Number) && (self.params.w >= 0)): raise ValueError("parameter w must be a positive number. Was "+str(self.params.w))
+        if not (isinstance(self.params.b, numbers.Number) && (self.params.b >= 0)): raise ValueError("parameter b must be a positive number. Was "+str(self.params.b))
+        if not (isinstance(self.params.g, numbers.Number) && (self.params.g >= 0)): raise ValueError("parameter g must be a positive number. Was "+str(self.params.g))
+        if not (isinstance(self.params.edge_noise, numbers.Number) && (self.params.edge_noise >= 0)): raise ValueError("parameter edge_noise must be a positive number. Was "+str(self.params.edge_noise))
+        if not (self.params.dummy_mode in ['terminals', 'other', 'all']): raise ValueError("parameter dummy_mode must be one of 'terminals', 'other', or 'all'. Was "+str(self.params.dummy_mode))
+        if not (isinstance(self.params.seed, int)): raise ValueError("parameter seed must be a int. Was type "+str(type(self.params.seed)))
+        if not (isinstance(self.params.skip_checks, bool)): raise ValueError("parameter skip_checks must be a bool. Was type "+str(type(self.params.skip_checks)))
 
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
@@ -260,7 +268,7 @@ class Graph:
         if self.params.dummy_mode == 'terminals': endpoints = self.terminals
         elif self.params.dummy_mode == 'other': endpoints = others
         elif self.params.dummy_mode == 'all': endpoints = all
-        else: logger.critical("dummy_mode must be one of 'terminals', 'other', or 'all'"); raise ValueError("Improper input to PCSF")
+        else: raise ValueError("Improper input to PCSF: dummy_mode must be one of 'terminals', 'other', or 'all'")
 
         dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
 
@@ -348,13 +356,13 @@ class Graph:
 
     def _noisy_edges(self):
         """
-        Adds gaussian noise to all edge costs in the graph, modulated by parameter `noise`
+        Adds gaussian edge_noise to all edge costs in the graph, modulated by parameter `edge_noise`
 
         Returns:
-            numpy.array: edge weights with added gaussian noise
+            numpy.array: edge weights with added gaussian edge_noise
         """
 
-        return np.clip(np.random.normal(self.costs, self.params.noise), 0.0001, None)  # None means don't clip above
+        return np.clip(np.random.normal(self.costs, self.params.edge_noise), 0.0001, None)  # None means don't clip above
 
 
     def _random_terminals(self):

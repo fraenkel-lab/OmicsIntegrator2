@@ -73,7 +73,7 @@ class Test_Oi2(object):
 
     def test__reset_hyperparameters(self):
         print("test__reset_hyperparameters")
-        params = {"w":5, "b":2, "g":2, "noise":0.1, "dummy_mode":"terminals", "seed":0}
+        params = {"w":5, "b":2, "g":2, "edge_noise":0.1, "dummy_mode":"terminals", "seed":0, "skip_checks":False}
         self.graph._reset_hyperparameters(params)
 
         assert self.graph.params.w == params['w']
@@ -85,6 +85,30 @@ class Test_Oi2(object):
 
         assert hasattr(self.graph, "edge_penalties")
         assert hasattr(self.graph, "costs")
+
+        reset = self.graph._reset_hyperparameters
+
+        with pytest.raises(ValueError): reset({'w': -1})
+        with pytest.raises(ValueError): reset({'w': "1"})
+
+        with pytest.raises(ValueError): reset({'b': -1})
+        with pytest.raises(ValueError): reset({'b': "1"})
+
+        with pytest.raises(ValueError): reset({'g': -1})
+        with pytest.raises(ValueError): reset({'g': "1"})
+
+        with pytest.raises(ValueError): reset({'edge_noise': -1})
+        with pytest.raises(ValueError): reset({'edge_noise': "1"})
+
+        with pytest.raises(ValueError): reset({'dummy_mode': -1})
+        with pytest.raises(ValueError): reset({'dummy_mode': "1"})
+        with pytest.raises(ValueError): reset({'dummy_mode': " all"})
+
+        with pytest.raises(ValueError): reset({'seed': [1]})
+        with pytest.raises(ValueError): reset({'seed': "1"})
+
+        with pytest.raises(ValueError): reset({'skip_checks': 1})
+        with pytest.raises(ValueError): reset({'skip_checks': "True"})
 
         print("...pass")
 

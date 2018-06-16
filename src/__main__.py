@@ -42,7 +42,7 @@ pcsf_params.add_argument("-b", dest="b", nargs="*", type=float, required=False, 
     help="Beta: scaling factor of prizes [default: 1]")
 pcsf_params.add_argument("-g", dest="g", nargs="*", type=float, required=False, default=20,
     help="Gamma: multiplicative edge penalty from degree of endpoints [default: 20]")
-pcsf_params.add_argument("-noise", dest="noise", type=float, required=False, default=0.1,
+pcsf_params.add_argument("-noise", dest="edge_noise", type=float, required=False, default=0.1,
     help="Standard Deviation of the gaussian noise added to edges in Noisy Edges Randomizations [default: 0.1]")
 pcsf_params.add_argument("--noisy_edges", dest='noisy_edges_repetitions', type=int, default=0,
     help='An integer specifying how many times you would like to add noise to the given edge values and re-run the algorithm. Results of these runs will be merged together and written in files with the word "_noisy_edges_" added to their names. The noise level can be controlled using the configuration file. [default: 0]')
@@ -63,7 +63,7 @@ def main():
 
     args = parser.parse_args()
 
-    params = {"w":args.w, "b":args.b, "g":args.g, "noise":args.noise, "dummy_mode":args.dummy_mode, "seed":args.seed,
+    params = {"w":args.w, "b":args.b, "g":args.g, "edge_noise":args.edge_noise, "dummy_mode":args.dummy_mode, "seed":args.seed,
               "noisy_edges_repetitions": args.noisy_edges_repetitions, "random_terminals_repetitions": args.random_terminals_repetitions}
 
     params = {param: value for param, value in params.items() if value is not None}
