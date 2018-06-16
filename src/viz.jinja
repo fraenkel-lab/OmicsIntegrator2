@@ -147,10 +147,9 @@ var max_confidence = 1;
 
 var color = {'prize': d3.scaleLinear().domain([0, {{numerical_node_attributes['prize'].1}}]).range(["white", "red"]),
              'degree': d3.scaleLinear().domain([0, {{numerical_node_attributes['degree'].1}}]).range(["lightblue", "red"]),
-             'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}}]).range(["purple", "orange"]),
+             'betweenness': d3.scaleLinear().domain([0, {{numerical_node_attributes['betweenness'].1}} ]).range(["purple", "orange"]),
              {% for attribute_name, (min, max) in numerical_node_attributes.items() if attribute_name not in ["prize","degree","betweenness"] %}
-             '{{attribute_name}}':d3.scaleLinear().domain([{{min}}, {{max}}]).range(["blue","red"]),
-             {% endfor %}
+             '{{attribute_name}}':d3.scaleLinear().domain([ {{min}} , {{max}} ]).range(["blue","red"]),{% endfor %}
             };
 
 var group_color = d3.scaleOrdinal(d3.schemePastel1);
@@ -197,9 +196,9 @@ var max_stroke = 16;
 var max_base_node_size = 36;
 var min_zoom = 0.2;
 var max_zoom = 7;
-var group_boundary_margin = 40;
+var group_boundary_margin = 32;
 var group_compactness = 0.000001;
-var group_padding = 16;
+var group_padding = 8;
 
 var tocolor = "fill";
 var towhite = "stroke";
@@ -247,7 +246,10 @@ var groups = {
     {% for attribute_name in non_numerical_node_attributes %}"{{attribute_name}}": {},{% endfor %}
 };
 
-if ("location" in groups) {groups['location']['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[], 'padding':group_padding}}
+if ("location" in groups) {
+    groups.location['plasma_membrane'] = {'id':"plasma_membrane", 'leaves':[], 'groups':[], 'padding':group_padding}
+    groups.location['cytoplasm'] = {'id':"cytoplasm", 'leaves':[], 'groups':[], 'padding':group_padding}
+}
 
 
 graph.nodes.forEach(function (v, i) {
@@ -259,24 +261,29 @@ graph.nodes.forEach(function (v, i) {
     });
 });
 
-if ("location" in groups) { delete groups['location']['extracellular']; }
+if ("location" in groups) { delete groups.location['extracellular']; }
 
 Object.keys(groups).forEach(function (key) {
     groups[key] = Object.values(groups[key])
 });
 
 if ("location" in groups) {
-    var cytoplasm_index = _(groups['location']).findIndex(function(location){return location['id']==='cytoplasm'})
-    _(groups['location']).each(function(location, i){if (i !== cytoplasm_index){groups['location'][cytoplasm_index]['groups'].push(i)}});
+    var cytoplasm_index = _(groups.location).findIndex(function(location){return location.id==='cytoplasm'})
+    _(groups.location).each(function(location, i){if (location.id !== 'cytoplasm' && location.id !== 'plasma_membrane'){groups.location[cytoplasm_index]['groups'].push(i)}});
+
+    var plasma_membrane_index = _(groups.location).findIndex(function(location){return location.id==='plasma_membrane'})
+    groups.location[plasma_membrane_index]['groups'].push(cytoplasm_index)
+
+    _(groups.location).each(function (g) {g.padding = g.id === 'plasma_membrane' ? 0 : group_padding * (g.groups.length + 1);});
+
 }
 
 graph.nodes.forEach(function (n) {
     n.height = n.width = group_boundary_margin;
 });
 
-groups['location'].forEach(function (g) {
-    g.padding = group_padding * (g.groups.length + 1);
-});
+// function padding(group) {}
+
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -311,12 +318,12 @@ var node = g.selectAll(".node")
             .attr("d",d => display_type(d.type))
             // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
             .style(tocolor, function(d) {
-                if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
+                if (isNumber(d[colorBy])) { return color[colorBy](d[colorBy]); }
                 else { return default_node_color; }
             })
             .style("stroke-width", default_stroke_width)
             .style(towhite, "white")
-            .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
+            // .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
             .call(cola.drag);
 
 
@@ -337,7 +344,7 @@ if (text_center) {
 
 function recolor() {
     node.style(tocolor, function(d) {
-        if (isNumber(d[colorBy]) && d[colorBy] >= 0) { return color[colorBy](d[colorBy]); }
+        if (isNumber(d[colorBy])) { return color[colorBy](d[colorBy]); }
         else { return default_node_color; }
     });
 }
@@ -383,7 +390,7 @@ function restart() {
                      // .attr('rx',30)
                      // .attr('ry',30)
                      .style("fill", function (d) { return group_color(d.id); })
-                     .style("opacity", function (d) { return 1/d.groups.length; })
+                     .style("opacity", 0.7)
                      // .style("stroke", function (d) { return group_color(d.id); })
                      // .style("stroke-width", function (d) { return 20; })
                      // .style("stroke-dasharray", function (d) { return "5, 5"; })
@@ -529,7 +536,7 @@ function remove_focus() {
     node.style("opacity", 1);
     text.style("opacity", 1);
     link.style("opacity", edge_opacity);
-    group.style("opacity", 1);
+    group.style("opacity", 0.6);
     label.style("opacity", 1);
     if (highlight_node === null) { remove_highlight(); }
 }
@@ -648,17 +655,17 @@ svg.select(".betweennessLegend").style("opacity",0);
 {% for attribute_name, (min, max) in numerical_node_attributes.items() if attribute_name not in ["prize","degree","betweenness"] %}
 
 svg.append("g")
-   .attr("class", "legendLinear {{attribute_name}}Legend")
+   .attr("class", 'legendLinear {{ attribute_name | replace("()[]_- ", "") }}Legend')
    .attr("transform", "translate(20,20)");
 
-var {{attribute_name}}Legend = d3.legendColor()
+var {{ attribute_name | replace("()[]_- ", "") }}Legend = d3.legendColor()
                      .shapeWidth(30)
                      .orient('vertical')
-                     .scale(color['{{attribute_name}}'])
-                     .title("{{attribute_name}}");
+                     .scale(color["{{ attribute_name}}"])
+                     .title("{{ attribute_name}}");
 
-svg.select(".{{attribute_name}}Legend").call({{attribute_name}}Legend)
-svg.select(".{{attribute_name}}Legend").style("opacity",0);
+svg.select('.{{ attribute_name | replace("()[]_- ", "") }}Legend').call({{ attribute_name | replace("()[]_- ", "") }}Legend)
+svg.select('.{{ attribute_name | replace("()[]_- ", "") }}Legend').style("opacity",0);
 
 {% endfor %}
 
@@ -699,7 +706,6 @@ svg.select(".legendSymbol").call(legendPath);
 /////////////////////////////////////////////////////////////////////////////
 
 d3.select("#download").on("click", function() {
-    console.log(d3.select("#graph-container").html());
     d3.select(this)
       .attr("href", 'data:application/octet-stream;base64,' + btoa(unescape(encodeURIComponent(d3.select("#graph-container").html()))))
       .attr("download", "interactome.svg")
