@@ -71,7 +71,7 @@ def gslr_macro(graph, dataset, sparsity_low=100, sparsity_high=200, num_steps=25
         # Post-processing
         betweenness(network)
         louvain_clustering(network)
-        augment_with_subcellular_localization(network)
+        annotate_graph_nodes(network)
 
         class_networks.append(network)
 

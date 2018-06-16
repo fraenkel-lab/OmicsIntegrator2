@@ -639,9 +639,9 @@ def annotate_graph_nodes(nxgraph):
     """
 
     try:
-        annotation = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
+        annotation = pd.read_pickle(get_path('OmicsIntegrator', 'annotation/subcellular.pickle'))
     except:
-        annotation = pd.read_pickle(Path.cwd().parent / 'subcellular' / 'subcellular.pickle')
+        annotation = pd.read_pickle(Path.cwd().parent / 'annotation' / 'subcellular.pickle')
 
     nx.set_node_attributes(nxgraph, annotation.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 
