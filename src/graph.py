@@ -812,6 +812,11 @@ def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="gra
     templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
     templateEnv = jinja2.Environment(loader=templateLoader)
 
+    try:
+        vizjinja = get_path('OmicsIntegrator', 'viz.jinja')
+    except:
+        # maybe need os.path.realpath(__file__)
+        vizjinja = os.path.dirname(os.path.realpath(__file__)) + '/viz.jinja'
 
     graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
 
