@@ -115,18 +115,12 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        defaults = {"w": 5, "b": 1, "g": 3, "edge_noise": 0.1, "dummy_mode": "terminals", "seed": None, "skip_checks": False}
+        defaults = {"w": 5, "b": 1, "g": 3, "edge_noise": 0.1, "dummy_mode": "terminals", "seed": 0, "skip_checks": False}
 
         # Overwrite the defaults with any user-specified parameters.
         self.params = Options({**defaults, **params})
 
-        if not (isinstance(self.params.w, numbers.Number) && (self.params.w >= 0)): raise ValueError("parameter w must be a positive number. Was "+str(self.params.w))
-        if not (isinstance(self.params.b, numbers.Number) && (self.params.b >= 0)): raise ValueError("parameter b must be a positive number. Was "+str(self.params.b))
-        if not (isinstance(self.params.g, numbers.Number) && (self.params.g >= 0)): raise ValueError("parameter g must be a positive number. Was "+str(self.params.g))
-        if not (isinstance(self.params.edge_noise, numbers.Number) && (self.params.edge_noise >= 0)): raise ValueError("parameter edge_noise must be a positive number. Was "+str(self.params.edge_noise))
-        if not (self.params.dummy_mode in ['terminals', 'other', 'all']): raise ValueError("parameter dummy_mode must be one of 'terminals', 'other', or 'all'. Was "+str(self.params.dummy_mode))
-        if not (isinstance(self.params.seed, int)): raise ValueError("parameter seed must be a int. Was type "+str(type(self.params.seed)))
-        if not (isinstance(self.params.skip_checks, bool)): raise ValueError("parameter skip_checks must be a bool. Was type "+str(type(self.params.skip_checks)))
+        if not self.params.skip_checks: self._check_validity_of_hyperparameters()
 
         # Add costs to each edge, proportional to the degrees of the nodes it connects, modulated by parameter g.
         N = len(self.nodes)
@@ -138,6 +132,19 @@ class Graph:
         # If this instance of graph has bare_prizes set, then presumably resetting the
         # hyperparameters should also reset the scaled prizes
         if hasattr(self, "bare_prizes"): self.prizes = self.bare_prizes * self.params.b
+
+
+    def _check_validity_of_hyperparameters(self):
+        """
+        Assert that the hyperparameters passed to this program are valid, otherwise raise helpful error messages.
+        """
+
+        if not (isinstance(self.params.w, numbers.Number) and (self.params.w >= 0)): raise ValueError("parameter w must be a positive number. Was "+str(self.params.w))
+        if not (isinstance(self.params.b, numbers.Number) and (self.params.b >= 0)): raise ValueError("parameter b must be a positive number. Was "+str(self.params.b))
+        if not (isinstance(self.params.g, numbers.Number) and (self.params.g >= 0)): raise ValueError("parameter g must be a positive number. Was "+str(self.params.g))
+        if not (isinstance(self.params.edge_noise, numbers.Number) and (self.params.edge_noise >= 0)): raise ValueError("parameter edge_noise must be a positive number. Was "+str(self.params.edge_noise))
+        if not (self.params.dummy_mode in ['terminals', 'other', 'all']): raise ValueError("parameter dummy_mode must be one of 'terminals', 'other', or 'all'. Was "+str(self.params.dummy_mode))
+        if not (isinstance(self.params.seed, int)): raise ValueError("parameter seed must be a int. Was type "+str(type(self.params.seed)))
 
 
     def prepare_prizes(self, prize_file):
@@ -214,7 +221,7 @@ class Graph:
 
     def _check_validity_of_instance(self, edges, prizes, costs, root, num_clusters, pruning, verbosity_level):
         """
-        Assert that the parammeters and files passed to this program are valid, log useful error messages otherwise.
+        Assert that the data passed to this program are valid, otherwise raise helpful error messages.
         """
 
         if not (isinstance(edges, np.ndarray)): raise ValueError("edges must be a numpy array, type was: "+str(type(edges)))
@@ -639,9 +646,9 @@ def annotate_graph_nodes(nxgraph):
     """
 
     try:
-        annotation = pd.read_pickle(get_path('OmicsIntegrator', 'subcellular_compartments/subcellular.pickle'))
+        annotation = pd.read_pickle(get_path('OmicsIntegrator', 'annotation/final_annotation.pickle'))
     except:
-        annotation = pd.read_pickle(Path.cwd().parent / 'subcellular' / 'subcellular.pickle')
+        annotation = pd.read_pickle(Path.cwd().parent / 'annotation' / 'final_annotation.pickle')
 
     nx.set_node_attributes(nxgraph, annotation.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
 

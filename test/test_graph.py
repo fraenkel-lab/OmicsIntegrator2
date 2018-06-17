@@ -73,19 +73,6 @@ class Test_Oi2(object):
 
     def test__reset_hyperparameters(self):
         print("test__reset_hyperparameters")
-        params = {"w":5, "b":2, "g":2, "edge_noise":0.1, "dummy_mode":"terminals", "seed":0, "skip_checks":False}
-        self.graph._reset_hyperparameters(params)
-
-        assert self.graph.params.w == params['w']
-        assert self.graph.params.b == params['b']
-        assert self.graph.params.g == params['g']
-        assert self.graph.params.noise == params['noise']
-        assert self.graph.params.dummy_mode == params['dummy_mode']
-        assert self.graph.params.seed == params['seed']
-
-        assert hasattr(self.graph, "edge_penalties")
-        assert hasattr(self.graph, "costs")
-
         reset = self.graph._reset_hyperparameters
 
         with pytest.raises(ValueError): reset({'w': -1})
@@ -107,8 +94,18 @@ class Test_Oi2(object):
         with pytest.raises(ValueError): reset({'seed': [1]})
         with pytest.raises(ValueError): reset({'seed': "1"})
 
-        with pytest.raises(ValueError): reset({'skip_checks': 1})
-        with pytest.raises(ValueError): reset({'skip_checks': "True"})
+        params = {"w":5, "b":2, "g":2, "edge_noise":0.1, "dummy_mode":"terminals", "seed":0, "skip_checks":False}
+        reset(params)
+
+        assert self.graph.params.w == params['w']
+        assert self.graph.params.b == params['b']
+        assert self.graph.params.g == params['g']
+        assert self.graph.params.edge_noise == params['edge_noise']
+        assert self.graph.params.dummy_mode == params['dummy_mode']
+        assert self.graph.params.seed == params['seed']
+
+        assert hasattr(self.graph, "edge_penalties")
+        assert hasattr(self.graph, "costs")
 
         print("...pass")
 
