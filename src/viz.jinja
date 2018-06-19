@@ -219,7 +219,7 @@ cola.groupCompactness = group_compactness;
 /////////////////////////////////////////////////////////////////////////////
 
 var linked = {};
-graph.links.forEach(function(d) { linked[d.source_name + "," + d.target_name] = true; });
+graph.links.forEach(function(d) { linked[d.source + "," + d.target] = true; });
 
 function isConnected(a, b) {
     return linked[a.id + "," + b.id] || linked[b.id + "," + a.id] || a.id == b.id;

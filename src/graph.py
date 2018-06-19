@@ -22,7 +22,7 @@ from pkg_resources import resource_filename as get_path
 import numpy as np
 import pandas as pd
 import networkx as nx
-from networkx.readwrite import json_graph
+from networkx.readwrite import json_graph as nx_json
 import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
 import jinja2
@@ -780,7 +780,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir, filename="pcsf_results.
         output_dir (str): the directory in which to output the graph.
         filename (str): Filenames ending in .gz or .bz2 will be compressed.
     Returns:
-        str: filepath to output
+        Path: the filepath which was outputted to
     """
 
     path = Path(output_dir)
@@ -798,7 +798,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
         output_dir (str): the directory in which to output the graph.
         filename (str): Filenames ending in .gz or .bz2 will be compressed.
     Returns:
-        str: filepath to output
+        Path: the filepath which was outputted to
     """
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
@@ -808,53 +808,42 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir, filename
     return path
 
 
-class Encoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.int64):
-            return str(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
 def output_networkx_graph_as_interactive_html(nxgraph, output_dir, filename="graph.html"):
     """
     Arguments:
         nxgraph (networkx.Graph): any instance of networkx.Graph
         output_dir (str): the directory in which to output the file
+        filename (str): the filename of the output file
     Returns:
-        str: filepath to output
+        Path: the filepath which was outputted to
     """
 
     templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
     templateEnv = jinja2.Environment(loader=templateLoader)
 
-    try:
-        vizjinja = get_path('OmicsIntegrator', 'viz.jinja')
-    except:
-        # maybe need os.path.realpath(__file__)
-        vizjinja = os.path.dirname(os.path.realpath(__file__)) + '/viz.jinja'
+    graph_json = nx_json.node_link_data(nxgraph)
+    # Any hypothetical modifications to the graph JSON would occur here
+    graph_json = json.dumps(graph_json)
 
-    graph_json = json_graph.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
 
-    def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
-    graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
-    graph_json = json.dumps(graph_json, cls=Encoder)
+    # TODO booleans need to be lowercased or cast as ints
+    numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
+    non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
+    min_max = lambda l: (min([x for x in l if str(x) != 'nan']),max([x for x in l if str(x) != 'nan']))
+    numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
 
-    nodes = nxgraph.nodes()
 
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
     path = path / filename
 
-    if len(nodes) > 0:
-        # TODO booleans need to be lowercased or cast as ints
-        numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if isinstance(attribute_value, numbers.Number)] for node in nxgraph.node(data=True)]))
-        non_numerical_node_attributes = list(set().union(*[[attribute_key for attribute_key,attribute_value in node[1].items() if attribute_key not in numerical_node_attributes] for node in nxgraph.node(data=True)]))
-        min_max = lambda l: (min([x for x in l if str(x) != 'nan']),max([x for x in l if str(x) != 'nan']))
-        numerical_node_attributes = {attribute: min_max(nx.get_node_attributes(nxgraph, attribute).values()) for attribute in numerical_node_attributes}
+    html_output = templateEnv.get_template('viz.jinja').render(
+            graph_json=graph_json,
+            nodes=nodes,
+            numerical_node_attributes=numerical_node_attributes,
+            non_numerical_node_attributes=non_numerical_node_attributes)
 
-
-        html_output = templateEnv.get_template('viz.jinja').render(graph_json=graph_json, nodes=nodes, numerical_node_attributes=numerical_node_attributes, non_numerical_node_attributes=non_numerical_node_attributes)
-        path.write_text(html_output)
+    path.write_text(html_output)
 
     return path
 
