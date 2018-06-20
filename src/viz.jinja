@@ -183,6 +183,9 @@ var min_confidence = 0;
 var max_confidence = 1;
 var edge_width = d3.scaleLinear().domain([0, 1]).range([0.3, 3]).clamp(true);
 
+var colors20 = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477",
+                "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc",
+                "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
 var color = {
     {% for attribute_name, metadata in attributes.items() if metadata['display'] in ['color_scale'] %}
         '{{attribute_name}}':d3.scaleLinear().domain({{ metadata['domain'] }}).range({{ metadata['range'] }}).nice(),
@@ -191,7 +194,7 @@ var color = {
         '{{attribute_name}}': d3.scaleOrdinal(d3.schemePastel1),
     {% endfor %}
     {% for attribute_name, metadata in attributes.items() if metadata['display'] in ['color_category'] %}
-        '{{attribute_name}}': d3.scaleOrdinal(d3.schemeCategory10),
+        '{{attribute_name}}': d3.scaleOrdinal(colors20),
     {% endfor %}
 };
 
@@ -213,6 +216,7 @@ var shapes = svg.append("g")
                 .attr("class", "legend_Symbol")
                 .attr("transform", "translate(20, 20)")
                 .style("stroke", "black")
+                .attr("font-family", "sans-serif")
                 .call(d3.legendSymbol()
                         .scale(display_type)
                         .orient("vertical")
@@ -223,6 +227,7 @@ var colors = svg.append("g")
                 .attr("class", 'legendLinear color_Legend')
                 .attr("transform", "translate(20,340)")
                 .style("stroke", "black")
+                .attr("font-family", "sans-serif")
                 .call(d3.legendColor()
                         .shapeWidth(30)
                         .orient('vertical')
@@ -234,6 +239,7 @@ var widths = svg.append("g")
                 .attr("class", "legendSizeLine")
                 .attr("transform", "translate(20, 160)")
                 .style("stroke", "black")
+                .attr("font-family", "sans-serif")
                 .call(d3.legendSize()
                         .scale(edge_width)
                         .shape("line")
@@ -314,25 +320,8 @@ graph.nodes.forEach(function (n) {
 
 
 /////////////////////////////////////////////////////////////////////////////
-                      ///////    Draw Graph    ///////
+                      ///////    Setup Graph    ///////
 /////////////////////////////////////////////////////////////////////////////
-
-
-var group = g.selectAll('.group')
-
-var label = g.selectAll(".label")
-
-var link = g.selectAll(".link")
-            .data(graph.links)
-            .enter().append("line")
-            .attr("class", "link")
-            .style("stroke-width", function(d) {
-                if (isNumber(d.cost) && d.cost >= 0) { return edge_width(1-d.cost); }
-                else { return default_stroke_width; }
-            })
-            .style("stroke", default_link_color)
-            .style("opacity", edge_opacity);
-
 
 var node = g.selectAll(".node")
             .data(graph.nodes)
@@ -341,7 +330,7 @@ var node = g.selectAll(".node")
             .attr("id", d => d.id)
             .attr("d", d => display_type(d.type))
             // .size(function(d) { return Math.PI * Math.pow(size(d.size) || nominal_base_node_size, 2); })
-            .style(tocolor, d => color[colorBy](d[colorBy]))
+            .style(tocolor, (d) => (d[colorBy] ? color[colorBy](d[colorBy]) : default_node_color) )
             .style("stroke-width", default_stroke_width)
             .style(towhite, "white")
             .on("mouseover", (d) => set_highlight(d)).on("mouseout", (d) => remove_highlight());
@@ -350,40 +339,24 @@ node.call(cola.drag);
 // node.on("mousedown", (d) => set_focus(d));
 // node.on("mouseup", (d) => remove_focus(d));
 
-
 var text = g.selectAll(".text")
             .data(graph.nodes)
             .enter().append("text")
             .attr("dy", ".35em")
             .style("font-size", nominal_text_size + "px")
-            .attr("font-family", "sans-serif");
+            .attr("font-family", "sans-serif")
+            .text((d) => (text_center ? d.id : '\u2002' + d.id))
+            .style("text-anchor", (d) => (text_center ? "middle" : "inherit") )
+            .attr("dx", (d) => (text_center ? 0 : (size(d.size) || nominal_base_node_size)) );
 
-if (text_center) {
-    text.text(function(d) { return d.id; })
-        .style("text-anchor", "middle");
-} else {
-    text.attr("dx", function(d) { return (size(d.size) || nominal_base_node_size); })
-        .text(function(d) { return '\u2002' + d.id; });
-}
 
-function recolor() {
-    node.style(tocolor, (d) => (color[colorBy](d[colorBy]) || default_node_color) );
-
-    colors.remove()
-    colors = svg.append("g")
-                .attr("class", 'legendLinear color_Legend')
-                .attr("transform", "translate(20,340)")
-                .style("stroke", "black")
-                .call(d3.legendColor()
-                        .shapeWidth(30)
-                        .orient('vertical')
-                        .scale(color[colorBy])
-                        .title(colorBy));
-}
+var link = g.selectAll(".link");
+var group = g.selectAll('.group');
+var label = g.selectAll(".label");
 
 
 /////////////////////////////////////////////////////////////////////////////
-                  ///////    Force    ///////
+                    ///////    Re-Draw Graph    ///////
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -435,7 +408,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
-            // .links(turnForceOff ? [] : links)
+            // .links(turnForceOff ? [] : links)  # TODO
             .groups(groups[groupBy])
             .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
@@ -451,7 +424,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
-            // .links(turnForceOff ? [] : links)
+            // .links(turnForceOff ? [] : links)  # TODO
             .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
@@ -482,6 +455,22 @@ function restart() {
     });
 }
 
+function recolor() {
+    node.style(tocolor, (d) => (d[colorBy] ? color[colorBy](d[colorBy]) : default_node_color) );
+
+    colors.remove()
+    colors = svg.append("g")
+                .attr("class", 'legendLinear color_Legend')
+                .attr("transform", "translate(20,340)")
+                .style("stroke", "black")
+                .attr("font-family", "sans-serif")
+                .call(d3.legendColor()
+                        .shapeWidth(30)
+                        .orient('vertical')
+                        .scale(color[colorBy])
+                        .title(colorBy));
+}
+
 restart();
 recolor();
 
@@ -493,17 +482,9 @@ recolor();
 function set_highlight(d) {
     svg.style("cursor", "pointer");
 
-    if (highlight_color != "white") {
-        node.style(towhite, function(o) {
-            return isConnected(d, o) ? highlight_color : "white";
-        });
-        text.style("font-weight", function(o) {
-            return isConnected(d, o) ? "bold" : "normal";
-        });
-        link.style("stroke", function(o) {
-            return o.source.index == d.index || o.target.index == d.index ? highlight_color : ((isNumber(o.score) && o.score >= 0) ? color[colorBy](o.score) : default_link_color);
-        });
-    }
+    node.style(towhite, (o) => (isConnected(d, o) ? highlight_color : "white"));
+    text.style("font-weight", (o) => (isConnected(d, o) ? "bold" : "normal"));
+    link.style("stroke", (o) => (o.source.index == d.index || o.target.index == d.index ? highlight_color : default_link_color));
 }
 
 function remove_highlight() {
@@ -526,11 +507,11 @@ function set_focus(d) {
     focus_node = d3.select(this);
     // console.log('set_focus');
     if (highlight_trans < 1) {
-        node.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
-        text.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
-        link.style("opacity", function(o) { return o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans; });
-        group.style("opacity", function(o) { return highlight_trans * 2 });
-        label.style("opacity", function(o) { return highlight_trans * 2 });
+        node.style("opacity", (o) => (isConnected(d, o) ? 1 : highlight_trans));
+        text.style("opacity", (o) => (isConnected(d, o) ? 1 : highlight_trans));
+        link.style("opacity", (o) => (o.source.index == d.index || o.target.index == d.index ? 1 : highlight_trans));
+        group.style("opacity", (o) => (highlight_trans * 2));
+        label.style("opacity", (o) => (highlight_trans * 2));
     }
 }
 
