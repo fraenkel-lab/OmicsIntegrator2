@@ -64,7 +64,7 @@
             <label for="show_only_solution_edges">Only show PCSF solution edges</label>
         </div>
 
-        <!-- Which edges -->
+        <!-- Turn Force Off -->
 <!--         <div>
             <input type="checkbox" id="turnForceOff" name="turnForceOff" value="turnForceOff">
             <label for="turnForceOff">Turn Off Force</label>
@@ -138,7 +138,6 @@ var h = window.innerHeight;
 var graph = {{ graph_json|safe }}
 
 var focus_node = null;
-var highlight_node = null;
 
 var show_only_solution_edges = false;
 var repulsion_strength = 100;
@@ -182,7 +181,7 @@ cola.groupCompactness = group_compactness;
 
 var min_confidence = 0;
 var max_confidence = 1;
-var width = d3.scaleLinear().domain([min_confidence, max_confidence]).range([0.2, 2]);
+var edge_width = d3.scaleLinear().domain([0, 1]).range([0.3, 3]).clamp(true);
 
 var color = {
     {% for attribute_name, metadata in attributes.items() if metadata['display'] in ['color_scale'] %}
@@ -213,33 +212,36 @@ var size = d3.scalePow().exponent(1).domain([1, 100]).range([8, 24]);
 var shapes = svg.append("g")
                 .attr("class", "legend_Symbol")
                 .attr("transform", "translate(20, 20)")
+                .style("stroke", "black")
                 .call(d3.legendSymbol()
                         .scale(display_type)
                         .orient("vertical")
-                        .title("Node Types"));
+                        .title("Node Type"));
 
 // COLOR LEGEND
 var colors = svg.append("g")
                 .attr("class", 'legendLinear color_Legend')
-                .attr("transform", "translate(20,140)")
+                .attr("transform", "translate(20,340)")
+                .style("stroke", "black")
                 .call(d3.legendColor()
                         .shapeWidth(30)
                         .orient('vertical')
                         .scale(color[colorBy])
                         .title(colorBy));
 
-// SIZE LEGEND
-// var sizes = svg.append("g")
-//                 .attr("class", "legendSizeLine")
-//                 .attr("transform", "translate(20, 500)")
-//                 .call(d3.legendSize()
-//                         .scale(width)
-//                         .shape("line")
-//                         .orient("vertical")
-//                         // .labels(["tiny", "small", "medium", "large", "huge"])
-//                         .shapeWidth(40)
-//                         .labelAlign("start")
-//                         .shapePadding(10))
+// WIDTH LEGEND
+var widths = svg.append("g")
+                .attr("class", "legendSizeLine")
+                .attr("transform", "translate(20, 160)")
+                .style("stroke", "black")
+                .call(d3.legendSize()
+                        .scale(edge_width)
+                        .shape("line")
+                        .orient("vertical")
+                        .shapeWidth(40)
+                        .labelAlign("start")
+                        .shapePadding(10)
+                        .title("Confidence"));
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -325,7 +327,7 @@ var link = g.selectAll(".link")
             .enter().append("line")
             .attr("class", "link")
             .style("stroke-width", function(d) {
-                if (isNumber(d.cost) && d.cost >= 0) { return width(1-d.cost); }
+                if (isNumber(d.cost) && d.cost >= 0) { return edge_width(1-d.cost); }
                 else { return default_stroke_width; }
             })
             .style("stroke", default_link_color)
@@ -342,8 +344,11 @@ var node = g.selectAll(".node")
             .style(tocolor, d => color[colorBy](d[colorBy]))
             .style("stroke-width", default_stroke_width)
             .style(towhite, "white")
-            // .on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); })
-            .call(cola.drag);
+            .on("mouseover", (d) => set_highlight(d)).on("mouseout", (d) => remove_highlight());
+
+node.call(cola.drag);
+// node.on("mousedown", (d) => set_focus(d));
+// node.on("mouseup", (d) => remove_focus(d));
 
 
 var text = g.selectAll(".text")
@@ -367,13 +372,15 @@ function recolor() {
     colors.remove()
     colors = svg.append("g")
                 .attr("class", 'legendLinear color_Legend')
-                .attr("transform", "translate(20,140)")
+                .attr("transform", "translate(20,340)")
+                .style("stroke", "black")
                 .call(d3.legendColor()
                         .shapeWidth(30)
                         .orient('vertical')
                         .scale(color[colorBy])
                         .title(colorBy));
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
                   ///////    Force    ///////
@@ -393,7 +400,7 @@ function restart() {
                .insert("line", ".node") // insert before "node" so that nodes show up on top
                .attr("class", "link")
                .style("stroke-width", function(d) {
-                   if (isNumber(d.cost) && d.cost >= 0) { return width(1-d.cost); }
+                   if (isNumber(d.cost) && d.cost >= 0) { return edge_width(1-d.cost); }
                    else { return default_stroke_width; }
                })
                .style("stroke", function(d) {
@@ -428,6 +435,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
+            // .links(turnForceOff ? [] : links)
             .groups(groups[groupBy])
             .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
@@ -443,6 +451,7 @@ function restart() {
 
         cola.nodes(graph.nodes)
             .links(links)
+            // .links(turnForceOff ? [] : links)
             .jaccardLinkLengths(repulsion_strength, 0.7)
             .avoidOverlaps(true)
             .start(50, 0, 50);
@@ -450,25 +459,25 @@ function restart() {
 
     cola.on('tick', function () {
 
-        node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-        text.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        node.attr("transform", (d) => "translate(" + d.x + "," + d.y + ")" );
+        text.attr("transform", (d) => "translate(" + d.x + "," + d.y + ")" );
 
-        link.attr("x1", function (d) { return d.source.x; })
-            .attr("y1", function (d) { return d.source.y; })
-            .attr("x2", function (d) { return d.target.x; })
-            .attr("y2", function (d) { return d.target.y; });
+        link.attr("x1", (d) => d.source.x )
+            .attr("y1", (d) => d.source.y )
+            .attr("x2", (d) => d.target.x )
+            .attr("y2", (d) => d.target.y );
 
-        node.attr("cx", function (d) { return d.x; })
-            .attr("cy", function (d) { return d.y; });
+        node.attr("cx", (d) => d.x )
+            .attr("cy", (d) => d.y );
 
         if (groupBy) {
-            group.attr('x', function (d) { return d.bounds.x + d.padding / 2; })
-                 .attr('y', function (d) { return d.bounds.y + d.padding / 2; })
-                 .attr('width', function (d) { return d.bounds.width() - d.padding ; })
-                 .attr('height', function(d) { return d.bounds.height() - d.padding ; });
+            group.attr('x', (d) => d.bounds.x + d.padding / 2 )
+                 .attr('y', (d) => d.bounds.y + d.padding / 2 )
+                 .attr('width', (d) => d.bounds.width() - d.padding )
+                 .attr('height',(d) => d.bounds.height() - d.padding );
 
-            label.attr("x", function (d) { return d.bounds.x + d.padding / 2; })
-                 .attr("y", function (d) { return d.bounds.y + d.padding / 2; });
+            label.attr("x", (d) => d.bounds.x + d.padding / 2 )
+                 .attr("y", (d) => d.bounds.y + d.padding / 2 );
         }
     });
 }
@@ -476,23 +485,10 @@ function restart() {
 restart();
 recolor();
 
-/////////////////////////////////////////////////////////////////////////////
-                      ///////    Zoom    ///////
-/////////////////////////////////////////////////////////////////////////////
-
-
-svg.call(d3.zoom()
-           .scaleExtent([1 / 2, 8])
-           .on("zoom", zoomed));
-
-function zoomed() { g.attr("transform", d3.event.transform); }
-
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Highlight    ///////
 /////////////////////////////////////////////////////////////////////////////
-
-node.on("mouseover", function(d) { set_highlight(d); }).on("mouseout", function(d) { remove_highlight(); });
 
 function set_highlight(d) {
     svg.style("cursor", "pointer");
@@ -511,21 +507,24 @@ function set_highlight(d) {
 }
 
 function remove_highlight() {
-    node.style(towhite, "white");
-    text.style("font-weight", "normal");
-    link.style("stroke", default_link_color);
+    if (focus_node===null) {
+        node.style(towhite, "white");
+        text.style("font-weight", "normal");
+        link.style("stroke", default_link_color);
+    }
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
                       ///////    Focus    ///////
 /////////////////////////////////////////////////////////////////////////////
 
-// node.on("mousedown", function(d) { set_focus(d); }).on("mouseup", function(d) { remove_focus(d); }) // wait until I hear back
-
 node.on("click", function(d) { if (shiftKey) {shiftKey = false; window.open("http://www.genecards.org/cgi-bin/carddisp.pl?gene="+d.id);} });
 
 function set_focus(d) {
-    // d3.event.stopPropagation();
+    d3.event.stopPropagation();
+    focus_node = d3.select(this);
+    // console.log('set_focus');
     if (highlight_trans < 1) {
         node.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
         text.style("opacity", function(o) { return isConnected(d, o) ? 1 : highlight_trans; });
@@ -536,7 +535,9 @@ function set_focus(d) {
 }
 
 function remove_focus() {
-    // d3.event.stopPropagation();
+    focus_node = null;
+    // console.log('remove_focus');
+    d3.event.stopPropagation();
     node.style("opacity", 1);
     text.style("opacity", 1);
     link.style("opacity", edge_opacity);
@@ -552,8 +553,15 @@ function keypress() { shiftKey = d3.event.shiftKey || d3.event.metaKey; }
 d3.select("body").on("keydown", keypress).on("keyup", keypress);
 
 /////////////////////////////////////////////////////////////////////////////
-                      ///////    Resize    ///////
+                    ///////   Zoom & Resize    ///////
 /////////////////////////////////////////////////////////////////////////////
+
+svg.call(d3.zoom()
+           .scaleExtent([1 / 2, 8])
+           .on("zoom", zoomed));
+
+function zoomed() { g.attr("transform", d3.event.transform); }
+
 
 function resize() {
     w = window.innerWidth;
