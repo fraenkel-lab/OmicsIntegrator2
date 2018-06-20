@@ -788,7 +788,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir=".", filename="pcsf_resu
     path = path / filename
     nx.write_gpickle(nxgraph, open(path, 'wb'))
 
-    return path
+    return path.absolute()
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", filename="pcsf_results.graphml.gz"):
@@ -805,7 +805,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", file
     path = path / filename
     nx.write_graphml(nxgraph, path)
 
-    return path
+    return path.absolute()
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict(), output_dir=".", filename="graph.html"):
@@ -824,7 +824,6 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
     graph_json = nx_json.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
     def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
     graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
-    # Any hypothetical modifications to the graph JSON would occur here
     graph_json = json.dumps(graph_json)
 
     # TODO comment
@@ -836,15 +835,16 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
 
     # construct default attribute metadata
     default_attribute_metadata = {
-        'prize'             : {'display': 'color_scale', 'domain': f'[0, {max_prize}]', 'range': '["white", "red"]'},
+        'prize'             : {'display': 'color_scale', 'domain': f'[0, {1e-10}, {max_prize}]', 'range': '["lightgrey", "white", "red"]'},
         'degree'            : {'display': 'color_scale', 'domain': f'[0, {max_degree}]', 'range': '["lightblue", "red"]'},
         'betweenness'       : {'display': 'color_scale', 'domain': f'[0, {max_betweenness}]', 'range': '["purple", "orange"]'},
-        'terminal'          : {'display': 'color_scale', 'domain':  '["False","True"]', 'range': '["grey", "orange"]'},
+        'terminal'          : {'display': 'color_scale', 'domain':  '[false, true]', 'range': '["grey", "orange"]'},
 
-        'louvainClusters'   : {'display': 'box' },
+        'type'              : {'display': 'shape' },
+        'louvain_clusters'  : {'display': 'box' },
         'location'          : {'display': 'box' },
-        'general_function'  : {'display': 'color_category'},
-        'specific_function' : {'display': 'color_category'},
+        'general_function'  : {'display': 'color_category' },
+        'specific_function' : {'display': 'color_category' },
         'general_process'   : {'display': 'box' },
         'specific_process'  : {'display': 'box' },
     }
@@ -857,13 +857,9 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
 
     for attr in unaccounted_for_attributes:
         logger.info(f'Inferring display parameters for {attr}')
-        values = list(nx.get_node_attributes(nxgraph, attr).values())
+        values = pd.Series(list(nx.get_node_attributes(nxgraph, attr).values())).dropna()
 
         if all([isinstance(value, numbers.Number) for value in values]):
-
-            logger.info(type(min(values)))
-            logger.info(min(values))
-            logger.info(min(values) < 0)
             if min(values) < 0:
                 inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},0,{max(values)}]', 'range':'["blue","white","red"]'}
             elif 0 <= min(values) < 0.1:
@@ -872,7 +868,10 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
                 inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},{max(values)}]', 'range':'["purple","orange"]'}
 
         else:
-            inferred_attribute_metadata[attr] = {'display': 'color_category'}
+            if '_clusters' in attr:
+                inferred_attribute_metadata[attr] = {'display': 'box' }
+            else:
+                inferred_attribute_metadata[attr] = {'display': 'color_category' }
 
     # TODO comment
     attribute_metadata = {**default_attribute_metadata, **inferred_attribute_metadata, **attribute_metadata}
@@ -894,5 +893,5 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
 
     path.write_text(html_output)
 
-    return path
+    return path.absolute()
 

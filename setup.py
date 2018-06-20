@@ -4,7 +4,7 @@ setup(
     name='OmicsIntegrator',
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
-    package_data={'OmicsIntegrator': ['subcellular/subcellular.pickle', 'src/viz.jinja', 'viz.jinja']},
+    package_data={'OmicsIntegrator': ['annotation/final_annotation.pickle', 'src/viz.jinja', 'viz.jinja']},
     version='2.1.0',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
@@ -17,7 +17,7 @@ setup(
     install_requires=[
         "numpy",
         "pandas==0.21.0",
-        "networkx==2.0",
+        "networkx==2.1",
         "pcst_fast",
         "python-louvain",
         "goenrich",
