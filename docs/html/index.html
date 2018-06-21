@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>OmicsIntegrator2 &mdash; OmicsIntegrator2 2.0 documentation</title>
+  <title>OmicsIntegrator2 &mdash; OmicsIntegrator2 2.2.0 documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="genindex.html"/>
         <link rel="search" title="Search" href="search.html"/>
-    <link rel="top" title="OmicsIntegrator2 2.0 documentation" href="#"/> 
+    <link rel="top" title="OmicsIntegrator2 2.2.0 documentation" href="#"/> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                2.0
+                2.2.0
               </div>
             
           
@@ -189,6 +189,128 @@ package, which approximately minimizes the Prize-Collecting Steiner Forest objec
 </dd></dl>
 
 <dl class="method">
+<dt id="graph.Graph.prepare_prizes">
+<code class="descname">prepare_prizes</code><span class="sig-paren">(</span><em>prize_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.prepare_prizes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.prepare_prizes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parses a prize file and adds prizes and other attributes to the graph object.</p>
+<p>The file passed to this function must have at least two columns: node name and prize.
+Any additional columns will be assumed to be node attributes. However, in order to know
+the names of those attributes, this function requires the input file to contain headers,
+i.e. the first row of the tsv must be the names of the columns.</p>
+<p>Sets the graph attributes
+- <cite>graph.bare_prizes</cite> (numpy.array): properly indexed (same as <cite>graph.nodes</cite>) prizes from the file.
+- <cite>graph.prizes</cite> (numpy.array): properly indexed prizes, scaled by beta (<cite>graph.params.b</cite>)
+- <cite>graph.terminals</cite> (numpy.array): their indices
+- <cite>graph.node_attributes</cite> (pandas.DataFrame) Any node attributes passed in with the prize file (columns 3, …)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prize_file</strong> (<em>str</em><em> or </em><em>FILE</em>) – a filepath or file object containing a tsv <strong>with column headers</strong>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.pcsf">
+<code class="descname">pcsf</code><span class="sig-paren">(</span><em>pruning='strong'</em>, <em>verbosity_level=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.</p>
+<p>This function mostly defers to pcst_fast, but does one important pre-processing step: it
+adds a dummy node which will serve as the PCSF root and connects that dummy node to either
+terminals, non-terminals, or all other nodes with edges weighted by self.params.w.</p>
+<p>In order to interpret the results of this function, use <cite>output_forest_as_networkx</cite> with
+the results of this function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pruning</strong> (<em>str</em>) – a string value indicating the pruning method. Possible values are <cite>‘none’</cite>, <cite>‘simple’</cite>, <cite>‘gw’</cite>, and <cite>‘strong’</cite> (all literals are case-insensitive).</li>
+<li><strong>verbosity_level</strong> (<em>int</em>) – an integer indicating how much debug output the function should produce.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">indices of the selected vertices
+numpy.array: indices of the selected edges</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">numpy.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.output_forest_as_networkx">
+<code class="descname">output_forest_as_networkx</code><span class="sig-paren">(</span><em>vertex_indices</em>, <em>edge_indices</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.output_forest_as_networkx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.output_forest_as_networkx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>vertex_indices</strong> (<em>list</em>) – indices of the vertices selected in self.nodes. Note, this list must be of type int or boolean. Errors may arise from empty numpy arrays of dtype=’object’</li>
+<li><strong>edge_indices</strong> (<em>list</em>) – indices of the edges selected in self.edges</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a networkx graph object</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.pcsf_objective_value">
+<code class="descname">pcsf_objective_value</code><span class="sig-paren">(</span><em>forest</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf_objective_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf_objective_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate PCSF objective function</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>forest</strong> (<em>networkx.Graph</em>) – a forest like the one returned by output_forest_as_networkx – Not an augmented forest!</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">PCSF objective function score</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="graph.Graph.randomizations">
+<code class="descname">randomizations</code><span class="sig-paren">(</span><em>noisy_edges_reps=0</em>, <em>random_terminals_reps=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.randomizations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.randomizations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Macro function which performs randomizations and merges the results</p>
+<p>Note that thee parameters are additive, not multiplicative:
+<cite>noisy_edges_reps</cite> = 5 and <cite>random_terminals_reps</cite> = 5 makes 10 PCSF runs, not 25.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>noisy_edges_reps</strong> (<em>int</em>) – Number of “Noisy Edges” type randomizations to perform</li>
+<li><strong>random_terminals_reps</strong> (<em>int</em>) – Number of “Random Terminals” type randomizations to perform</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">forest
+networkx.Graph: augmented_forest</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="graph.Graph.grid_randomization">
 <code class="descname">grid_randomization</code><span class="sig-paren">(</span><em>prize_file, Ws=[5], Bs=[1], Gs=[3], noisy_edges_reps=0, random_terminals_reps=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.grid_randomization"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.grid_randomization" title="Permalink to this definition">¶</a></dt>
 <dd><p>Macro function which performs grid search or randomizations or both.</p>
@@ -244,141 +366,6 @@ pd.DataFrame: parameters and node membership lists</p>
 </table>
 </dd></dl>
 
-<dl class="method">
-<dt id="graph.Graph.output_forest_as_networkx">
-<code class="descname">output_forest_as_networkx</code><span class="sig-paren">(</span><em>vertex_indices</em>, <em>edge_indices</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.output_forest_as_networkx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.output_forest_as_networkx" title="Permalink to this definition">¶</a></dt>
-<dd><p>Construct a networkx graph from a set of vertex and edge indices (i.e. a pcsf output)</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>vertex_indices</strong> (<em>list</em>) – indices of the vertices selected in self.nodes. Note, this list must be of type int or boolean. Errors may arise from empty numpy arrays of dtype=’object’</li>
-<li><strong>edge_indices</strong> (<em>list</em>) – indices of the edges selected in self.edges</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a networkx graph object</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="graph.Graph.pcsf">
-<code class="descname">pcsf</code><span class="sig-paren">(</span><em>pruning='strong'</em>, <em>verbosity_level=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf" title="Permalink to this definition">¶</a></dt>
-<dd><p>Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.</p>
-<p>This function mostly defers to pcst_fast, but does one important pre-processing step: it
-adds a dummy node which will serve as the PCSF root and connects that dummy node to either
-terminals, non-terminals, or all other nodes with edges weighted by self.params.w.</p>
-<p>In order to interpret the results of this function, use <cite>output_forest_as_networkx</cite> with
-the results of this function.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>pruning</strong> (<em>str</em>) – a string value indicating the pruning method. Possible values are <cite>‘none’</cite>, <cite>‘simple’</cite>, <cite>‘gw’</cite>, and <cite>‘strong’</cite> (all literals are case-insensitive).</li>
-<li><strong>verbosity_level</strong> (<em>int</em>) – an integer indicating how much debug output the function should produce.</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">indices of the selected vertices
-numpy.array: indices of the selected edges</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">numpy.array</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="graph.Graph.pcsf_objective_value">
-<code class="descname">pcsf_objective_value</code><span class="sig-paren">(</span><em>forest</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.pcsf_objective_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.pcsf_objective_value" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate PCSF objective function</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>forest</strong> (<em>networkx.Graph</em>) – a forest like the one returned by output_forest_as_networkx – Not an augmented forest!</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">PCSF objective function score</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">float</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="graph.Graph.prepare_prizes">
-<code class="descname">prepare_prizes</code><span class="sig-paren">(</span><em>prize_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.prepare_prizes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.prepare_prizes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Parses a prize file and adds prizes and other attributes to the graph object.</p>
-<p>The file passed to this function must have at least two columns: node name and prize.
-Any additional columns will be assumed to be node attributes. However, in order to know
-the names of those attributes, this function requires the input file to contain headers,
-i.e. the first row of the tsv must be the names of the columns.</p>
-<p>Sets the graph attributes
-- <cite>graph.bare_prizes</cite> (numpy.array): properly indexed (same as <cite>graph.nodes</cite>) prizes from the file.
-- <cite>graph.prizes</cite> (numpy.array): properly indexed prizes, scaled by beta (<cite>graph.params.b</cite>)
-- <cite>graph.terminals</cite> (numpy.array): their indices
-- <cite>graph.node_attributes</cite> (pandas.DataFrame) Any node attributes passed in with the prize file (columns 3, …)</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prize_file</strong> (<em>str</em><em> or </em><em>FILE</em>) – a filepath or file object containing a tsv <strong>with column headers</strong>.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="graph.Graph.randomizations">
-<code class="descname">randomizations</code><span class="sig-paren">(</span><em>noisy_edges_reps=0</em>, <em>random_terminals_reps=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#Graph.randomizations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.Graph.randomizations" title="Permalink to this definition">¶</a></dt>
-<dd><p>Macro function which performs randomizations and merges the results</p>
-<p>Note that thee parameters are additive, not multiplicative:
-<cite>noisy_edges_reps</cite> = 5 and <cite>random_terminals_reps</cite> = 5 makes 10 PCSF runs, not 25.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>noisy_edges_reps</strong> (<em>int</em>) – Number of “Noisy Edges” type randomizations to perform</li>
-<li><strong>random_terminals_reps</strong> (<em>int</em>) – Number of “Random Terminals” type randomizations to perform</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">forest
-networkx.Graph: augmented_forest</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="function">
-<dt id="graph.annotate_graph_nodes">
-<code class="descclassname">graph.</code><code class="descname">annotate_graph_nodes</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#annotate_graph_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.annotate_graph_nodes" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
-</tr>
-</tbody>
-</table>
 </dd></dl>
 
 <dl class="function">
@@ -397,58 +384,84 @@ networkx.Graph: augmented_forest</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="graph.filter_graph_by_component_size">
-<code class="descclassname">graph.</code><code class="descname">filter_graph_by_component_size</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>min_size=5</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#filter_graph_by_component_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.filter_graph_by_component_size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Removes any components that are less than <cite>min_size</cite>.</p>
+<dt id="graph.louvain_clustering">
+<code class="descclassname">graph.</code><code class="descname">louvain_clustering</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#louvain_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.louvain_clustering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute “Louvain”/”Community” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.k_clique_clustering">
+<code class="descclassname">graph.</code><code class="descname">k_clique_clustering</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>k</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#k_clique_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.k_clique_clustering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute “k-Clique” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
+<p>See the [networkx docs](<a class="reference external" href="https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.kclique.k_clique_communities.html#networkx.algorithms.community.kclique.k_clique_communities">https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.kclique.k_clique_communities.html#networkx.algorithms.community.kclique.k_clique_communities</a>)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.spectral_clustering">
+<code class="descclassname">graph.</code><code class="descname">spectral_clustering</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>k</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#spectral_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.spectral_clustering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute “spectral” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.annotate_graph_nodes">
+<code class="descclassname">graph.</code><code class="descname">annotate_graph_nodes</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#annotate_graph_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.annotate_graph_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.summarize_grid_search">
+<code class="descclassname">graph.</code><code class="descname">summarize_grid_search</code><span class="sig-paren">(</span><em>results</em>, <em>mode</em>, <em>top_n=inf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#summarize_grid_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.summarize_grid_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summarizes results of <cite>grid_randomization</cite> or <cite>grid_search</cite> into a matrix where each row is a gene
+and each column is a parameter run. If summarizing “membership”, entries will be 0 or 1
+indicating whether or not a node appeared in each experiment. If summarizing “robustness”
+or “specificity”, entries indicate robustness or specificity values for each experiment.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – Network from randomization experiment</li>
-<li><strong>min_size</strong> (<em>int</em>) – Min size of components in <cite>nxgraph</cite>. Set to 2 to remove singletons only.</li>
+<li><strong>results</strong> (<em>list of tuples</em>) – Results of <cite>grid_randomization</cite> or <cite>grid_search</cite> of form <cite>{‘paramstring’: { ‘forest’: object, ‘augmented forest’: object}}</cite></li>
+<li><strong>mode</strong> (<em>str</em>) – Reported values “membership”, “robustness”, “specificity”</li>
+<li><strong>top_n</strong> (<em>int</em>) – Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Network with components less than specified size removed.</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Columns correspond to each parameter experiment, indexed by nodes</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pd.DataFrame</p>
 </td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="graph.get_networkx_graph_as_dataframe_of_edges">
-<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_edges</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_edges"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_edges" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">edges from the input graph and their attributes as a dataframe</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="graph.get_networkx_graph_as_dataframe_of_nodes">
-<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_nodes</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_nodes" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes from the input graph and their attributes as a dataframe</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
 </tr>
 </tbody>
 </table>
@@ -480,29 +493,82 @@ prune any “small” components.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="graph.k_clique_clustering">
-<code class="descclassname">graph.</code><code class="descname">k_clique_clustering</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>k</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#k_clique_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.k_clique_clustering" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute “k-Clique” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
-<p>See the [networkx docs](<a class="reference external" href="https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.kclique.k_clique_communities.html#networkx.algorithms.community.kclique.k_clique_communities">https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.kclique.k_clique_communities.html#networkx.algorithms.community.kclique.k_clique_communities</a>)</p>
+<dt id="graph.filter_graph_by_component_size">
+<code class="descclassname">graph.</code><code class="descname">filter_graph_by_component_size</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>min_size=5</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#filter_graph_by_component_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.filter_graph_by_component_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes any components that are less than <cite>min_size</cite>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – Network from randomization experiment</li>
+<li><strong>min_size</strong> (<em>int</em>) – Min size of components in <cite>nxgraph</cite>. Set to 2 to remove singletons only.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Network with components less than specified size removed.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">networkx.Graph</p>
+</td>
 </tr>
 </tbody>
 </table>
 </dd></dl>
 
 <dl class="function">
-<dt id="graph.louvain_clustering">
-<code class="descclassname">graph.</code><code class="descname">louvain_clustering</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#louvain_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.louvain_clustering" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute “Louvain”/”Community” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
-<table class="docutils field-list" frame="void" rules="none">
+<dt id="graph.get_networkx_graph_as_dataframe_of_nodes">
+<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_nodes</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes from the input graph and their attributes as a dataframe</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.get_networkx_graph_as_dataframe_of_edges">
+<code class="descclassname">graph.</code><code class="descname">get_networkx_graph_as_dataframe_of_edges</code><span class="sig-paren">(</span><em>nxgraph</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#get_networkx_graph_as_dataframe_of_edges"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.get_networkx_graph_as_dataframe_of_edges" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">edges from the input graph and their attributes as a dataframe</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">pd.DataFrame</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="graph.output_networkx_graph_as_pickle">
+<code class="descclassname">graph.</code><code class="descname">output_networkx_graph_as_pickle</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>output_dir='.'</em>, <em>filename='pcsf_results.pickle'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#output_networkx_graph_as_pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.output_networkx_graph_as_pickle" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</li>
+<li><strong>output_dir</strong> (<em>str</em>) – the directory in which to output the graph.</li>
+<li><strong>filename</strong> (<em>str</em>) – Filenames ending in .gz or .bz2 will be compressed.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the filepath which was outputted to</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Path</p>
+</td>
 </tr>
 </tbody>
 </table>
@@ -556,72 +622,6 @@ prune any “small” components.</p>
 </table>
 </dd></dl>
 
-<dl class="function">
-<dt id="graph.output_networkx_graph_as_pickle">
-<code class="descclassname">graph.</code><code class="descname">output_networkx_graph_as_pickle</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>output_dir='.'</em>, <em>filename='pcsf_results.pickle'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#output_networkx_graph_as_pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.output_networkx_graph_as_pickle" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>nxgraph</strong> (<em>networkx.Graph</em>) – any instance of networkx.Graph</li>
-<li><strong>output_dir</strong> (<em>str</em>) – the directory in which to output the graph.</li>
-<li><strong>filename</strong> (<em>str</em>) – Filenames ending in .gz or .bz2 will be compressed.</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the filepath which was outputted to</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Path</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="graph.spectral_clustering">
-<code class="descclassname">graph.</code><code class="descname">spectral_clustering</code><span class="sig-paren">(</span><em>nxgraph</em>, <em>k</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#spectral_clustering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.spectral_clustering" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute “spectral” clustering on a networkx graph, and add the cluster labels as attributes on the nodes.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>nxgraph</strong> (<em>networkx.Graph</em>) – a networkx graph, usually the augmented_forest.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="graph.summarize_grid_search">
-<code class="descclassname">graph.</code><code class="descname">summarize_grid_search</code><span class="sig-paren">(</span><em>results</em>, <em>mode</em>, <em>top_n=inf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graph.html#summarize_grid_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#graph.summarize_grid_search" title="Permalink to this definition">¶</a></dt>
-<dd><p>Summarizes results of <cite>grid_randomization</cite> or <cite>grid_search</cite> into a matrix where each row is a gene
-and each column is a parameter run. If summarizing “membership”, entries will be 0 or 1
-indicating whether or not a node appeared in each experiment. If summarizing “robustness”
-or “specificity”, entries indicate robustness or specificity values for each experiment.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>results</strong> (<em>list of tuples</em>) – Results of <cite>grid_randomization</cite> or <cite>grid_search</cite> of form <cite>{‘paramstring’: { ‘forest’: object, ‘augmented forest’: object}}</cite></li>
-<li><strong>mode</strong> (<em>str</em>) – Reported values “membership”, “robustness”, “specificity”</li>
-<li><strong>top_n</strong> (<em>int</em>) – Takes the top_n values of the summary dataframe. top_n=-1 sets no threshold</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Columns correspond to each parameter experiment, indexed by nodes</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pd.DataFrame</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
 </div>
 
 
@@ -659,7 +659,7 @@ or “specificity”, entries indicate robustness or specificity values for each
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'2.0',
+            VERSION:'2.2.0',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
