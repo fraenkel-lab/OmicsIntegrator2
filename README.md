@@ -2,6 +2,8 @@
 
 <center><img src="http://fraenkel-nsf.csbi.mit.edu/omicsintegrator/omicsI_logo.png" height="40%" width="40%" ></center>
 
+## Background
+
 Omics Integrator is a package designed to integrate proteomic data, gene expression data and/or epigenetic data using a protein-protein interaction network. It identifies high-confidence, relevant subnetworks from the underlying interactome. It is comprised of two modules, [Garnet](https://github.com/fraenkel-lab/GarNet) and Forest. This repository holds the code for Forest in version 2 of Omics Integrator.
 
 Forest first maps your high-throughput data onto the network. Proteins in the network are 'nodes' connected by edges representing physical interactions of two protein nodes. You should assign protein nodes prizes from your high-throughput data, i.e. the prize could be the log fold change of that protein in your system. The edges are assigned costs, often proportional to the confidence in that interaction.
@@ -19,7 +21,18 @@ Finally, Forest uses the Prize-Collecting Steiner Forest algorithm to whittle th
 With the output of these sub-networks, Omics Integrator allows researchers to go from huge, often contradictory lists of genes, proteins, and metabolites from multiple -omics data sources to a few important cellular pathways to focus on in follow-up studies of their system.
 
 
-### Reference:
+## Changelog:
+
+### 6/20/18: 2.2.0
+
+- Many breaking changes, e.g. method names, data formats
+- Add tests
+- New annotation file contains process and function gene annotations on top of subcellular localizations.
+- HTML visualization improvements
+- First release with a changelog entry and github release!
+
+
+## Reference:
 
 [Network-Based Interpretation of Diverse High-Throughput Datasets through the Omics Integrator Software Package](http://dx.doi.org/10.1371/journal.pcbi.1004879)
 Tuncbag N<sup>\*</sup>, Gosline SJC<sup>\*</sup>, Kedaigle A, Soltis AR, Gitter A, Fraenkel E. *PLoS Comput Biol* 12(4): e1004879. doi:10.1371/journal.pcbi.1004879.
