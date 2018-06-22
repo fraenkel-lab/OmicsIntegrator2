@@ -827,9 +827,9 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
     graph_json = json.dumps(graph_json)
 
     # TODO comment
-    max_prize = max(list(nx.get_node_attributes(nxgraph, 'prize').values()))
-    max_degree = max(list(nx.get_node_attributes(nxgraph, 'degree').values()))
-    max_betweenness = max(list(nx.get_node_attributes(nxgraph, 'betweenness').values()))
+    max_prize = max(list(nx.get_node_attributes(nxgraph, 'prize').values()), default=0)
+    max_degree = max(list(nx.get_node_attributes(nxgraph, 'degree').values()), default=0)
+    max_betweenness = max(list(nx.get_node_attributes(nxgraph, 'betweenness').values()), default=0)
     # TODO cast terminal attr as string or int
     # TODO safe string every attr?
 
