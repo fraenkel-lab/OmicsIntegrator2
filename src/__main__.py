@@ -7,7 +7,7 @@ import sys, os
 import argparse
 
 # import this module
-import graph as oi
+import OmicsIntegrator.graph as oi
 
 
 parser = argparse.ArgumentParser(description="""

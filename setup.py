@@ -5,7 +5,7 @@ setup(
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
     package_data={'OmicsIntegrator': ['annotation/final_annotation.pickle', 'src/viz.jinja', 'viz.jinja']},
-    version='2.3.1',
+    version='2.3.5',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
@@ -17,7 +17,7 @@ setup(
     description='',
     install_requires=[
         "numpy",
-        "pandas==0.21.0",
+        "pandas==0.23.4",
         "networkx==2.1",
         "pcst_fast==1.0.7",
         "python-louvain",

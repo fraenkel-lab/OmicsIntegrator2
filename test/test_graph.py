@@ -325,7 +325,7 @@ class Test_Oi2(object):
     def test_louvain_clustering(self):
         print("test_louvain_clustering")
         oi.louvain_clustering(self.g)
-        assert set(nx.get_node_attributes(self.g, "louvainClusters").keys()) == set(self.g.nodes())
+        assert set(nx.get_node_attributes(self.g, "louvain_clusters").keys()) == set(self.g.nodes())
         assert all([isinstance(louvainClusters, str) for louvainClusters in nx.get_node_attributes(self.g, "louvainClusters").values()])
 
         print("...pass")
@@ -334,8 +334,8 @@ class Test_Oi2(object):
     def test_k_clique_clustering(self):
         print("test_k_clique_clustering")
         oi.k_clique_clustering(self.g, 3)
-        assert set(nx.get_node_attributes(self.g, "kCliqueClusters").keys()) == set(self.g.nodes())
-        assert all([isinstance(kCliqueClusters, str) for kCliqueClusters in nx.get_node_attributes(self.g, "kCliqueClusters").values()])
+        assert set(nx.get_node_attributes(self.g, "k_clique_clusters").keys()) == set(self.g.nodes())
+        assert all([isinstance(k_clique_clusters, str) for k_clique_clusters in nx.get_node_attributes(self.g, "k_clique_clusters").values()])
 
         print("...pass")
 
@@ -343,8 +343,8 @@ class Test_Oi2(object):
     def test_spectral_clustering(self):
         print("test_spectral_clustering")
         oi.spectral_clustering(self.g, 10)
-        assert set(nx.get_node_attributes(self.g, "spectralClusters").keys()) == set(self.g.nodes())
-        assert all([isinstance(spectralClusters, str) for spectralClusters in nx.get_node_attributes(self.g, "spectralClusters").values()])
+        assert set(nx.get_node_attributes(self.g, "spectral_clusters").keys()) == set(self.g.nodes())
+        assert all([isinstance(spectral_clusters, str) for spectral_clusters in nx.get_node_attributes(self.g, "spectral_clusters").values()])
 
         print("...pass")
 
@@ -413,7 +413,7 @@ class Test_Oi2(object):
 
     def test_output_networkx_graph_as_pickle(self):
         print("test_output_networkx_graph_as_pickle")
-        path = oi.output_networkx_graph_as_pickle(self.augmented_forest, ".")
+        path = oi.output_networkx_graph_as_pickle(self.augmented_forest)
         self.tmp_files.append(path)
 
         # assert nx.read_gpickle(path) == self.augmented_forest  ## need to find graph deep equals function
@@ -423,7 +423,7 @@ class Test_Oi2(object):
 
     def test_output_networkx_graph_as_graphml_for_cytoscape(self):
         print("test_output_networkx_graph_as_graphml_for_cytoscape")
-        path = oi.output_networkx_graph_as_graphml_for_cytoscape(self.augmented_forest, ".")
+        path = oi.output_networkx_graph_as_graphml_for_cytoscape(self.augmented_forest)
         self.tmp_files.append(path)
 
         # assert nx.read_graphml(path) == self.augmented_forest  ## need to find graph deep equals function
@@ -433,7 +433,7 @@ class Test_Oi2(object):
 
     def test_output_networkx_graph_as_interactive_html(self):
         print("test_output_networkx_graph_as_interactive_html")
-        path = oi.output_networkx_graph_as_interactive_html(self.augmented_forest, ".")
+        path = oi.output_networkx_graph_as_interactive_html(self.augmented_forest)
         self.tmp_files.append(path)
 
         print("...pass")
