@@ -524,7 +524,7 @@ class Graph:
         """
 
         self._reset_hyperparameters(params=params)
-        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:d}".format(self.params.w, self.params.b, self.params.g)
+        paramstring = "W_{:04.2f}_B_{:04.2f}_G_{:04.2f}".format(self.params.w, self.params.b, self.params.g)
 
         if params["noisy_edge_reps"] == params["random_terminals_reps"] == 0: logger.info("Single PCSF run for " + paramstring)
         else: logger.info("Randomizations for " + paramstring)
@@ -759,7 +759,7 @@ def get_networkx_graph_as_dataframe_of_nodes(nxgraph):
         pd.DataFrame: nodes from the input graph and their attributes as a dataframe
     """
 
-    return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True))).transpose()
+    return pd.DataFrame.from_dict(dict(nxgraph.nodes(data=True)), orient='index')
 
 
 def get_networkx_graph_as_dataframe_of_edges(nxgraph):
