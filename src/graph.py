@@ -818,14 +818,6 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
         Path: the filepath which was outputted to
     """
 
-    templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
-    templateEnv = jinja2.Environment(loader=templateLoader)
-
-    graph_json = nx_json.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
-    def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
-    graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
-    graph_json = json.dumps(graph_json)
-
     # TODO comment
     max_prize = max(list(nx.get_node_attributes(nxgraph, 'prize').values()), default=0)
     max_degree = max(list(nx.get_node_attributes(nxgraph, 'degree').values()), default=0)
@@ -849,49 +841,13 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
         'specific_process'  : {'display': 'box' },
     }
 
-    # TODO comment
-    all_graph_attribute_keys = set(flatten([attrs.keys() for node_id, attrs in nxgraph.nodes(data=True)]))
-    default_attribute_metadata = {attr: metadata for attr,metadata in default_attribute_metadata.items() if attr in all_graph_attribute_keys}
-    unaccounted_for_attributes = all_graph_attribute_keys - (set(default_attribute_metadata.keys()) | set(attribute_metadata.keys()))
-    inferred_attribute_metadata = {}
+    attribute_metadata = {**default_attribute_metadata, **attribute_metadata}
 
-    for attr in unaccounted_for_attributes:
-        logger.info(f'Inferring display parameters for {attr}')
-        values = pd.Series(list(nx.get_node_attributes(nxgraph, attr).values())).dropna()
-
-        if all([isinstance(value, numbers.Number) for value in values]):
-            if min(values) < 0:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},0,{max(values)}]', 'range':'["blue","white","red"]'}
-            elif 0 <= min(values) < 0.1:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[0,{max(values)}]', 'range':'["white","red"]'}
-            else:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},{max(values)}]', 'range':'["purple","orange"]'}
-
-        else:
-            if '_clusters' in attr:
-                inferred_attribute_metadata[attr] = {'display': 'box' }
-            else:
-                inferred_attribute_metadata[attr] = {'display': 'color_category' }
-
-    # TODO comment
-    attribute_metadata = {**default_attribute_metadata, **inferred_attribute_metadata, **attribute_metadata}
-
-    logger.info('Final display parameters:')
-    logger.info('\n'+json.dumps(attribute_metadata, indent=4))
-
-    # TODO cast attribute_metadata to list?
-
-    # TODO comment
-    path = Path(output_dir)
-    path.mkdir(exist_ok=True, parents=True)
-    path = path / filename
-
-    html_output = templateEnv.get_template('viz.jinja').render(
-            graph_json=graph_json,
-            nodes=nxgraph.nodes(),
-            attributes=attribute_metadata)
-
-    path.write_text(html_output)
-
-    return path.absolute()
+    return axial.graph(networkx_graph,
+        title='OmicsIntegrator2 Results',
+        scripts_mode="inline",
+        data_mode="inline",
+        attribute_metadata=attribute_metadata,
+        output_dir=output_dir,
+        filename=filename):
 
