@@ -849,5 +849,5 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
         data_mode="inline",
         attribute_metadata=attribute_metadata,
         output_dir=output_dir,
-        filename=filename):
+        filename=filename)
 

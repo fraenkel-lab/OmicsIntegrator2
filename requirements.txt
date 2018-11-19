@@ -6,4 +6,4 @@ pcst_fast>=1.0.6
 jinja2>=2.9
 python-louvain>=0.9
 goenrich==1.7.0
-
+axial>=0.0.4
