@@ -25,7 +25,6 @@ import networkx as nx
 from networkx.readwrite import json_graph as nx_json
 import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
-import jinja2
 
 # Lab modules
 from pcst_fast import pcst_fast

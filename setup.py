@@ -19,7 +19,6 @@ setup(
         "numpy",
         "pandas==0.23.4",
         "networkx==2.1",
-        "jinja2==2.9",
         "pcst_fast==1.0.7",
         "python-louvain",
         "goenrich",
