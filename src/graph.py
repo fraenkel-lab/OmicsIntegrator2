@@ -787,7 +787,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir=".", filename="pcsf_resu
     path = path / filename
     nx.write_gpickle(nxgraph, open(path, 'wb'))
 
-    return path.absolute()
+    return path.resolve()
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", filename="pcsf_results.graphml.gz"):
@@ -804,7 +804,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", file
     path = path / filename
     nx.write_graphml(nxgraph, path)
 
-    return path.absolute()
+    return path.resolve()
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict(), output_dir=".", filename="graph.html"):
@@ -816,37 +816,10 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
     Returns:
         Path: the filepath which was outputted to
     """
-
-    # TODO comment
-    max_prize = max(list(nx.get_node_attributes(nxgraph, 'prize').values()), default=0)
-    max_degree = max(list(nx.get_node_attributes(nxgraph, 'degree').values()), default=0)
-    max_betweenness = max(list(nx.get_node_attributes(nxgraph, 'betweenness').values()), default=0)
-    # TODO cast terminal attr as string or int
-    # TODO safe string every attr?
-
-    # construct default attribute metadata
-    default_attribute_metadata = {
-        'prize'             : {'display': 'color_scale', 'domain': f'[0, {1e-10}, {max_prize}]', 'range': '["lightgrey", "white", "red"]'},
-        'degree'            : {'display': 'color_scale', 'domain': f'[0, {max_degree}]', 'range': '["lightblue", "red"]'},
-        'betweenness'       : {'display': 'color_scale', 'domain': f'[0, {max_betweenness}]', 'range': '["purple", "orange"]'},
-        'terminal'          : {'display': 'color_scale', 'domain':  '[false, true]', 'range': '["grey", "orange"]'},
-
-        'type'              : {'display': 'shape' },
-        'louvain_clusters'  : {'display': 'box' },
-        'location'          : {'display': 'box' },
-        'general_function'  : {'display': 'color_category' },
-        'specific_function' : {'display': 'color_category' },
-        'general_process'   : {'display': 'box' },
-        'specific_process'  : {'display': 'box' },
-    }
-
-    attribute_metadata = {**default_attribute_metadata, **attribute_metadata}
-
-    return axial.graph(networkx_graph,
+    return axial.graph(nxgraph,
         title='OmicsIntegrator2 Results',
         scripts_mode="inline",
         data_mode="inline",
-        attribute_metadata=attribute_metadata,
         output_dir=output_dir,
         filename=filename)
 
