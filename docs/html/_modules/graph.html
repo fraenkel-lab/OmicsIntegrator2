@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>graph &mdash; OmicsIntegrator2 2.2.0 documentation</title>
+  <title>graph &mdash; OmicsIntegrator2 2.3.6 documentation</title>
   
 
   
@@ -24,26 +24,17 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../genindex.html"/>
-        <link rel="search" title="Search" href="../search.html"/>
-    <link rel="top" title="OmicsIntegrator2 2.2.0 documentation" href="../index.html"/>
-        <link rel="up" title="Module code" href="index.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -65,7 +56,7 @@
             
             
               <div class="version">
-                2.2.0
+                2.3.6
               </div>
             
           
@@ -100,7 +91,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">OmicsIntegrator2</a>
@@ -108,9 +99,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -139,8 +131,6 @@
     
     
       <li class="wy-breadcrumbs-aside">
-        
-            
         
       </li>
     
@@ -180,11 +170,10 @@
 <span class="kn">from</span> <span class="nn">networkx.readwrite</span> <span class="k">import</span> <span class="n">json_graph</span> <span class="k">as</span> <span class="n">nx_json</span>
 <span class="kn">import</span> <span class="nn">community</span>    <span class="c1"># pip install python-louvain</span>
 <span class="kn">from</span> <span class="nn">sklearn.cluster</span> <span class="k">import</span> <span class="n">SpectralClustering</span>
-<span class="kn">import</span> <span class="nn">jinja2</span>
 
 <span class="c1"># Lab modules</span>
 <span class="kn">from</span> <span class="nn">pcst_fast</span> <span class="k">import</span> <span class="n">pcst_fast</span>
-
+<span class="kn">from</span> <span class="nn">axial</span> <span class="k">import</span> <span class="n">axial</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
@@ -259,8 +248,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">node_degrees</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
 
         <span class="c1"># The rest of the setup work is occasionally repeated, so use another method to complete setup.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_hyperparameters</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
-</div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_hyperparameters</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span></div>
+
 
     <span class="k">def</span> <span class="nf">_reset_hyperparameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="nb">dict</span><span class="p">()):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -325,8 +314,8 @@
         <span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">prizes_dataframe</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
         <span class="n">prizes_dataframe</span><span class="p">[</span><span class="s1">&#39;prize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">[</span><span class="s1">&#39;prize&#39;</span><span class="p">])</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_prizes</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">)</span>
-</div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_prizes</span><span class="p">(</span><span class="n">prizes_dataframe</span><span class="p">)</span></div>
+
 
     <span class="k">def</span> <span class="nf">_prepare_prizes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prizes_dataframe</span><span class="p">):</span>
 
@@ -456,8 +445,8 @@
         <span class="n">vertex_indices</span> <span class="o">=</span> <span class="n">vertex_indices</span><span class="p">[</span><span class="n">vertex_indices</span> <span class="o">!=</span> <span class="n">root</span><span class="p">]</span>
         <span class="n">edge_indices</span> <span class="o">=</span> <span class="n">edge_indices</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span><span class="n">edge_indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">interactome_dataframe</span><span class="o">.</span><span class="n">index</span><span class="p">)]</span>
 
-        <span class="k">return</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span>
-</div>
+        <span class="k">return</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span></div>
+
 
 <div class="viewcode-block" id="Graph.output_forest_as_networkx"><a class="viewcode-back" href="../index.html#graph.Graph.output_forest_as_networkx">[docs]</a>    <span class="k">def</span> <span class="nf">output_forest_as_networkx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="p">,</span> <span class="n">edge_indices</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -493,8 +482,8 @@
         <span class="n">louvain_clustering</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">)</span>
         <span class="n">annotate_graph_nodes</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span>
-</div>
+        <span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span></div>
+
 
 <div class="viewcode-block" id="Graph.pcsf_objective_value"><a class="viewcode-back" href="../index.html#graph.Graph.pcsf_objective_value">[docs]</a>    <span class="k">def</span> <span class="nf">pcsf_objective_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forest</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -509,8 +498,8 @@
 
         <span class="k">return</span> <span class="p">((</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prizes</span><span class="p">)</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="o">+</span>
                  <span class="nb">sum</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_edge_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span> <span class="s1">&#39;cost&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span>
-                 <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="n">nx</span><span class="o">.</span><span class="n">number_connected_components</span><span class="p">(</span><span class="n">forest</span><span class="p">)))</span>
-</div>
+                 <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="n">nx</span><span class="o">.</span><span class="n">number_connected_components</span><span class="p">(</span><span class="n">forest</span><span class="p">)))</span></div>
+
 
     <span class="c1">###########################################################################</span>
                 <span class="c1">#######          Randomziations         #######</span>
@@ -658,8 +647,8 @@
         <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">forest</span><span class="p">,</span>           <span class="n">vertex_indices</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">forest</span><span class="o">.</span><span class="n">nodes</span><span class="p">()))</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
         <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">augmented_forest</span><span class="p">,</span> <span class="n">vertex_indices</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">augmented_forest</span><span class="o">.</span><span class="n">nodes</span><span class="p">()))</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span>
-</div>
+        <span class="k">return</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span></div>
+
 
     <span class="c1">###########################################################################</span>
                 <span class="c1">#######          Grid Search          #######</span>
@@ -679,7 +668,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_reset_hyperparameters</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
-        <span class="n">paramstring</span> <span class="o">=</span> <span class="s2">&quot;W_</span><span class="si">{:04.2f}</span><span class="s2">_B_</span><span class="si">{:04.2f}</span><span class="s2">_G_</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">g</span><span class="p">)</span>
+        <span class="n">paramstring</span> <span class="o">=</span> <span class="s2">&quot;W_</span><span class="si">{:04.2f}</span><span class="s2">_B_</span><span class="si">{:04.2f}</span><span class="s2">_G_</span><span class="si">{:04.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">g</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;noisy_edge_reps&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;random_terminals_reps&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Single PCSF run for &quot;</span> <span class="o">+</span> <span class="n">paramstring</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Randomizations for &quot;</span> <span class="o">+</span> <span class="n">paramstring</span><span class="p">)</span>
@@ -715,8 +704,8 @@
         <span class="c1"># Convert to dictionary format</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="n">paramstring</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;forest&quot;</span><span class="p">:</span> <span class="n">forest</span><span class="p">,</span> <span class="s2">&quot;augmented_forest&quot;</span><span class="p">:</span> <span class="n">augmented_forest</span><span class="p">}</span> <span class="k">for</span> <span class="n">paramstring</span><span class="p">,</span> <span class="n">forest</span><span class="p">,</span> <span class="n">augmented_forest</span> <span class="ow">in</span> <span class="n">results</span> <span class="p">}</span>
 
-        <span class="k">return</span> <span class="n">results</span>
-</div>
+        <span class="k">return</span> <span class="n">results</span></div>
+
 
 <div class="viewcode-block" id="Graph.grid_search"><a class="viewcode-back" href="../index.html#graph.Graph.grid_search">[docs]</a>    <span class="k">def</span> <span class="nf">grid_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prize_file</span><span class="p">,</span> <span class="n">Ws</span><span class="p">,</span> <span class="n">Bs</span><span class="p">,</span> <span class="n">Gs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -734,8 +723,8 @@
 <span class="sd">            pd.DataFrame: parameters and node membership lists</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_randomization</span><span class="p">(</span><span class="n">prize_file</span><span class="p">,</span> <span class="n">Ws</span><span class="p">,</span> <span class="n">Bs</span><span class="p">,</span> <span class="n">Gs</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-</div></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_randomization</span><span class="p">(</span><span class="n">prize_file</span><span class="p">,</span> <span class="n">Ws</span><span class="p">,</span> <span class="n">Bs</span><span class="p">,</span> <span class="n">Gs</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div></div>
+
 
 
 <span class="c1">###############################################################################</span>
@@ -751,8 +740,8 @@
 <span class="sd">    Arguments:</span>
 <span class="sd">        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;betweenness&#39;</span><span class="p">:</span><span class="n">betweenness</span><span class="p">}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">betweenness</span> <span class="ow">in</span> <span class="n">nx</span><span class="o">.</span><span class="n">betweenness_centrality</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
-</div>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;betweenness&#39;</span><span class="p">:</span><span class="n">betweenness</span><span class="p">}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">betweenness</span> <span class="ow">in</span> <span class="n">nx</span><span class="o">.</span><span class="n">betweenness_centrality</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span></div>
+
 
 <div class="viewcode-block" id="louvain_clustering"><a class="viewcode-back" href="../index.html#graph.louvain_clustering">[docs]</a><span class="k">def</span> <span class="nf">louvain_clustering</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -762,8 +751,8 @@
 <span class="sd">    Arguments:</span>
 <span class="sd">        nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;louvain_clusters&#39;</span><span class="p">:</span><span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="p">)}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">cluster</span> <span class="ow">in</span> <span class="n">community</span><span class="o">.</span><span class="n">best_partition</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
-</div>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;louvain_clusters&#39;</span><span class="p">:</span><span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="p">)}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">cluster</span> <span class="ow">in</span> <span class="n">community</span><span class="o">.</span><span class="n">best_partition</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span></div>
+
 
 <div class="viewcode-block" id="k_clique_clustering"><a class="viewcode-back" href="../index.html#graph.k_clique_clustering">[docs]</a><span class="k">def</span> <span class="nf">k_clique_clustering</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -778,8 +767,8 @@
     <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;K-Clique Clustering requires that k be an integer larger than 1.&quot;</span><span class="p">);</span> <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Improper input to k_clique_clustering&quot;</span><span class="p">)</span>
 
     <span class="n">clustering</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">invert</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">algorithms</span><span class="o">.</span><span class="n">community</span><span class="o">.</span><span class="n">kclique</span><span class="o">.</span><span class="n">k_clique_communities</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">k</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;k_clique_clusters&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">())</span>
-    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">clustering</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
-</div>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">clustering</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span></div>
+
 
 <div class="viewcode-block" id="spectral_clustering"><a class="viewcode-back" href="../index.html#graph.spectral_clustering">[docs]</a><span class="k">def</span> <span class="nf">spectral_clustering</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -791,8 +780,8 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">adj_matrix</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">to_pandas_adjacency</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">)</span>
     <span class="n">clustering</span> <span class="o">=</span>  <span class="n">SpectralClustering</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">affinity</span><span class="o">=</span><span class="s1">&#39;precomputed&#39;</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">assign_labels</span><span class="o">=</span><span class="s1">&#39;discretize&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="n">adj_matrix</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
-    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;spectral_clusters&#39;</span><span class="p">:</span><span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="p">)}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">cluster</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">adj_matrix</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">clustering</span><span class="p">)})</span>
-</div>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;spectral_clusters&#39;</span><span class="p">:</span><span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="p">)}</span> <span class="k">for</span> <span class="n">node</span><span class="p">,</span><span class="n">cluster</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">adj_matrix</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">clustering</span><span class="p">)})</span></div>
+
 
 <div class="viewcode-block" id="annotate_graph_nodes"><a class="viewcode-back" href="../index.html#graph.annotate_graph_nodes">[docs]</a><span class="k">def</span> <span class="nf">annotate_graph_nodes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -805,8 +794,8 @@
     <span class="k">except</span><span class="p">:</span>
         <span class="n">annotation</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_pickle</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s1">&#39;annotation&#39;</span> <span class="o">/</span> <span class="s1">&#39;final_annotation.pickle&#39;</span><span class="p">)</span>
 
-    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">annotation</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">()))</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
-</div>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">annotation</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">()))</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">))</span></div>
+
 
 <span class="c1">###############################################################################</span>
             <span class="c1">#######            Results           #######</span>
@@ -847,8 +836,8 @@
         <span class="n">cutoff</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">node_summary_df</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="n">top_n</span><span class="p">]</span>
         <span class="n">node_summary_df</span> <span class="o">=</span> <span class="n">node_summary_df</span><span class="p">[</span><span class="n">node_summary_df</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">cutoff</span><span class="p">]</span>
 
-    <span class="k">return</span> <span class="n">node_summary_df</span>
-</div>
+    <span class="k">return</span> <span class="n">node_summary_df</span></div>
+
 
 <div class="viewcode-block" id="get_robust_subgraph_from_randomizations"><a class="viewcode-back" href="../index.html#graph.get_robust_subgraph_from_randomizations">[docs]</a><span class="k">def</span> <span class="nf">get_robust_subgraph_from_randomizations</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">max_size</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">min_component_size</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -879,8 +868,8 @@
     <span class="n">robust_network</span> <span class="o">=</span> <span class="n">nxgraph</span><span class="o">.</span><span class="n">subgraph</span><span class="p">(</span><span class="n">top_hits</span><span class="p">)</span>
     <span class="n">robust_network</span> <span class="o">=</span> <span class="n">filter_graph_by_component_size</span><span class="p">(</span><span class="n">robust_network</span><span class="p">,</span> <span class="n">min_component_size</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">robust_network</span>
-</div>
+    <span class="k">return</span> <span class="n">robust_network</span></div>
+
 
 <div class="viewcode-block" id="filter_graph_by_component_size"><a class="viewcode-back" href="../index.html#graph.filter_graph_by_component_size">[docs]</a><span class="k">def</span> <span class="nf">filter_graph_by_component_size</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -899,8 +888,8 @@
     <span class="n">small_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">()</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">nx</span><span class="o">.</span><span class="n">connected_component_subgraphs</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">min_size</span><span class="p">]</span>
     <span class="n">filtered_subgraph</span><span class="o">.</span><span class="n">remove_nodes_from</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">small_components</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">filtered_subgraph</span>
-</div>
+    <span class="k">return</span> <span class="n">filtered_subgraph</span></div>
+
 
 <span class="c1">###############################################################################</span>
             <span class="c1">#######              Export             #######</span>
@@ -914,8 +903,8 @@
 <span class="sd">        pd.DataFrame: nodes from the input graph and their attributes as a dataframe</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
-</div>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span> <span class="n">orient</span><span class="o">=</span><span class="s1">&#39;index&#39;</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="get_networkx_graph_as_dataframe_of_edges"><a class="viewcode-back" href="../index.html#graph.get_networkx_graph_as_dataframe_of_edges">[docs]</a><span class="k">def</span> <span class="nf">get_networkx_graph_as_dataframe_of_edges</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -925,8 +914,8 @@
 <span class="sd">        pd.DataFrame: edges from the input graph and their attributes as a dataframe</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">return</span> <span class="n">nx</span><span class="o">.</span><span class="n">to_pandas_edgelist</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;protein1&#39;</span><span class="p">,</span> <span class="s1">&#39;protein2&#39;</span><span class="p">)</span>
-</div>
+    <span class="k">return</span> <span class="n">nx</span><span class="o">.</span><span class="n">to_pandas_edgelist</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;protein1&#39;</span><span class="p">,</span> <span class="s1">&#39;protein2&#39;</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="output_networkx_graph_as_pickle"><a class="viewcode-back" href="../index.html#graph.output_networkx_graph_as_pickle">[docs]</a><span class="k">def</span> <span class="nf">output_networkx_graph_as_pickle</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;pcsf_results.pickle&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -943,8 +932,8 @@
     <span class="n">path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">filename</span>
     <span class="n">nx</span><span class="o">.</span><span class="n">write_gpickle</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
-</div>
+    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span></div>
+
 
 <div class="viewcode-block" id="output_networkx_graph_as_graphml_for_cytoscape"><a class="viewcode-back" href="../index.html#graph.output_networkx_graph_as_graphml_for_cytoscape">[docs]</a><span class="k">def</span> <span class="nf">output_networkx_graph_as_graphml_for_cytoscape</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;pcsf_results.graphml.gz&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -960,8 +949,8 @@
     <span class="n">path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">filename</span>
     <span class="n">nx</span><span class="o">.</span><span class="n">write_graphml</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
-</div>
+    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span></div>
+
 
 <div class="viewcode-block" id="output_networkx_graph_as_interactive_html"><a class="viewcode-back" href="../index.html#graph.output_networkx_graph_as_interactive_html">[docs]</a><span class="k">def</span> <span class="nf">output_networkx_graph_as_interactive_html</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">attribute_metadata</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;graph.html&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -972,90 +961,17 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Path: the filepath which was outputted to</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">axial</span><span class="o">.</span><span class="n">graph</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s1">&#39;OmicsIntegrator2 Results&#39;</span><span class="p">,</span>
+        <span class="n">scripts_mode</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">,</span>
+        <span class="n">data_mode</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">,</span>
+        <span class="n">output_dir</span><span class="o">=</span><span class="n">output_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span></div>
 
-    <span class="n">templateLoader</span> <span class="o">=</span> <span class="n">jinja2</span><span class="o">.</span><span class="n">FileSystemLoader</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)))</span>
-    <span class="n">templateEnv</span> <span class="o">=</span> <span class="n">jinja2</span><span class="o">.</span><span class="n">Environment</span><span class="p">(</span><span class="n">loader</span><span class="o">=</span><span class="n">templateLoader</span><span class="p">)</span>
-
-    <span class="n">graph_json</span> <span class="o">=</span> <span class="n">nx_json</span><span class="o">.</span><span class="n">node_link_data</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="s1">&#39;source_name&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;target_name&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">link</span><span class="o">=</span><span class="s1">&#39;links&#39;</span><span class="p">))</span>
-    <span class="k">def</span> <span class="nf">indexOf</span><span class="p">(</span><span class="n">node_id</span><span class="p">):</span> <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">graph_json</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">])</span> <span class="k">if</span> <span class="n">node</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">node_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">graph_json</span><span class="p">[</span><span class="s2">&quot;links&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[{</span><span class="o">**</span><span class="n">link</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span><span class="n">indexOf</span><span class="p">(</span><span class="n">link</span><span class="p">[</span><span class="s1">&#39;source_name&#39;</span><span class="p">]),</span> <span class="s2">&quot;target&quot;</span><span class="p">:</span><span class="n">indexOf</span><span class="p">(</span><span class="n">link</span><span class="p">[</span><span class="s1">&#39;target_name&#39;</span><span class="p">])}}</span> <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">graph_json</span><span class="p">[</span><span class="s2">&quot;links&quot;</span><span class="p">]]</span>
-    <span class="n">graph_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">graph_json</span><span class="p">)</span>
-
-    <span class="c1"># TODO comment</span>
-    <span class="n">max_prize</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;prize&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-    <span class="n">max_degree</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;degree&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-    <span class="n">max_betweenness</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="s1">&#39;betweenness&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-    <span class="c1"># TODO cast terminal attr as string or int</span>
-    <span class="c1"># TODO safe string every attr?</span>
-
-    <span class="c1"># construct default attribute metadata</span>
-    <span class="n">default_attribute_metadata</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;prize&#39;</span>             <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[0, {1e-10}, </span><span class="si">{max_prize}</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="s1">&#39;[&quot;lightgrey&quot;, &quot;white&quot;, &quot;red&quot;]&#39;</span><span class="p">},</span>
-        <span class="s1">&#39;degree&#39;</span>            <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[0, </span><span class="si">{max_degree}</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="s1">&#39;[&quot;lightblue&quot;, &quot;red&quot;]&#39;</span><span class="p">},</span>
-        <span class="s1">&#39;betweenness&#39;</span>       <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[0, </span><span class="si">{max_betweenness}</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="s1">&#39;[&quot;purple&quot;, &quot;orange&quot;]&#39;</span><span class="p">},</span>
-        <span class="s1">&#39;terminal&#39;</span>          <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span>  <span class="s1">&#39;[false, true]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="s1">&#39;[&quot;grey&quot;, &quot;orange&quot;]&#39;</span><span class="p">},</span>
-
-        <span class="s1">&#39;type&#39;</span>              <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;shape&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;louvain_clusters&#39;</span>  <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;box&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;location&#39;</span>          <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;box&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;general_function&#39;</span>  <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_category&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;specific_function&#39;</span> <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_category&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;general_process&#39;</span>   <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;box&#39;</span> <span class="p">},</span>
-        <span class="s1">&#39;specific_process&#39;</span>  <span class="p">:</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;box&#39;</span> <span class="p">},</span>
-    <span class="p">}</span>
-
-    <span class="c1"># TODO comment</span>
-    <span class="n">all_graph_attribute_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">flatten</span><span class="p">([</span><span class="n">attrs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">for</span> <span class="n">node_id</span><span class="p">,</span> <span class="n">attrs</span> <span class="ow">in</span> <span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">)]))</span>
-    <span class="n">default_attribute_metadata</span> <span class="o">=</span> <span class="p">{</span><span class="n">attr</span><span class="p">:</span> <span class="n">metadata</span> <span class="k">for</span> <span class="n">attr</span><span class="p">,</span><span class="n">metadata</span> <span class="ow">in</span> <span class="n">default_attribute_metadata</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">all_graph_attribute_keys</span><span class="p">}</span>
-    <span class="n">unaccounted_for_attributes</span> <span class="o">=</span> <span class="n">all_graph_attribute_keys</span> <span class="o">-</span> <span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">default_attribute_metadata</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">attribute_metadata</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-    <span class="n">inferred_attribute_metadata</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">unaccounted_for_attributes</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Inferring display parameters for </span><span class="si">{attr}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">nxgraph</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">numbers</span><span class="o">.</span><span class="n">Number</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]):</span>
-            <span class="k">if</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">inferred_attribute_metadata</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[{min(values)},0,{max(values)}]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span><span class="s1">&#39;[&quot;blue&quot;,&quot;white&quot;,&quot;red&quot;]&#39;</span><span class="p">}</span>
-            <span class="k">elif</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">:</span>
-                <span class="n">inferred_attribute_metadata</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[0,{max(values)}]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span><span class="s1">&#39;[&quot;white&quot;,&quot;red&quot;]&#39;</span><span class="p">}</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">inferred_attribute_metadata</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;[{min(values)},{max(values)}]&#39;</span><span class="p">,</span> <span class="s1">&#39;range&#39;</span><span class="p">:</span><span class="s1">&#39;[&quot;purple&quot;,&quot;orange&quot;]&#39;</span><span class="p">}</span>
-
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s1">&#39;_clusters&#39;</span> <span class="ow">in</span> <span class="n">attr</span><span class="p">:</span>
-                <span class="n">inferred_attribute_metadata</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;box&#39;</span> <span class="p">}</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">inferred_attribute_metadata</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;display&#39;</span><span class="p">:</span> <span class="s1">&#39;color_category&#39;</span> <span class="p">}</span>
-
-    <span class="c1"># TODO comment</span>
-    <span class="n">attribute_metadata</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_attribute_metadata</span><span class="p">,</span> <span class="o">**</span><span class="n">inferred_attribute_metadata</span><span class="p">,</span> <span class="o">**</span><span class="n">attribute_metadata</span><span class="p">}</span>
-
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Final display parameters:&#39;</span><span class="p">)</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">attribute_metadata</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
-
-    <span class="c1"># TODO cast attribute_metadata to list?</span>
-
-    <span class="c1"># TODO comment</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
-    <span class="n">path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">filename</span>
-
-    <span class="n">html_output</span> <span class="o">=</span> <span class="n">templateEnv</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="s1">&#39;viz.jinja&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
-            <span class="n">graph_json</span><span class="o">=</span><span class="n">graph_json</span><span class="p">,</span>
-            <span class="n">nodes</span><span class="o">=</span><span class="n">nxgraph</span><span class="o">.</span><span class="n">nodes</span><span class="p">(),</span>
-            <span class="n">attributes</span><span class="o">=</span><span class="n">attribute_metadata</span><span class="p">)</span>
-
-    <span class="n">path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">html_output</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
-</div>
 </pre></div>
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -1064,11 +980,11 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2017, Alexander LeNail.
+        &copy; Copyright 2017, Alexander LeNail
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -1083,36 +999,23 @@
 
   
 
-    <script type="text/javascript">
-        var DOCUMENTATION_OPTIONS = {
-            URL_ROOT:'../',
-            VERSION:'2.2.0',
-            COLLAPSE_INDEX:false,
-            FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true,
-            SOURCELINK_SUFFIX: '.txt'
-        };
-    </script>
-      <script type="text/javascript" src="../_static/jquery.js"></script>
-      <script type="text/javascript" src="../_static/underscore.js"></script>
-      <script type="text/javascript" src="../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+    
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>
