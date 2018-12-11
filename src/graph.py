@@ -28,7 +28,7 @@ from sklearn.cluster import SpectralClustering
 
 # Lab modules
 from pcst_fast import pcst_fast
-
+from axial import axial
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
