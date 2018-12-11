@@ -25,11 +25,10 @@ import networkx as nx
 from networkx.readwrite import json_graph as nx_json
 import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
-import jinja2
 
 # Lab modules
 from pcst_fast import pcst_fast
-
+from axial import axial
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -788,7 +787,7 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir=".", filename="pcsf_resu
     path = path / filename
     nx.write_gpickle(nxgraph, open(path, 'wb'))
 
-    return path.absolute()
+    return path.resolve()
 
 
 def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", filename="pcsf_results.graphml.gz"):
@@ -805,7 +804,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", file
     path = path / filename
     nx.write_graphml(nxgraph, path)
 
-    return path.absolute()
+    return path.resolve()
 
 
 def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict(), output_dir=".", filename="graph.html"):
@@ -817,81 +816,10 @@ def output_networkx_graph_as_interactive_html(nxgraph, attribute_metadata=dict()
     Returns:
         Path: the filepath which was outputted to
     """
-
-    templateLoader = jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
-    templateEnv = jinja2.Environment(loader=templateLoader)
-
-    graph_json = nx_json.node_link_data(nxgraph, attrs=dict(source='source_name', target='target_name', name='id', key='key', link='links'))
-    def indexOf(node_id): return [i for (i,node) in enumerate(graph_json['nodes']) if node['id'] == node_id][0]
-    graph_json["links"] = [{**link, **{"source":indexOf(link['source_name']), "target":indexOf(link['target_name'])}} for link in graph_json["links"]]
-    graph_json = json.dumps(graph_json)
-
-    # TODO comment
-    max_prize = max(list(nx.get_node_attributes(nxgraph, 'prize').values()), default=0)
-    max_degree = max(list(nx.get_node_attributes(nxgraph, 'degree').values()), default=0)
-    max_betweenness = max(list(nx.get_node_attributes(nxgraph, 'betweenness').values()), default=0)
-    # TODO cast terminal attr as string or int
-    # TODO safe string every attr?
-
-    # construct default attribute metadata
-    default_attribute_metadata = {
-        'prize'             : {'display': 'color_scale', 'domain': f'[0, {1e-10}, {max_prize}]', 'range': '["lightgrey", "white", "red"]'},
-        'degree'            : {'display': 'color_scale', 'domain': f'[0, {max_degree}]', 'range': '["lightblue", "red"]'},
-        'betweenness'       : {'display': 'color_scale', 'domain': f'[0, {max_betweenness}]', 'range': '["purple", "orange"]'},
-        'terminal'          : {'display': 'color_scale', 'domain':  '[false, true]', 'range': '["grey", "orange"]'},
-
-        'type'              : {'display': 'shape' },
-        'louvain_clusters'  : {'display': 'box' },
-        'location'          : {'display': 'box' },
-        'general_function'  : {'display': 'color_category' },
-        'specific_function' : {'display': 'color_category' },
-        'general_process'   : {'display': 'box' },
-        'specific_process'  : {'display': 'box' },
-    }
-
-    # TODO comment
-    all_graph_attribute_keys = set(flatten([attrs.keys() for node_id, attrs in nxgraph.nodes(data=True)]))
-    default_attribute_metadata = {attr: metadata for attr,metadata in default_attribute_metadata.items() if attr in all_graph_attribute_keys}
-    unaccounted_for_attributes = all_graph_attribute_keys - (set(default_attribute_metadata.keys()) | set(attribute_metadata.keys()))
-    inferred_attribute_metadata = {}
-
-    for attr in unaccounted_for_attributes:
-        logger.info(f'Inferring display parameters for {attr}')
-        values = pd.Series(list(nx.get_node_attributes(nxgraph, attr).values())).dropna()
-
-        if all([isinstance(value, numbers.Number) for value in values]):
-            if min(values) < 0:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},0,{max(values)}]', 'range':'["blue","white","red"]'}
-            elif 0 <= min(values) < 0.1:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[0,{max(values)}]', 'range':'["white","red"]'}
-            else:
-                inferred_attribute_metadata[attr] = {'display': 'color_scale', 'domain': f'[{min(values)},{max(values)}]', 'range':'["purple","orange"]'}
-
-        else:
-            if '_clusters' in attr:
-                inferred_attribute_metadata[attr] = {'display': 'box' }
-            else:
-                inferred_attribute_metadata[attr] = {'display': 'color_category' }
-
-    # TODO comment
-    attribute_metadata = {**default_attribute_metadata, **inferred_attribute_metadata, **attribute_metadata}
-
-    logger.info('Final display parameters:')
-    logger.info('\n'+json.dumps(attribute_metadata, indent=4))
-
-    # TODO cast attribute_metadata to list?
-
-    # TODO comment
-    path = Path(output_dir)
-    path.mkdir(exist_ok=True, parents=True)
-    path = path / filename
-
-    html_output = templateEnv.get_template('viz.jinja').render(
-            graph_json=graph_json,
-            nodes=nxgraph.nodes(),
-            attributes=attribute_metadata)
-
-    path.write_text(html_output)
-
-    return path.absolute()
+    return axial.graph(nxgraph,
+        title='OmicsIntegrator2 Results',
+        scripts_mode="inline",
+        data_mode="inline",
+        output_dir=output_dir,
+        filename=filename)
 

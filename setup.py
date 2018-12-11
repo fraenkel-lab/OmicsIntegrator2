@@ -4,8 +4,8 @@ setup(
     name='OmicsIntegrator',
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
-    package_data={'OmicsIntegrator': ['annotation/final_annotation.pickle', 'src/viz.jinja', 'viz.jinja']},
-    version='2.3.5',
+    package_data={'OmicsIntegrator': ['annotation/final_annotation.pickle']},
+    version='2.3.6',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
     classifiers=[
         'Programming Language :: Python :: 3.5',
@@ -22,7 +22,8 @@ setup(
         "pcst_fast==1.0.7",
         "python-louvain",
         "goenrich",
-        "sklearn"
+        "sklearn",
+        "axial"
     ],
     entry_points={
         'console_scripts': [
