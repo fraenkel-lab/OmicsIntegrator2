@@ -802,7 +802,7 @@ def output_networkx_graph_as_graphml_for_cytoscape(nxgraph, output_dir=".", file
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
     path = path / filename
-    nx.write_graphml(nxgraph, path)
+    nx.write_graphml(nxgraph, str(path))
 
     return path.resolve()
 
