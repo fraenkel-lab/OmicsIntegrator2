@@ -5,8 +5,9 @@ setup(
     packages=['OmicsIntegrator'],
     package_dir={'OmicsIntegrator': 'src'},
     package_data={'OmicsIntegrator': ['annotation/final_annotation.pickle']},
-    version='2.3.7',
+    version='2.3.8',
     url='https://github.com/fraenkel-lab/OmicsIntegrator2',
+    python_requires='>=3.5',
     classifiers=[
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
