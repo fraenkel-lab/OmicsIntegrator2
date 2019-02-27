@@ -208,12 +208,13 @@ class Graph:
                 #######              PCSF               #######
     ###########################################################################
 
-    def _add_dummy_node(self, connected_to=[]):
+    def _add_dummy_node(self, connected_to=[], rooted=True):
 
         dummy_id = len(self.nodes)
-        dummy_prize = np.array([0])
         dummy_edges = np.array([(dummy_id, node_id) for node_id in connected_to])
         dummy_costs = np.array([self.params.w] * len(dummy_edges))
+        # In unrooted mode, the dummy node can be forced to appear in the network solution if its prize is strictly greater than its edge costs given by `w`. 
+        dummy_prize = np.array([0]) if rooted else np.array([self.params.w * 1.1])
 
         return dummy_edges, dummy_costs, dummy_id, dummy_prize
 
@@ -236,7 +237,7 @@ class Graph:
         if not (len(costs) == len(edges)): raise ValueError("there must be as many costs as edges. # costs: "+str(len(costs))+", # edges: "+str(len(edges)))
 
         if not (isinstance(root, int)): raise ValueError("root must be an int, type was: "+str(type(root)))
-        if not (0 <= root < len(prizes)): raise ValueError("root must be one of the nodes in the graph. root: "+str(root)+", nodes: [0, "+str(len(prizes-1))+"]")
+        if not (-1 <= root < len(prizes)): raise ValueError("root must be -1 or one of the nodes in the graph. root: "+str(root)+", nodes: [0, "+str(len(prizes-1))+"]")
 
         if not (isinstance(num_clusters, int)): raise ValueError("num_clusters must be an int, type was: "+str(type(num_clusters)))
         if not (0 < num_clusters < len(prizes)): raise ValueError("num_clusters must be greater than 0, and less than the number of nodes. num_clusters was: "+str(num_clusters)+"# nodes was: "+str(len(prizes)))
@@ -248,7 +249,7 @@ class Graph:
         return True
 
 
-    def pcsf(self, pruning="strong", verbosity_level=0):
+    def pcsf(self, pruning="strong", verbosity_level=0, rooted=True):
         """
         Select the subgraph which approximately optimizes the Prize-Collecting Steiner Forest objective.
 
@@ -276,7 +277,7 @@ class Graph:
         elif self.params.dummy_mode == 'all': endpoints = all
         else: raise ValueError("Improper input to PCSF: dummy_mode must be one of 'terminals', 'other', or 'all'")
 
-        dummy_edges, dummy_costs, root, dummy_prize = self._add_dummy_node(connected_to=endpoints)
+        dummy_edges, dummy_costs, dummy_id, dummy_prize = self._add_dummy_node(connected_to=endpoints, rooted=rooted)
 
         # `edges`: a 2D int64 array. Each row (of length 2) specifies an undirected edge in the input graph. The nodes are labeled 0 to n-1, where n is the number of nodes.
         edges = np.concatenate((self.edges, dummy_edges))
@@ -285,6 +286,7 @@ class Graph:
         # `costs`: the edge costs as a 1D float64 array.
         costs = np.concatenate((self.costs, dummy_costs))
         # `root`: the root note for rooted PCST. For the unrooted variant, this parameter should be -1.
+        root = dummy_id if rooted else -1
         # `num_clusters`: the number of connected components in the output.
         num_clusters = 1
         # `pruning`: a string value indicating the pruning method. Possible values are `'none'`, `'simple'`, `'gw'`, and `'strong'` (all literals are case-insensitive).
@@ -297,7 +299,7 @@ class Graph:
         # `edge_indices`: indices of the edges in the output as a 1D int64 array. The list contains indices into the list of edges passed into the function.
 
         # Remove the dummy node and dummy edges for convenience
-        vertex_indices = vertex_indices[vertex_indices != root]
+        vertex_indices = vertex_indices[vertex_indices != dummy_id]
         edge_indices = edge_indices[np.in1d(edge_indices, self.interactome_dataframe.index)]
 
         return vertex_indices, edge_indices
