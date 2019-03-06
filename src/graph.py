@@ -83,7 +83,7 @@ class Graph:
             params (dict): params with which to run the program
         """
 
-        self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t')
+        self.interactome_dataframe = pd.read_csv(interactome_file, sep='\t', na_filter=False)
         self.interactome_graph = nx.from_pandas_edgelist(self.interactome_dataframe, 'protein1', 'protein2', edge_attr=self.interactome_dataframe.columns[2:].tolist())
 
         # Convert the interactome dataframe from string interactor IDs to integer interactor IDs.
@@ -165,7 +165,7 @@ class Graph:
             prize_file (str or FILE): a filepath or file object containing a tsv **with column headers**.
         """
 
-        prizes_dataframe = pd.read_csv(prize_file, sep='\t')
+        prizes_dataframe = pd.read_csv(prize_file, sep='\t', na_filter=False)
         prizes_dataframe.columns = ['name', 'prize'] + prizes_dataframe.columns[2:].tolist()
         prizes_dataframe['prize'] = pd.to_numeric(prizes_dataframe['prize'])
 
