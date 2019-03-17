@@ -4,7 +4,6 @@ output/*
 src/testing**.ipynb
 PCSF_compare/*
 example/db/
-example/OI2_pipeline_data/
 
 # sftp-configs
 sftp-config.json
