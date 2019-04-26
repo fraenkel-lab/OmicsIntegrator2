@@ -25,6 +25,8 @@ import networkx as nx
 from networkx.readwrite import json_graph as nx_json
 import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
+from scipy import stats
+from scipy.spatial import distance
 
 # Lab modules
 from pcst_fast import pcst_fast
@@ -744,6 +746,95 @@ def filter_graph_by_component_size(nxgraph, min_size=5):
     filtered_subgraph.remove_nodes_from(flatten(small_components))
 
     return filtered_subgraph
+##############################################################################################################################################
+            #######            Results Added by OA 04/24/19 as an supplement to  get_robust_subgraph_from_randomizations         #######
+##############################################################################################################################################
+
+def get_robust_subgraph_from_randomizations_smartly(graph, max_size=400, min_component_size=5, min_robustness=0.1): 
+    
+    # Handle empty graph inputs
+    if graph.number_of_nodes() == 0: return nx.empty_graph(0)
+    
+    # Filter out low robustness nodes, return empty graph if none pass the threshold
+    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(graph)
+    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] >= min_robustness]
+    if len(node_attributes_df) == 0: return nx.empty_graph(0)
+    
+    # Test increments for `max_size`
+    for i in np.arange(min(max_size, len(node_attributes_df)), len(node_attributes_df)+50, 50): 
+        
+        subgraph = get_robust_subgraph_from_randomizations(graph, max_size=i, min_component_size=min_component_size)
+        # If candidate subgraph is under `max_size`, try next threshold. Otherwise, return the previous solution.
+        if subgraph.number_of_nodes() <= max_size: 
+            subgraph_out = subgraph
+        else: 
+            return subgraph_out
+    
+    return subgraph_out
+def generate_basic_statistics(results):
+    robust_summary = {}
+    nodes_in_each_robust_network = {}
+    for paramstring, forests in results.items(): 
+        
+        robust_network = forests["robust"]
+    
+        if robust_network.number_of_nodes() != 0: 
+            
+            robust_df = get_networkx_graph_as_dataframe_of_nodes(robust_network)
+            nodes_in_each_robust_network[paramstring] = list(robust_df.index) #to get list of nodes in network
+            robust_summary[paramstring] = {
+                "W": paramstring.split("_")[1],
+                "B": paramstring.split("_")[3],
+                "G": paramstring.split("_")[5],
+                "size": len(robust_df), 
+                "min_robustness":   robust_df.robustness.min(), 
+                "mean_robustness":  robust_df.robustness.mean(), 
+                "max_specificity":  robust_df.specificity.max(),
+                "mean_specificity": robust_df.specificity.mean(), 
+                "mean_log_degree": np.log2(robust_df.degree).mean(), 
+                "std_log_degree": np.log2(robust_df.degree).std()
+            }
+            
+    robust_summary = pd.DataFrame.from_dict(robust_summary, orient='index')
+    return (robust_summary, nodes_in_each_robust_network)
+def get_degrees_for_interactome_smartly(node_attributes_df):
+    numpy_degrees_of_interactome = np.array([node_attributes_df.loc[k, 'degree'] for k in node_attributes_df.index])
+    return numpy_degrees_of_interactome
+def get_degrees_for_each_robust_network(node_dict, graph):
+    degrees_for_nodes_in_each_robust_network ={}
+    for key in node_dict:
+        nodes_in_a_robust_network = node_dict[key]
+        degrees_for_each_node = graph.node_attributes.reindex(nodes_in_a_robust_network)['degree']
+        degrees_for_nodes_in_each_robust_network[key] = np.array(degrees_for_each_node)
+    return degrees_for_nodes_in_each_robust_network
+
+def calculate_ks_statistics(degree_for_each_robust_network, degree_for_interactome, robust_summary):
+    list_of_ks_stat = []
+    for network in degree_for_each_robust_network:
+        ks_stat = stats.ks_2samp(np.log2(degree_for_each_robust_network[network]) , np.log2(degree_for_interactome))
+        list_of_ks_stat.append(ks_stat[0])
+    robust_summary['KS_Statistics'] = list_of_ks_stat
+    return robust_summary
+
+def find_min_euclidean_distance(robust_summary):
+    row_names = robust_summary.index
+    ideal_robustness_and_spec = (1,0)
+    list_of_euclidean_distance = []
+    for i in range(len(row_names)):
+        x = robust_summary['mean_robustness'][i]
+        y = robust_summary['mean_specificity'][i]
+        robustness_and_specificity_for_a_parameter =(x,y)
+        dist = distance.euclidean(robustness_and_specificity_for_a_parameter, ideal_robustness_and_spec)
+        list_of_euclidean_distance.append(dist)
+    robust_summary['Euclidean Distance'] = list_of_euclidean_distance
+    return robust_summary
+
+
+##############################################################################################################################################
+            #######            Results Added by OA 04/24/19         #######
+##############################################################################################################################################
+
+
 
 
 ###############################################################################
