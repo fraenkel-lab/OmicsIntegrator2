@@ -583,6 +583,48 @@ class Graph:
         return self.grid_randomization(prize_file, Ws, Bs, Gs, 0, 0)
 
 
+    ###########################################################################
+                #######          Summarize randomization results          #######
+    ###########################################################################
+
+    def generate_basic_statistics(self, results): 
+        """
+        Summarizes robust network randomization results
+
+        Arguments: 
+            results (dict of networkx): randomization results from `grid_randomization` 
+
+        Returns: 
+            pd.DataFrame: summary of each robust network
+        """
+        robust_summary = {}
+
+        for paramstring, forests in results.items(): 
+            
+            robust_network = forests["robust"]
+        
+            if robust_network.number_of_nodes() != 0: 
+                
+                robust_df = get_networkx_graph_as_dataframe_of_nodes(robust_network)
+                robust_summary[paramstring] = {
+                    "W": paramstring.split("_")[1],
+                    "B": paramstring.split("_")[3],
+                    "G": paramstring.split("_")[5],
+                    "size": len(robust_df), 
+                    "min_robustness":   robust_df.robustness.min(), 
+                    "mean_robustness":  robust_df.robustness.mean(), 
+                    "max_specificity":  robust_df.specificity.max(),
+                    "mean_specificity": robust_df.specificity.mean(), 
+                    "mean_log_degree": np.log2(robust_df.degree).mean(), 
+                    "std_log_degree": np.log2(robust_df.degree).std(), 
+                    "KS_statistic": stats.ks_2samp(np.log2(robust_df.degree), np.log2(self.node_attributes.degree))[0]
+                }
+                
+        robust_summary = pd.DataFrame.from_dict(robust_summary, orient='index')
+        robust_summary["euclidean_distance"] = ((1 - robust_summary.mean_robustness) ** 2 + robust_summary.mean_specificity ** 2) ** 0.5
+
+        return robust_summary
+
 
 ###############################################################################
             #######          Subgraph Augmentation        #######
@@ -771,69 +813,6 @@ def get_robust_subgraph_from_randomizations_smartly(graph, max_size=400, min_com
             return subgraph_out
     
     return subgraph_out
-def generate_basic_statistics(results):
-    robust_summary = {}
-    nodes_in_each_robust_network = {}
-    for paramstring, forests in results.items(): 
-        
-        robust_network = forests["robust"]
-    
-        if robust_network.number_of_nodes() != 0: 
-            
-            robust_df = get_networkx_graph_as_dataframe_of_nodes(robust_network)
-            nodes_in_each_robust_network[paramstring] = list(robust_df.index) #to get list of nodes in network
-            robust_summary[paramstring] = {
-                "W": paramstring.split("_")[1],
-                "B": paramstring.split("_")[3],
-                "G": paramstring.split("_")[5],
-                "size": len(robust_df), 
-                "min_robustness":   robust_df.robustness.min(), 
-                "mean_robustness":  robust_df.robustness.mean(), 
-                "max_specificity":  robust_df.specificity.max(),
-                "mean_specificity": robust_df.specificity.mean(), 
-                "mean_log_degree": np.log2(robust_df.degree).mean(), 
-                "std_log_degree": np.log2(robust_df.degree).std()
-            }
-            
-    robust_summary = pd.DataFrame.from_dict(robust_summary, orient='index')
-    return (robust_summary, nodes_in_each_robust_network)
-def get_degrees_for_interactome_smartly(node_attributes_df):
-    numpy_degrees_of_interactome = np.array([node_attributes_df.loc[k, 'degree'] for k in node_attributes_df.index])
-    return numpy_degrees_of_interactome
-def get_degrees_for_each_robust_network(node_dict, graph):
-    degrees_for_nodes_in_each_robust_network ={}
-    for key in node_dict:
-        nodes_in_a_robust_network = node_dict[key]
-        degrees_for_each_node = graph.node_attributes.reindex(nodes_in_a_robust_network)['degree']
-        degrees_for_nodes_in_each_robust_network[key] = np.array(degrees_for_each_node)
-    return degrees_for_nodes_in_each_robust_network
-
-def calculate_ks_statistics(degree_for_each_robust_network, degree_for_interactome, robust_summary):
-    list_of_ks_stat = []
-    for network in degree_for_each_robust_network:
-        ks_stat = stats.ks_2samp(np.log2(degree_for_each_robust_network[network]) , np.log2(degree_for_interactome))
-        list_of_ks_stat.append(ks_stat[0])
-    robust_summary['KS_Statistics'] = list_of_ks_stat
-    return robust_summary
-
-def find_min_euclidean_distance(robust_summary):
-    row_names = robust_summary.index
-    ideal_robustness_and_spec = (1,0)
-    list_of_euclidean_distance = []
-    for i in range(len(row_names)):
-        x = robust_summary['mean_robustness'][i]
-        y = robust_summary['mean_specificity'][i]
-        robustness_and_specificity_for_a_parameter =(x,y)
-        dist = distance.euclidean(robustness_and_specificity_for_a_parameter, ideal_robustness_and_spec)
-        list_of_euclidean_distance.append(dist)
-    robust_summary['Euclidean Distance'] = list_of_euclidean_distance
-    return robust_summary
-
-
-##############################################################################################################################################
-            #######            Results Added by OA 04/24/19         #######
-##############################################################################################################################################
-
 
 
 
