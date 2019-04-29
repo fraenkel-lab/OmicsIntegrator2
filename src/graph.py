@@ -587,21 +587,19 @@ class Graph:
                 #######          Summarize randomization results          #######
     ###########################################################################
 
-    def generate_basic_statistics(self, results): 
+    def generate_basic_statistics(self, robust_results): 
         """
         Summarizes robust network randomization results
 
         Arguments: 
-            results (dict of networkx): randomization results from `grid_randomization` 
+            robust_results (dict of networkx): networkx robust subgraphs indexed by paramstring
 
         Returns: 
             pd.DataFrame: summary of each robust network
         """
         robust_summary = {}
 
-        for paramstring, forests in results.items(): 
-            
-            robust_network = forests["robust"]
+        for paramstring, robust_network in robust_results.items(): 
         
             if robust_network.number_of_nodes() != 0: 
                 
@@ -738,7 +736,7 @@ def summarize_grid_search(results, mode, top_n=np.Infinity):
     return node_summary_df
 
 
-def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5):
+def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5, min_robustness=0):
     """
     Given a graph with robustness attributes, take the top `max_size` robust nodes and
     prune any "small" components.
@@ -760,14 +758,22 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
 
     # Get indices of top nodes sorted by high robustness, then low specificity. Don't allow nodes with robustness = 0.
     node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(nxgraph)
-    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > 0]
+    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] > min_robustness]
     node_attributes_df.sort_values(["robustness", "specificity"], ascending=[False, True], inplace=True)
-    top_hits = node_attributes_df.index[:min(max_size,len(node_attributes_df))]
-    # Get robust subnetwork and remove small components.
-    robust_network = nxgraph.subgraph(top_hits)
-    robust_network = filter_graph_by_component_size(robust_network, min_component_size)
 
-    return robust_network
+    # Find the largest subgraph of `nxgraph` such that the number of nodes, after filtering out small components, is 
+    # not more than `max_size`. This is accomplished by progressively loosening the threshold for inclusion in the subgraph. 
+    for top_n in np.arange(min(max_size, len(node_attributes_df)), len(node_attributes_df)+1): 
+        # Get robust subnetwork and remove small components.
+        robust_network = nxgraph.subgraph(node_attributes_df.index[:top_n])
+        robust_network = filter_graph_by_component_size(robust_network, min_component_size)
+
+        if robust_network.number_of_nodes() <= max_size: 
+            robust_network_out = robust_network
+        else: 
+            return robust_network_out
+
+    return robust_network_out
 
 
 def filter_graph_by_component_size(nxgraph, min_size=5):
@@ -788,32 +794,6 @@ def filter_graph_by_component_size(nxgraph, min_size=5):
     filtered_subgraph.remove_nodes_from(flatten(small_components))
 
     return filtered_subgraph
-##############################################################################################################################################
-            #######            Results Added by OA 04/24/19 as an supplement to  get_robust_subgraph_from_randomizations         #######
-##############################################################################################################################################
-
-def get_robust_subgraph_from_randomizations_smartly(graph, max_size=400, min_component_size=5, min_robustness=0.1): 
-    
-    # Handle empty graph inputs
-    if graph.number_of_nodes() == 0: return nx.empty_graph(0)
-    
-    # Filter out low robustness nodes, return empty graph if none pass the threshold
-    node_attributes_df = get_networkx_graph_as_dataframe_of_nodes(graph)
-    node_attributes_df = node_attributes_df[node_attributes_df["robustness"] >= min_robustness]
-    if len(node_attributes_df) == 0: return nx.empty_graph(0)
-    
-    # Test increments for `max_size`
-    for i in np.arange(min(max_size, len(node_attributes_df)), len(node_attributes_df)+50, 50): 
-        
-        subgraph = get_robust_subgraph_from_randomizations(graph, max_size=i, min_component_size=min_component_size)
-        # If candidate subgraph is under `max_size`, try next threshold. Otherwise, return the previous solution.
-        if subgraph.number_of_nodes() <= max_size: 
-            subgraph_out = subgraph
-        else: 
-            return subgraph_out
-    
-    return subgraph_out
-
 
 
 ###############################################################################
