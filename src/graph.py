@@ -591,7 +591,7 @@ class Graph:
         Summarizes robust network randomization results
 
         Arguments: 
-            robust_results (dict of networkx): networkx robust subgraphs indexed by paramstring
+            robust_results (dict of networkx): {paramstring: robust network (networkx)}
 
         Returns: 
             pd.DataFrame: summary of each robust network
@@ -618,7 +618,6 @@ class Graph:
                 }
                 
         robust_summary = pd.DataFrame.from_dict(robust_summary, orient='index')
-        robust_summary["euclidean_distance"] = ((1 - robust_summary.mean_robustness) ** 2 + robust_summary.mean_specificity ** 2) ** 0.5
 
         return robust_summary
 
@@ -767,6 +766,9 @@ def get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component
         robust_network = nxgraph.subgraph(node_attributes_df.index[:top_n])
         robust_network = filter_graph_by_component_size(robust_network, min_component_size)
 
+        # The number of nodes in robust network is monotonically increasing with `top_n`, so once a robust network is found
+        # such that the number of nodes exceeds `max_size`, we do not need to iterate through the rest of the for loop and
+        # can return the last valid robust network. 
         if robust_network.number_of_nodes() <= max_size: 
             robust_network_out = robust_network
         else: 
