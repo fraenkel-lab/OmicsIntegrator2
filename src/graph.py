@@ -26,7 +26,6 @@ from networkx.readwrite import json_graph as nx_json
 import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
 from scipy import stats
-from scipy.spatial import distance
 
 # Lab modules
 from pcst_fast import pcst_fast
