@@ -604,17 +604,17 @@ class Graph:
                 
                 robust_df = get_networkx_graph_as_dataframe_of_nodes(robust_network)
                 robust_summary[paramstring] = {
-                    "W": paramstring.split("_")[1],
-                    "B": paramstring.split("_")[3],
-                    "G": paramstring.split("_")[5],
-                    "size": len(robust_df), 
+                    "W":                paramstring.split("_")[1],
+                    "B":                paramstring.split("_")[3],
+                    "G":                paramstring.split("_")[5],
+                    "size":             len(robust_df), 
                     "min_robustness":   robust_df.robustness.min(), 
                     "mean_robustness":  robust_df.robustness.mean(), 
                     "max_specificity":  robust_df.specificity.max(),
                     "mean_specificity": robust_df.specificity.mean(), 
-                    "mean_log_degree": np.log2(robust_df.degree).mean(), 
-                    "std_log_degree": np.log2(robust_df.degree).std(), 
-                    "KS_statistic": stats.ks_2samp(np.log2(robust_df.degree), np.log2(self.node_attributes.degree))[0]
+                    "mean_log_degree":  np.log2(robust_df.degree).mean(), 
+                    "std_log_degree":   np.log2(robust_df.degree).std(), 
+                    "KS_statistic":     stats.ks_2samp(np.log2(robust_df.degree), np.log2(self.node_attributes.degree))[0]
                 }
                 
         robust_summary = pd.DataFrame.from_dict(robust_summary, orient='index')
