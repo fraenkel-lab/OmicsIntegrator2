@@ -24,7 +24,8 @@ setup(
         "python-louvain",
         "goenrich",
         "sklearn",
-        "axial"
+        "axial",
+        "scipy"
     ],
     entry_points={
         'console_scripts': [
