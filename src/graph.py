@@ -689,7 +689,9 @@ def annotate_graph_nodes(nxgraph):
     except:
         annotation = pd.read_pickle(Path.cwd() / 'annotation' / 'final_annotation.pickle')
 
-    nx.set_node_attributes(nxgraph, annotation.reindex(list(nxgraph.nodes())).dropna(how='all').to_dict(orient='index'))
+    # Dictionary mapping nodes to dictionaries of annotations. This roundabout implementation excludes missing annotations to accomodate `nx.write_graphml`. 
+    node_annotations_dic = annotation.reindex(nxgraph.nodes()).apply(lambda x: x.dropna().to_dict(), axis=1).to_dict()
+    nx.set_node_attributes(nxgraph, node_annotations_dic)
 
 
 ###############################################################################
