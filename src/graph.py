@@ -689,9 +689,11 @@ def annotate_graph_nodes(nxgraph):
     except:
         annotation = pd.read_pickle(Path.cwd() / 'annotation' / 'final_annotation.pickle')
 
-    # Dictionary mapping nodes to dictionaries of annotations. This roundabout implementation excludes missing annotations to accomodate `nx.write_graphml`. 
-    node_annotations_dic = annotation.reindex(nxgraph.nodes()).apply(lambda x: x.dropna().to_dict(), axis=1).to_dict()
-    nx.set_node_attributes(nxgraph, node_annotations_dic)
+    annotation = annotation.reindex(nxgraph.nodes())
+    # The second argument is a dictionary keyed by nodes mapped to a dictionary of features. This implementation takes care to exclude
+    # any attributes that are missing. Missing values may result in networkx node attributes of mixed type which causes `nx.write_graphml` to 
+    # generate bad data. More on this [here](https://github.com/networkx/networkx/issues/3167).
+    nx.set_node_attributes(nxgraph, annotation.apply(lambda x: x.dropna().to_dict(), axis=1).to_dict())
 
 
 ###############################################################################
