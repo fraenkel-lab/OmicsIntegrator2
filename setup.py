@@ -29,7 +29,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'OmicsIntegrator = src.__main__:main',
+            'OmicsIntegrator = OmicsIntegrator.__main__:main',
         ]
     },
 )
