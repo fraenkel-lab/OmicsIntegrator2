@@ -23,13 +23,13 @@ setup(
         "pcst_fast==1.0.7",
         "python-louvain",
         "goenrich",
-        "sklearn",
+        "scikit-learn",
         "axial",
         "scipy"
     ],
     entry_points={
         'console_scripts': [
-            'OmicsIntegrator = src.__main__:main',
+            'OmicsIntegrator = OmicsIntegrator.__main__:main',
         ]
     },
 )
