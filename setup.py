@@ -23,7 +23,7 @@ setup(
         "pcst_fast==1.0.7",
         "python-louvain",
         "goenrich",
-        "sklearn",
+        "scikit-learn",
         "axial",
         "scipy"
     ],
