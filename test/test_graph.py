@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-sys.path.insert(0,'/Users/alex/Documents/OmicsIntegrator2/src')
+# get module for testing
+sys.path.insert(0,os.path.abspath(os.path.join('../src')))
 import graph as oi
 oi.logger.setLevel(logging.WARNING)
 
@@ -371,14 +372,16 @@ class Test_Oi2(object):
 
     def test_get_robust_subgraph_from_randomizations(self):
         print("test_get_robust_subgraph_from_randomizations")
-        oi.get_robust_subgraph_from_randomizations(nxgraph, max_size=400, min_component_size=5)
+        robust_nets = {param:oi.get_robust_subgraph_from_randomizations(forests["augmented_forest"], max_size=400, min_component_size=5) for param,forests in self.results.items()}
+
         # unknown what should be tested here
         print("...pass")
 
 
     def test_filter_graph_by_component_size(self):
         print("test_filter_graph_by_component_size")
-        oi.filter_graph_by_component_size(nxgraph, min_size=5)
+        filtered_nets = {param:oi.filter_graph_by_component_size(network, 5) for param, network in self.results.items()}
+
         # unknown what should be tested here
         print("...pass")
 
@@ -402,11 +405,14 @@ class Test_Oi2(object):
     def test_get_networkx_graph_as_dataframe_of_edges(self):
         print("test_get_networkx_graph_as_dataframe_of_edges")
         df = oi.get_networkx_graph_as_dataframe_of_edges(self.augmented_forest)
-
+        assert len(df) == len(self.augmented_forest.edges())
+        assert (np.array(self.augmented_forest.edges) == df.iloc[:,:2].values).all()
 
 
         df = oi.get_networkx_graph_as_dataframe_of_edges(self.forest)
         # test that the number of edges in the graph is the length of the df
+        assert len(df) == len(self.forest.edges())
+        assert (np.array(self.forest.edges) == df.iloc[:,:2].values).all()
 
         print("...pass")
 
@@ -481,14 +487,14 @@ if __name__ == '__main__':
 
         ###  Results
         test.test_summarize_grid_search()  # TODO: @iamjli
-        # test.test_get_robust_subgraph_from_randomizations()  # TODO: @iamjli
-        # test.test_filter_graph_by_component_size()  # TODO: @iamjli
+        test.test_get_robust_subgraph_from_randomizations()  # TODO: @iamjli
+#         test.test_filter_graph_by_component_size()  # TODO: @velina (for now tested as part of get_robust_subgraph)
 
         ###  Export
         test.test_get_networkx_graph_as_dataframe_of_nodes()
         test.test_get_networkx_graph_as_dataframe_of_edges()
         test.test_output_networkx_graph_as_pickle()
-        # test.test_output_networkx_graph_as_graphml_for_cytoscape()  # TODO: @zfrenchee requires networkx fix
+        test.test_output_networkx_graph_as_graphml_for_cytoscape()  # TODO: @zfrenchee requires networkx fix
         test.test_output_networkx_graph_as_interactive_html()
 
 

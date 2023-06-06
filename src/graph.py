@@ -8,6 +8,7 @@ import logging
 import random
 import numbers
 import math
+import pickle
 
 # Peripheral python modules
 import argparse
@@ -23,7 +24,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from networkx.readwrite import json_graph as nx_json
-import community    # pip install python-louvain
+# import community    # pip install python-louvain
 from sklearn.cluster import SpectralClustering
 from scipy import stats
 
@@ -319,6 +320,10 @@ class Graph:
         if len(vertex_indices) == 0:
             logger.warning("The resulting Forest is empty. Try different parameters.")
             return nx.empty_graph(0), nx.empty_graph(0)
+        
+        # Verify int type for vertex and edge indices
+        vertex_indices = np.array(vertex_indices).astype(np.int64)
+        edge_indices = np.array(edge_indices).astype(np.int64)
 
         # Replace the edge indices with the actual edges (protein1 name, protein2 name) by indexing into the interactome
         edges = self.interactome_dataframe.loc[edge_indices]
@@ -464,7 +469,7 @@ class Graph:
         return vertex_indices_df, edge_indices_df
 
 
-    def randomizations(self, noisy_edges_reps=0, random_terminals_reps=0):
+    def randomizations(self, noisy_edges_reps=0, random_terminals_reps=0, seed=None):
         """
         Macro function which performs randomizations and merges the results
 
@@ -480,7 +485,9 @@ class Graph:
             networkx.Graph: augmented_forest
         """
 
-        if self.params.seed: random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
+        if seed is None:
+            seed = self.params.seed
+        if seed: random.seed(seed); np.random.seed(seed=seed)
 
         # For single PCSF run
         if noisy_edges_reps == random_terminals_reps == 0:
@@ -498,7 +505,7 @@ class Graph:
         if forest.number_of_nodes() == 0: return forest, augmented_forest
 
         # reindex `vertex_indices` by name: basically we "dereference" the vertex indices to vertex names
-        vertex_indices.index = self.nodes[vertex_indices.index.values]
+        vertex_indices.index = self.nodes[vertex_indices.index.values.astype(np.int64)]
 
         nx.set_node_attributes(forest,           vertex_indices.reindex(list(forest.nodes())).dropna(how='all').to_dict(orient='index'))
         nx.set_node_attributes(augmented_forest, vertex_indices.reindex(list(augmented_forest.nodes())).dropna(how='all').to_dict(orient='index'))
@@ -510,7 +517,7 @@ class Graph:
                 #######          Grid Search          #######
     ###########################################################################
 
-    def _eval_PCSF_runs(self, params):
+    def _eval_PCSF_runs(self, params, seed=None):
         """
         Convenience method which sets parameters and performs PCSF randomizations.
 
@@ -529,7 +536,7 @@ class Graph:
         if params["noisy_edge_reps"] == params["random_terminals_reps"] == 0: logger.info("Single PCSF run for " + paramstring)
         else: logger.info("Randomizations for " + paramstring)
 
-        forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"])
+        forest, augmented_forest = self.randomizations(params["noisy_edge_reps"], params["random_terminals_reps"], seed=seed)
 
         return paramstring, forest, augmented_forest
 
@@ -555,8 +562,16 @@ class Graph:
         self.prepare_prizes(prize_file)
 
         param_sets = [{'w': w, 'b': b, 'g': g, 'noisy_edge_reps': noisy_edges_reps, 'random_terminals_reps': random_terminals_reps} for (w, b, g) in product(Ws, Bs, Gs)]
+        
+        if self.params.seed:
+            # Set initial seed for reproducibility
+            logger.info(f"Running grid_randomization with initial seed {self.params.seed}")
+            random.seed(self.params.seed); np.random.seed(seed=self.params.seed)
+        
+        # Generate list of seeds for all paramsets
+        seedlist = np.random.choice(100000, size=len(param_sets), replace=False)
 
-        results = pool.map(self._eval_PCSF_runs, param_sets)
+        results = pool.starmap(self._eval_PCSF_runs, zip(param_sets, seedlist))
         # Convert to dictionary format
         results = {paramstring: {"forest": forest, "augmented_forest": augmented_forest} for paramstring, forest, augmented_forest in results }
 
@@ -638,7 +653,7 @@ def betweenness(nxgraph):
     nx.set_node_attributes(nxgraph, {node: {'betweenness':betweenness} for node,betweenness in nx.betweenness_centrality(nxgraph).items()})
 
 
-def louvain_clustering(nxgraph):
+def louvain_clustering(nxgraph, resolution=1, seed=1):
     """
     Compute "Louvain"/"Community" clustering on a networkx graph, and add the cluster labels as attributes on the nodes.
 
@@ -646,7 +661,9 @@ def louvain_clustering(nxgraph):
     Arguments:
         nxgraph (networkx.Graph): a networkx graph, usually the augmented_forest.
     """
-    nx.set_node_attributes(nxgraph, {node: {'louvain_clusters':str(cluster)} for node,cluster in community.best_partition(nxgraph).items()})
+    
+    clustering = pd.Series(invert(nx.community.louvain_communities(nxgraph, resolution=resolution, seed=seed)), name='louvain_clusters').astype(str).reindex(nxgraph.nodes())
+    nx.set_node_attributes(nxgraph, clustering.to_frame().to_dict(orient='index'))
 
 
 def k_clique_clustering(nxgraph, k):
@@ -687,7 +704,11 @@ def annotate_graph_nodes(nxgraph):
     try:
         annotation = pd.read_pickle(get_path('OmicsIntegrator', 'annotation/final_annotation.pickle'))
     except:
-        annotation = pd.read_pickle(Path.cwd() / 'annotation' / 'final_annotation.pickle')
+        try:
+            annotation = pd.read_pickle(Path.cwd() / 'annotation' / 'final_annotation.pickle')
+        except:
+            # For testing scenarios
+            annotation = pd.read_pickle('../src/annotation/final_annotation.pickle')
 
     annotation = annotation.reindex(nxgraph.nodes())
     # The second argument is a dictionary keyed by nodes mapped to a dictionary of features. This implementation takes care to exclude
@@ -795,7 +816,7 @@ def filter_graph_by_component_size(nxgraph, min_size=5):
 
     filtered_subgraph = nxgraph.copy()
 
-    small_components = [g.nodes() for g in nx.connected_component_subgraphs(nxgraph, copy=False) if g.number_of_nodes() < min_size]
+    small_components = [nxgraph.subgraph(c).nodes() for c in nx.connected_components(nxgraph) if len(c) < min_size]
     filtered_subgraph.remove_nodes_from(flatten(small_components))
 
     return filtered_subgraph
@@ -840,7 +861,8 @@ def output_networkx_graph_as_pickle(nxgraph, output_dir=".", filename="pcsf_resu
     path = Path(output_dir)
     path.mkdir(exist_ok=True, parents=True)
     path = path / filename
-    nx.write_gpickle(nxgraph, open(path, 'wb'))
+    with open(path, 'wb') as f:
+        pickle.dump(nxgraph, f, pickle.HIGHEST_PROTOCOL)
 
     return path.resolve()
 
