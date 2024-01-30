@@ -55,7 +55,6 @@ class Options(object):
     def __repr__(self):
         return dict(self.__dict__)
 
-
 class Graph:
     """
     A Graph object is a representation of a graph, with convenience methods for using the pcst_fast
