@@ -27,7 +27,8 @@ setup(
         "python-louvain",
         "goenrich==1.7.0",
         "scikit-learn==1.4",
-        "axial>=0.2.2"
+        "axial>=0.2.2",
+        "matplotlib>=3.8.2"
     ],
     entry_points={
         'console_scripts': [
