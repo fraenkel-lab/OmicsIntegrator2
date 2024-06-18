@@ -26,7 +26,7 @@ setup(
         "pcst_fast==1.0.10",
         "python-louvain",
         "goenrich==1.7.0",
-        "scikit-learn==1.4",
+        "scikit-learn==1.5.0",
         "axial>=0.2.2",
         "matplotlib>=3.8.2"
     ],
